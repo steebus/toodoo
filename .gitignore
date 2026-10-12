@@ -1,0 +1,11 @@
+node_modules
+dist
+.env*
+!.env*.example
+.env.test.local
+.env.import
+scripts/artifact-export
+.superpowers
+.convex
+.env.local
+docs/private/

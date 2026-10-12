@@ -1,0 +1,7 @@
+{
+  "name": "toodoo",
+  "owner": { "name": "Steve Jones" },
+  "plugins": [
+    { "name": "toodoo", "source": "./toodoo", "description": "Use Steve's toodoo planner: morning plan run, adding tasks, what-next and planning." }
+  ]
+}

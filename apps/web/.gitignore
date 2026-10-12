@@ -1,0 +1,5 @@
+.impeccable/questions
+.impeccable/config.local.json
+.impeccable/mocks/
+.impeccable/prompts/
+.impeccable/decision-payload.json
