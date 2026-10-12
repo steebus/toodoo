@@ -1,5 +1,5 @@
 import { m } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import type { NewTask } from "../lib/useActions";
 import { QuickAdd } from "./QuickAdd";
 
@@ -10,16 +10,27 @@ const TABS: { tab: Tab; label: string; panel: string }[] = [
 ];
 
 // The phone's two rooms: the list and the line. The ink bar under the active tab slides between them.
+// A tablist: arrows (and Home / End) move between the tabs and select as they go.
 export function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+  const key = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = TABS.findIndex((t) => t.tab === tab);
+    const to = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i + TABS.length - 1) % TABS.length
+      : e.key === "Home" ? 0 : e.key === "End" ? TABS.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    onTab(TABS[to].tab);
+    e.currentTarget.querySelectorAll<HTMLElement>("[role=tab]")[to]?.focus();
+  };
   return (
-    <nav className="tabs" aria-label="View">
+    <div className="tabs" role="tablist" aria-label="View" onKeyDown={key}>
       {TABS.map((t) => (
-        <button key={t.tab} type="button" className="tab" aria-pressed={tab === t.tab} aria-controls={t.panel} onClick={() => onTab(t.tab)}>
+        <button key={t.tab} id={`tab-${t.tab}`} type="button" role="tab" className="tab" aria-selected={tab === t.tab}
+          tabIndex={tab === t.tab ? 0 : -1} aria-controls={t.panel} onClick={() => onTab(t.tab)}>
           {t.label}
           {tab === t.tab && <m.span className="tab-ink" layoutId="tab-ink" aria-hidden />}
         </button>
       ))}
-    </nav>
+    </div>
   );
 }
 

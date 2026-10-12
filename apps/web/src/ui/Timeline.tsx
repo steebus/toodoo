@@ -4,7 +4,7 @@ import { m } from "motion/react";
 import { layoutLanes, SNAP, toHM } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
-import { clampBlock, deltaMin, hitSlot, moveBlock, openHour, widenRange, type Placed } from "../lib/timeline";
+import { clampBlock, dragBlock, moveBlock, openHour, slotAt, widenRange, type Placed } from "../lib/timeline";
 import { useIsOffline } from "../lib/offline";
 import { buzz } from "../lib/swipe";
 import { useDropHint } from "./DndProvider";
@@ -26,13 +26,8 @@ type Draft = { id: string; start: number; mins: number; via: "key" | "pointer" }
 type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize"; moved: boolean; armed: boolean; k: number };
 
 // The grid's geometry is in comp px (plan.ts); on screen it is scaled by the frame's --u, like the rest of
-// the print. px() writes a comp length for CSS; scaleOf() reads screen px per comp px for pointer maths.
+// the print. px() writes a comp length for CSS; scale() (in Timeline) measures screen px per comp px.
 const px = (n: number) => `calc(${n} * var(--u))`;
-const scaleOf = (el: Element | null) => {
-  const pass = el?.closest(".pass");
-  const fs = pass ? parseFloat(getComputedStyle(pass).fontSize) : NaN;
-  return fs > 0 ? fs / 16 : 1; // .pass sets font-size: calc(16 * var(--u))
-};
 
 const clockOf = (m: number) => (m >= DAY ? "12:00" : clock12(toHM(m)));
 const range = (s: number, mins: number) => `${clockOf(s)}–${clockOf(s + mins)}`;
@@ -77,11 +72,18 @@ export function Timeline({ plan, board, actions }: Props) {
     [plan, draft],
   );
 
+  // Screen px per comp px, from the grid as drawn: its height over the height it was given in comp px.
+  const scale = () => {
+    const h = grid.current?.getBoundingClientRect().height ?? 0;
+    const c = gridHeight(startM, endM);
+    return h > 0 && c > 0 ? h / c : 1;
+  };
+
   // The visible line is the drop target; the grid inside it says where minutes are.
   const drop = useDroppable({
     id: TIMELINE,
     disabled: !live || offline,
-    data: { gridTop: () => grid.current?.getBoundingClientRect().top ?? 0, startM, endM, scale: () => scaleOf(grid.current) },
+    data: { gridTop: () => grid.current?.getBoundingClientRect().top ?? 0, startM, endM, scale },
   });
 
   useEffect(() => {
@@ -89,10 +91,10 @@ export function Timeline({ plan, board, actions }: Props) {
     const sc = scroller.current;
     if (!sc) return;
     const top = openHour({
-      startM, endM, nowM, viewMins: (sc.clientHeight / scaleOf(sc) * 60) / HOUR_PX,
+      startM, endM, nowM, viewMins: (sc.clientHeight / scale() * 60) / HOUR_PX,
       spans: (blocks.length ? blocks : [{ startM: anchorM, mins: 0 }]).map((b) => ({ s: b.startM, e: b.startM + b.mins })),
     });
-    sc.scrollTop = (((top - startM) * HOUR_PX) / 60) * scaleOf(sc);
+    sc.scrollTop = (((top - startM) * HOUR_PX) / 60) * scale();
   }, [date]); // eslint-disable-line react-hooks/exhaustive-deps -- once per day shown
 
   // A keyboard batch waiting on its idle timer. It is saved early rather than dropped: before a batch starts on
@@ -194,17 +196,17 @@ export function Timeline({ plan, board, actions }: Props) {
 
   const dragTo = (y: number) => {
     const d = drag.current!;
-    const dm = deltaMin((y - d.y0) / d.k);
-    return d.mode === "move" ? moveBlock(d.start + dm, d.mins) : clampBlock(d.start, d.mins + dm);
+    return dragBlock(d, y - d.y0, d.k);
   };
   const pointer = (b: PlanBlock, mode: Drag["mode"]) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       lastPointer.current = e.pointerType;
+      swallowClick.current = false; // whatever the last gesture left unconsumed
       if (offline || e.button !== 0 || draftRef.current?.via === "key") return;
       // The resize grip is a handle (touch-action: none) and takes the finger at once; the body waits for a long press.
       const wait = e.pointerType === "touch" && mode === "move";
       if (!wait) e.currentTarget.setPointerCapture?.(e.pointerId);
-      const d: Drag = { id: b.id, x0: e.clientX, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false, armed: !wait, k: scaleOf(e.currentTarget) };
+      const d: Drag = { id: b.id, x0: e.clientX, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false, armed: !wait, k: scale() };
       drag.current = d;
       clearTimeout(pressTimer.current);
       if (!wait) return;
@@ -273,7 +275,7 @@ export function Timeline({ plan, board, actions }: Props) {
     setCursor(c);
     const sc = scroller.current;
     if (sc) {
-      const k = scaleOf(sc);
+      const k = scale();
       const top = blockTop(c, startM) * k;
       if (top < sc.scrollTop) sc.scrollTop = top - 8;
       else if (top + 40 * k > sc.scrollTop + sc.clientHeight) sc.scrollTop = top + 48 * k - sc.clientHeight;
@@ -312,7 +314,7 @@ export function Timeline({ plan, board, actions }: Props) {
             onClick={(e) => {
               setRevealed(null);
               if (offline || e.target !== e.currentTarget) return;
-              const m = hitSlot((e.clientY - e.currentTarget.getBoundingClientRect().top) / scaleOf(e.currentTarget), startM);
+              const m = slotAt(e.clientY - e.currentTarget.getBoundingClientRect().top, scale(), startM);
               setCursor(m);
               setPicker(m);
             }}

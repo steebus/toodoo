@@ -1,5 +1,5 @@
 import { animate, m, useMotionValue, useTransform, type PanInfo } from "motion/react";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { buzz, SWIPE, swipeEnd } from "../lib/swipe";
 import { CheckIcon } from "./icons";
 import { reducedMotion, SNAPPY } from "./motion";
@@ -40,6 +40,10 @@ export function Swipe({ held, disabled, onTick, onPlan, onTomorrow, children }: 
       go(-SWIPE.rest);
     } else close();
   };
+  // Gone offline (or busy) while it was aside: the actions are no longer allowed, so the paper goes back.
+  useEffect(() => {
+    if (disabled && open) close();
+  }, [disabled]); // eslint-disable-line react-hooks/exhaustive-deps -- only when it becomes disabled
   const act = (fn: () => void) => () => {
     close();
     fn();

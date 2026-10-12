@@ -40,6 +40,7 @@ type Props = {
   arrivals?: Map<string, number>; // dockets that just arrived from elsewhere, and their place in the stagger
   onTomorrow?: (id: string) => void; // set on the phone: dockets swipe (right to bump, left for Plan / Tomorrow)
   swipe?: boolean;
+  tabpanel?: boolean; // on the phone it is one of two tabs
 };
 
 const NO_ARRIVALS = new Map<string, number>();
@@ -100,7 +101,7 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
   return visible;
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const scroll = useRef<HTMLDivElement | null>(null);
 
@@ -123,7 +124,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
   const flight = useAddFlight(groups, scroll, compact);
 
   return (
-    <section id="todo" className={`todo${compact ? " is-compact" : ""}`} aria-labelledby="todo-title">
+    <section id="todo" className={`todo${compact ? " is-compact" : ""}`} aria-labelledby="todo-title" role={tabpanel ? "tabpanel" : undefined}>
       <h2 id="todo-title" className="r-todo-title panel-title">To do</h2>
       <ViewMenu view={view} tags={model.tags} onChange={onView} onSignOut={onSignOut} />
       {span && (

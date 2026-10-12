@@ -824,7 +824,7 @@
     background: var(--surface); border-top: 1px solid var(--rule);
   }
   .pass .tab { position: relative; flex: 1; height: 56px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.02em; color: var(--ink-3); }
-  .pass .tab[aria-pressed="true"] { color: var(--ink); }
+  .pass .tab[aria-selected="true"] { color: var(--ink); }
   .tab-ink { position: absolute; left: 50%; top: -1px; width: 48px; height: 3px; margin-left: -24px; background: var(--ink); border-radius: 0 0 2px 2px; }
   .toast-slot { left: calc(16px + env(safe-area-inset-left)); right: 90px; bottom: calc(80px + env(safe-area-inset-bottom)); transform: none; }
   .toast-msg { flex: 1; min-width: 0; max-width: none; }

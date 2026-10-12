@@ -7,13 +7,13 @@ import type { BoardData, PlanData } from "./types";
 
 export type DayNavProps = { date: string; onDate: (d: string) => void };
 
-type Props = { plan: PlanData; board?: BoardData; actions?: Actions; nav?: DayNavProps };
+type Props = { plan: PlanData; board?: BoardData; actions?: Actions; nav?: DayNavProps; tabpanel?: boolean };
 
 // The Day plan panel: title, all-day chips and day navigation in the header, the line below.
-export function DayPlan({ plan, board, actions, nav }: Props) {
+export function DayPlan({ plan, board, actions, nav, tabpanel }: Props) {
   const { allDay } = plan;
   return (
-    <section id="dayplan" className="dayplan" aria-labelledby="dayplan-title">
+    <section id="dayplan" className="dayplan" aria-labelledby="dayplan-title" role={tabpanel ? "tabpanel" : undefined}>
       <h2 id="dayplan-title" className="r-dayplan-title panel-title">Day plan</h2>
       <div className="dayplan-head">
         {allDay.length > 0 && (

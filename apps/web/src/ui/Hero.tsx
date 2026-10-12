@@ -100,7 +100,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} compact={compact} actions={actions}>
         <Panes split={split}>
-          <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} />
+          <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} tabpanel={narrow} />
           <TodoPanel
             model={model}
             today={board.today}
@@ -120,6 +120,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
             offline={offline}
             arrivals={arrivals}
             swipe={narrow && !!actions}
+            tabpanel={narrow}
             onTomorrow={actions && !offline ? ((id) => void actions.save(id, { due: addDays(board.today, 1) })) : undefined}
           />
         </Panes>

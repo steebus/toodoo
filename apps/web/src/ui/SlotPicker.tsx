@@ -25,6 +25,9 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
   const [sheet] = useState(narrow);
+  // True while the effect's own cleanup closes the dialog and hands focus back: that blur is not the user
+  // leaving (StrictMode runs the effect, its cleanup, then the effect again on mount).
+  const closing = useRef(false);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const id = useId();
@@ -32,6 +35,7 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
 
   useEffect(() => {
     const d = dialog.current!;
+    closing.current = false;
     if (sheet && typeof d.showModal === "function") d.showModal();
     else if (!d.open) d.setAttribute("open", "");
     d.scrollIntoView?.({ block: "nearest" });
@@ -45,6 +49,7 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
       // Back to the opener, unless focus already went somewhere on purpose (Tab out, a click on a control).
       const now = document.activeElement;
       const lost = !now || now === document.body || d.contains(now);
+      closing.current = true;
       if (d.open && typeof d.close === "function") d.close();
       const el = opener.current;
       if (lost && el instanceof HTMLElement && el.isConnected) el.focus();
@@ -102,7 +107,7 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
       onClick={(e) => e.target === dialog.current && sheet && onClose()}
       onBlur={(e) => {
         // The popover is not modal, so focus leaving it closes it (the sheet traps focus itself).
-        if (!sheet && !(e.relatedTarget instanceof Node && dialog.current?.contains(e.relatedTarget))) onClose();
+        if (!sheet && !closing.current && !(e.relatedTarget instanceof Node && dialog.current?.contains(e.relatedTarget))) onClose();
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {

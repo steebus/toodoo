@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BLOCK_LEAD, HOUR_PX, minToPx } from "../ui/plan";
-import { clampBlock, deltaMin, hitSlot, moveBlock, openHour, pxToMin, snap, widenRange } from "./timeline";
+import { minuteUnder } from "./dnd";
+import { clampBlock, deltaMin, dragBlock, hitSlot, moveBlock, openHour, pxToMin, slotAt, snap, widenRange } from "./timeline";
 
 it("px and minutes are inverses of the plan's one mapping", () => {
   for (const m of [0, 360, 615, 1439]) expect(pxToMin(minToPx(m, 360), 360)).toBeCloseTo(m, 6);
@@ -78,5 +79,38 @@ describe("openHour", () => {
   it("stays on the grid", () => {
     expect(openHour({ ...day, spans: [], nowM: null, viewMins: 600 })).toBe(6 * 60);
     expect(openHour({ ...day, spans: [{ s: 6 * 60, e: 7 * 60 }], nowM: null, viewMins: 900 })).toBe(6 * 60);
+  });
+});
+
+// The grid is drawn in comp px scaled by the frame's --u; pointer px divide by it back. Phone (1),
+// a 1440-wide window (0.94) and the narrowest desktop window (0.57) must all land on the same minutes.
+describe.each([0.57, 0.94, 1])("at scale %s", (k) => {
+  const hour = HOUR_PX * k; // one hour, in screen px
+  it("a drag of one screen hour moves a block an hour, snapped to 15m", () => {
+    expect(dragBlock({ start: 600, mins: 60, mode: "move" }, hour, k)).toEqual({ start: 660, mins: 60 });
+    expect(dragBlock({ start: 600, mins: 60, mode: "move" }, (hour * 7) / 60, k)).toEqual({ start: 600, mins: 60 });
+    expect(dragBlock({ start: 600, mins: 60, mode: "move" }, (hour * 8) / 60, k)).toEqual({ start: 615, mins: 60 });
+  });
+  it("a move stays inside 00:00 and 24:00", () => {
+    expect(dragBlock({ start: 1410, mins: 60, mode: "move" }, hour * 2, k)).toEqual({ start: 1380, mins: 60 });
+    expect(dragBlock({ start: 30, mins: 60, mode: "move" }, -hour * 2, k)).toEqual({ start: 0, mins: 60 });
+  });
+  it("a resize keeps at least 15m and stops at midnight", () => {
+    expect(dragBlock({ start: 600, mins: 30, mode: "resize" }, -hour * 2, k)).toEqual({ start: 600, mins: 15 });
+    expect(dragBlock({ start: 1380, mins: 30, mode: "resize" }, hour * 3, k)).toEqual({ start: 1380, mins: 60 });
+  });
+  it("a click picks the slot under it, within the day", () => {
+    const at = (m: number, startM: number) => (minToPx(m, startM) - BLOCK_LEAD + 1) * k;
+    expect(slotAt(at(14 * 60 + 30, 360), k, 360)).toBe(14 * 60 + 30);
+    expect(slotAt(at(14 * 60 + 40, 360), k, 360)).toBe(14 * 60 + 30);
+    expect(slotAt(-500 * k, k, 0)).toBe(0);
+    expect(slotAt(1e5 * k, k, 0)).toBe(24 * 60 - 15);
+  });
+  it("a docket dropped on the line lands on the snapped minute under the pointer", () => {
+    const grid = { gridTop: () => 100, startM: 360, endM: 1260, scale: () => k };
+    const drop = (m: number) => ({ activatorEvent: { clientY: 100 + minToPx(m, 360) * k }, delta: { x: 0, y: 0 } });
+    expect(minuteUnder(drop(17 * 60), grid)).toBe(17 * 60);
+    expect(minuteUnder(drop(17 * 60 + 8), grid)).toBe(17 * 60 + 15);
+    expect(minuteUnder(drop(17 * 60 + 7), grid)).toBe(17 * 60);
   });
 });
