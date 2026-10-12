@@ -39,7 +39,8 @@ function Live({ board, date, onDate }: { board: BoardData; date: string; onDate:
 
 function Home({ cached }: { cached?: string }) {
   const { user } = useAuth();
-  const userId = user?.id ?? cached ?? lastUser();
+  // Never fall back to the stored last user when signed in: a new account would cache under the old key.
+  const userId = user?.id ?? cached;
   useEffect(() => {
     if (user?.id) setLastUser(user.id);
   }, [user?.id]);
