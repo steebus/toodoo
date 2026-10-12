@@ -683,10 +683,11 @@
 
 /* Offline: a small stamp by the wordmark, and every write control goes quiet. */
 .offline-stamp {
-  position: absolute; left: calc(var(--r-wordmark-x) + var(--r-wordmark-w) + 0.4%); top: calc(var(--r-wordmark-y) + 0.7%); padding: 2px 6px 1px;
+  position: absolute; left: calc(var(--r-wordmark-x) + var(--r-wordmark-w) + 1.3%); top: calc(var(--r-wordmark-y) + 0.7%); padding: 2px 6px 1px;
   font-family: var(--font-print); font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--paper-red); border: 1.5px solid var(--paper-red); border-radius: 2px; transform: rotate(-4deg); opacity: 0.85;
   pointer-events: none;
 }
-.pass[data-offline] .dk-bump { opacity: 0.35; pointer-events: none; }
+.plan-block.is-offline :is(.plan-body, .plan-resize, .plan-tick) { cursor: not-allowed; }
+.plan-tick:has(input:disabled) { opacity: 0.4; }
 .pass button:disabled, .pass input:disabled { opacity: 0.4; cursor: not-allowed; }

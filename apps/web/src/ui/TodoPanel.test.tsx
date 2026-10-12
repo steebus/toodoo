@@ -11,6 +11,7 @@ vi.mock("convex/react", () => ({
   Authenticated: ({ children }: any) => children,
   Unauthenticated: () => null,
   AuthLoading: () => null,
+  useConvexConnectionState: () => ({ hasEverConnected: true, isWebSocketConnected: true }),
   useQuery: () => state.board,
   useMutation: () => Object.assign(vi.fn(), { withOptimisticUpdate() { return this; } }),
 }));

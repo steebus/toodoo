@@ -1,3 +1,4 @@
+import { useIsOffline } from "../lib/offline";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { m } from "motion/react";
@@ -79,10 +80,12 @@ type ViewProps = Props & {
 // The paper (plate and print) is one motion layer: when the docket changes rail (bumped into Done today)
 // it travels there, and its neighbours close up behind it. The li stays dnd-kit's alone.
 function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, open: openProps, compact, arrival, inflight }: ViewProps) {
+  const offline = useIsOffline();
   const busy = isOptimistic(d.id);
   const layoutDependency = useLayoutDependency();
   const [drawTick] = useState(() => d.done && !ghost && tickedJustNow(d.id));
   const tick = (done: boolean) => {
+    if (offline) return;
     if (done) ticked.set(d.id, Date.now());
     onTick?.(d.id, done);
     if (onTick && !ghost) focusAfterTick(d.id, done);
@@ -106,7 +109,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
           className="dk-print"
           aria-label={d.title}
           onKeyDown={(e) => {
-            if (e.key === "x" && !busy && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            if (e.key === "x" && !busy && !offline && !e.metaKey && !e.ctrlKey && !e.altKey) {
               e.preventDefault();
               tick(!d.done);
             } else if (e.key === "p" && !busy && !d.done && !e.metaKey && !e.ctrlKey && !e.altKey && onPlan) {
@@ -149,7 +152,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             <button
               type="button"
               className="dk-bump"
-              disabled={busy}
+              disabled={busy || offline}
               aria-label={`${d.done ? "Mark not done" : "Mark done"}: ${d.title}`}
               aria-pressed={d.done}
               onClick={() => tick(!d.done)}
@@ -167,7 +170,8 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
 function SortableDocket(props: Props) {
   const d = props.docket;
   const busy = isOptimistic(d.id);
-  const s = useSortable({ id: d.id, disabled: { draggable: busy || d.done, droppable: busy || d.done || !props.dnd?.manual } });
+  const offline = useIsOffline();
+  const s = useSortable({ id: d.id, disabled: { draggable: busy || offline || d.done, droppable: busy || d.done || !props.dnd?.manual } });
   const style: CSSProperties = {
     transform: CSS.Translate.toString(s.transform),
     transition: s.transition,

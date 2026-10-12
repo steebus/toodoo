@@ -1,6 +1,7 @@
 import { useAuth } from "@workos-inc/authkit-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { clearCache, hasCachedBoard, lastUser, setLastUser, useOffline } from "./lib/offline";
 import { useActions } from "./lib/useActions";
 import { useBoard } from "./lib/useBoard";
 import { useDayChange } from "./lib/useDayChange";
@@ -29,15 +30,32 @@ function FixtureHero() {
 function Live({ board, date, onDate }: { board: BoardData; date: string; onDate: (d: string) => void }) {
   const { signOut } = useAuth();
   const actions = useActions(board);
-  return <Hero board={board} onSignOut={() => signOut()} actions={actions} nav={{ date, onDate }} />;
+  const out = () => {
+    clearCache();
+    void signOut();
+  };
+  return <Hero board={board} onSignOut={out} actions={actions} nav={{ date, onDate }} />;
 }
 
-function Home() {
+function Home({ cached }: { cached?: string }) {
+  const { user } = useAuth();
+  const userId = user?.id ?? cached ?? lastUser();
+  useEffect(() => {
+    if (user?.id) setLastUser(user.id);
+  }, [user?.id]);
   const [date, setDate] = useViewDate();
-  const board = useDayChange(useBoard(date));
+  const board = useDayChange(useBoard(date, userId));
   if (!board) return <HeroShell />;
   // The nav follows the requested day at once, even while its board is still on the way.
   return <Live board={board} date={date ?? board.today} onDate={(d) => setDate(d === board.today ? undefined : d)} />;
+}
+
+// Offline with no way to sign in: the last signed-in person's kept board is shown read-only (Home gates its writes).
+// Once Convex reconnects and auth resolves, the Authenticated path takes over.
+function ColdStart({ children }: { children: ReactNode }) {
+  const offline = useOffline();
+  const last = lastUser();
+  return offline && last && hasCachedBoard(last) ? <Home cached={last} /> : <>{children}</>;
 }
 
 function SignIn() {
@@ -54,8 +72,8 @@ export function App() {
   if (new URLSearchParams(window.location.search).get("fixture") === "1") return <FixtureHero />;
   return (
     <>
-      <AuthLoading>{null}</AuthLoading>
-      <Unauthenticated><SignIn /></Unauthenticated>
+      <AuthLoading><ColdStart>{null}</ColdStart></AuthLoading>
+      <Unauthenticated><ColdStart><SignIn /></ColdStart></Unauthenticated>
       <Authenticated><Home /></Authenticated>
     </>
   );

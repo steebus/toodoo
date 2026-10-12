@@ -3,6 +3,7 @@ import { addDays } from "@shared/planning.ts";
 import { NO_TAG } from "@shared/board.ts";
 import "../styles/layout.css";
 import "./pass.css";
+import { OfflineContext } from "../lib/offline";
 import { isOptimistic, type Actions } from "../lib/useActions";
 import { actionFor } from "../lib/shortcuts";
 import { useStoredView } from "../lib/useStoredView";
@@ -78,6 +79,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
   const celebrate = useCelebration({ date: board.date, done: model.done, total: model.total });
   return (
     <MotionRoot>
+      <OfflineContext value={offline}>
       <div className="pass" data-offline={offline || undefined}>
         <TopBar
           date={model.dateLabel}
@@ -128,6 +130,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
         {help && <HelpSheet onClose={() => setHelp(false)} />}
         {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}
       </div>
+      </OfflineContext>
     </MotionRoot>
   );
 }

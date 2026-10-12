@@ -5,6 +5,7 @@ import { layoutLanes, SNAP, toHM } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
 import { clampBlock, deltaMin, hitSlot, moveBlock, widenRange, type Placed } from "../lib/timeline";
+import { useIsOffline } from "../lib/offline";
 import { useDropHint } from "./DndProvider";
 import { clock12, hourLabel } from "./format";
 import { CheckIcon, DrawnCheck, NowMarker } from "./icons";
@@ -31,6 +32,7 @@ export function Timeline({ plan, board, actions }: Props) {
   const { blocks, nowM, anchorM } = plan;
   const date = board?.date ?? "";
   const live = !!(actions && board);
+  const offline = useIsOffline();
   const scroller = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
   const [draft, setDraftState] = useState<Draft | null>(null);
@@ -60,7 +62,7 @@ export function Timeline({ plan, board, actions }: Props) {
   // The visible line is the drop target; the grid inside it says where minutes are.
   const drop = useDroppable({
     id: TIMELINE,
-    disabled: !live,
+    disabled: !live || offline,
     data: { gridTop: () => grid.current?.getBoundingClientRect().top ?? 0, startM, endM },
   });
 
@@ -140,6 +142,7 @@ export function Timeline({ plan, board, actions }: Props) {
   const onBlockKey = (e: KeyboardEvent, b: PlanBlock) => {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     e.preventDefault();
+    if (offline) return;
     if (pending.current && (pending.current.id !== b.id || pending.current.date !== date)) flush();
     const step = e.key === "ArrowUp" ? -SNAP : SNAP;
     const cur = draftRef.current?.id === b.id ? draftRef.current : { start: b.startM, mins: b.mins };
@@ -157,7 +160,7 @@ export function Timeline({ plan, board, actions }: Props) {
   };
   const pointer = (b: PlanBlock, mode: Drag["mode"]) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
-      if (e.button !== 0 || draftRef.current?.via === "key") return;
+      if (offline || e.button !== 0 || draftRef.current?.via === "key") return;
       e.currentTarget.setPointerCapture?.(e.pointerId);
       drag.current = { id: b.id, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false };
     },
@@ -209,7 +212,7 @@ export function Timeline({ plan, board, actions }: Props) {
     if (e.key in steps) moveCursor(c + steps[e.key]);
     else if (e.key === "Home") moveCursor(startM);
     else if (e.key === "End") moveCursor(endM - SNAP);
-    else if (e.key === "Enter" || e.key === " ") setPicker(c);
+    else if (e.key === "Enter" || e.key === " ") offline || setPicker(c);
     else return;
     e.preventDefault();
   };
@@ -234,7 +237,7 @@ export function Timeline({ plan, board, actions }: Props) {
             onBlur={() => picker === null && setCursor(null)}
             onKeyDown={onSlotsKey}
             onClick={(e) => {
-              if (e.target !== e.currentTarget) return;
+              if (offline || e.target !== e.currentTarget) return;
               const m = hitSlot(e.clientY - e.currentTarget.getBoundingClientRect().top, startM);
               setCursor(m);
               setPicker(m);
@@ -265,7 +268,7 @@ export function Timeline({ plan, board, actions }: Props) {
             const dragging = ghost?.id === b.id;
             const shownAt = at(b);
             const time = shownAt.start === b.startM ? b.time : clockOf(shownAt.start);
-            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}`;
+            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}`;
             const style = {
               top: blockTop(b.startM, startM),
               height: blockHeight(b.mins),
@@ -307,10 +310,10 @@ export function Timeline({ plan, board, actions }: Props) {
                 </button>
                 <span className="plan-acts">
                   <label className="plan-tick">
-                    <input type="checkbox" aria-label={`Done: ${b.title}`} checked={!!b.done} onChange={() => actions!.tick(b.id, !b.done)} />
+                    <input type="checkbox" aria-label={`Done: ${b.title}`} checked={!!b.done} disabled={offline} onChange={() => actions!.tick(b.id, !b.done)} />
                     <DrawnCheck on={!!b.done} size={13} className="plan-tick-mark" />
                   </label>
-                  <button type="button" className="plan-x" aria-label={`Unplan ${b.title}`} onClick={() => actions!.unplace(b.id, date)}>
+                  <button type="button" className="plan-x" disabled={offline} aria-label={`Unplan ${b.title}`} onClick={() => actions!.unplace(b.id, date)}>
                     <span aria-hidden>×</span>
                   </button>
                 </span>
@@ -344,7 +347,7 @@ export function Timeline({ plan, board, actions }: Props) {
             <span className="now-rule" aria-hidden />
           </p>
         )}
-        {live && picker !== null && (
+        {live && !offline && picker !== null && (
           <SlotPicker
             key={picker}
             at={picker}

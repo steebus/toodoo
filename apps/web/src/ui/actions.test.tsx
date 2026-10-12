@@ -13,6 +13,7 @@ vi.mock("convex/react", async () => {
     Authenticated: ({ children }: any) => children,
     Unauthenticated: () => null,
     AuthLoading: () => null,
+    useConvexConnectionState: () => ({ hasEverConnected: true, isWebSocketConnected: true }),
     useQuery: () => state.board,
     useMutation: (ref: any) => {
       const name = getFunctionName(ref).split(":")[1];
@@ -225,4 +226,19 @@ it("after Delete focus goes to quick add", async () => {
   const sheet = await openSheet();
   await userEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
   expect(input()).toHaveFocus();
+});
+
+it("offline, writes are blocked and nothing is sent", async () => {
+  Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+  try {
+    fireEvent(window, new Event("offline"));
+    expect(input()).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Done: Write report/ }));
+    expect(screen.getByRole("button", { name: /Mark done: EMAIL LANDLORD/ })).toBeDisabled();
+    expect(fn("updateTask")).not.toHaveBeenCalled();
+    expect(fn("addTasks")).not.toHaveBeenCalled();
+  } finally {
+    Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+    fireEvent(window, new Event("online"));
+  }
 });

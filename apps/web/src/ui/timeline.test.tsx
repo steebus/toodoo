@@ -14,6 +14,7 @@ vi.mock("convex/react", async () => {
     Authenticated: ({ children }: any) => children,
     Unauthenticated: () => null,
     AuthLoading: () => null,
+    useConvexConnectionState: () => ({ hasEverConnected: true, isWebSocketConnected: true }),
     // The board answers for whatever date was asked, so navigation can be followed.
     useQuery: (_ref: unknown, args: any) => {
       state.args.push(args);

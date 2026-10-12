@@ -13,6 +13,7 @@ vi.mock("convex/react", async () => {
     Authenticated: ({ children }: any) => children,
     Unauthenticated: () => null,
     AuthLoading: () => null,
+    useConvexConnectionState: () => ({ hasEverConnected: true, isWebSocketConnected: true }),
     useQuery: (_ref: unknown, args: any) => {
       const b = state.board as BoardData;
       return b && { ...b, date: args?.date ?? b.date };

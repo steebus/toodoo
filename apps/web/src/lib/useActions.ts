@@ -5,7 +5,7 @@ import { parseDuration, toHM } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { clock12 } from "../ui/format";
 import type { BoardData } from "../ui/types";
-import { useOnline } from "./offline";
+import { useOffline } from "./offline";
 
 export type ToastData = { id: number; kind: "undo" | "error"; message: string; undo?: () => void };
 
@@ -62,6 +62,11 @@ export function useActions(board: BoardData): Actions {
   const dismiss = useCallback(() => setToast(null), []);
   const live = useRef(board);
   live.current = board;
+  // Offline, every write is a quiet no-op (the UI disables its controls; this is the backstop).
+  const offline = useOffline();
+  const open = useRef(!offline);
+  open.current = !offline;
+  const gate = useCallback(<A extends unknown[], R>(fn: (...a: A) => R, off: R) => (...a: A): R => (open.current ? fn(...a) : off), []);
 
   const addTasks = useMutation(api.agent.addTasks).withOptimisticUpdate((store, { tasks }) =>
     patchBoards(store as Store, (b) => ({
@@ -146,11 +151,11 @@ export function useActions(board: BoardData): Actions {
       const t = live.current.tasks.find((x) => x.id === id);
       show({
         kind: "undo", message: `${done ? "Done" : "Reopened"}: ${t?.title ?? "task"}`,
-        undo: () => void updateTask({ id, patch: { done: !done } }).catch((e) => fail("Couldn't undo", e)),
+        undo: gate(() => void updateTask({ id, patch: { done: !done } }).catch((e) => fail("Couldn't undo", e)), undefined),
       });
       updateTask({ id, patch: { done } }).catch((e) => fail("Couldn't save that", e));
     },
-    [updateTask, show, fail],
+    [updateTask, show, fail, gate],
   );
 
   const remove = useCallback(
@@ -162,7 +167,7 @@ export function useActions(board: BoardData): Actions {
       const block = b.blocks.find((x) => x.task_id === id && x.date === b.date);
       show({
         kind: "undo", message: `Deleted: ${t.title}`,
-        undo: () => {
+        undo: gate(() => {
           void (async () => {
             try {
               const r = await addTasks({
@@ -180,11 +185,11 @@ export function useActions(board: BoardData): Actions {
               fail("Couldn't undo", e);
             }
           })();
-        },
+        }, undefined),
       });
       deleteTask({ id }).catch((e) => fail("Couldn't delete that", e));
     },
-    [deleteTask, addTasks, updateTask, placeBlock, show, fail],
+    [deleteTask, addTasks, updateTask, placeBlock, show, fail, gate],
   );
 
   // Resolves false when the server refused, so the sheet can come back with the draft.
@@ -211,16 +216,16 @@ export function useActions(board: BoardData): Actions {
       const prev = b.blocks.find((x) => x.task_id === id && x.date === date);
       show({
         kind: "undo", message: `${prev ? "Moved" : "Planned"}: ${t?.title ?? "task"}`,
-        undo: () => {
+        undo: gate(() => {
           const back = prev
             ? placeBlock({ task_id: id, date, start: prev.start, mins: prev.mins })
             : removeBlock({ task_id: id, date });
           void back.catch((e) => fail("Couldn't undo", e));
-        },
+        }, undefined),
       });
       placeBlock({ task_id: id, date, start: toHM(start), mins }).catch((e) => fail("Couldn't plan that", e));
     },
-    [placeBlock, removeBlock, show, fail],
+    [placeBlock, removeBlock, show, fail, gate],
   );
 
   const unplace = useCallback(
@@ -231,11 +236,11 @@ export function useActions(board: BoardData): Actions {
       const t = b.tasks.find((x) => x.id === id);
       show({
         kind: "undo", message: `Unplanned: ${t?.title ?? "task"}`,
-        undo: () => void placeBlock({ task_id: id, date, start: prev.start, mins: prev.mins }).catch((e) => fail("Couldn't undo", e)),
+        undo: gate(() => void placeBlock({ task_id: id, date, start: prev.start, mins: prev.mins }).catch((e) => fail("Couldn't undo", e)), undefined),
       });
       removeBlock({ task_id: id, date }).catch((e) => fail("Couldn't unplan that", e));
     },
-    [placeBlock, removeBlock, show, fail],
+    [placeBlock, removeBlock, show, fail, gate],
   );
 
   const addAndPlace = useCallback(
@@ -290,7 +295,7 @@ export function useActions(board: BoardData): Actions {
           message:
             (placed.length === 1 ? `Planned ${placed[0].title} for ${clock12(placed[0].start)}` : `Planned ${placed.length}`) +
             (r.unplaced.length ? `, ${r.unplaced.length} didn't fit` : ""),
-          undo: () =>
+          undo: gate(() =>
             void (async () => {
               for (const p of placed) {
                 const was = before.get(p.task_id);
@@ -298,22 +303,17 @@ export function useActions(board: BoardData): Actions {
                   ? placeBlock({ task_id: p.task_id, date, start: was.start, mins: was.mins })
                   : removeBlock({ task_id: p.task_id, date }));
               }
-            })().catch((e) => fail("Couldn't undo", e)),
+            })().catch((e) => fail("Couldn't undo", e)), undefined),
         });
       } catch (e) {
         fail("Couldn't plan that", e);
       }
     },
-    [planDay, placeBlock, removeBlock, show, fail],
+    [planDay, placeBlock, removeBlock, show, fail, gate],
   );
 
-  // Offline, every write is a quiet no-op (the UI disables its controls; this is the backstop).
-  const online = useOnline();
-  const w = useRef(online);
-  w.current = online;
-  const gate = <A extends unknown[], R>(fn: (...a: A) => R, off: R) => (...a: A): R => (w.current ? fn(...a) : off);
   return {
-    offline: !online, toast, dismiss,
+    offline, toast, dismiss,
     add: gate(add, Promise.resolve(false)), tick: gate(tick, undefined), remove: gate(remove, undefined),
     save: gate(save, Promise.resolve(false)), place: gate(place, undefined), unplace: gate(unplace, undefined),
     addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined),
