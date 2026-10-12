@@ -5,8 +5,9 @@
 :root {
   --spring: linear(0, 0.1017, 0.3081, 0.5244, 0.7063, 0.8401, 0.9286, 0.9809, 1.0077, 1.0183, 1.0197, 1.0168, 1.0125, 1.0084, 1.005, 1.0026, 1.0011, 1.0002, 1, 1);
   /* One comp pixel. The frame fills the window and positions scale with it (cqw/cqh); print sizes are comp px
-     that shrink with windows smaller than 1440x900, so a small window is the comp in miniature, never clipped. */
-  --u: min(1px, calc(100vw / 1440), calc(100vh / 900));
+     that shrink with windows narrower than the comp (1536) or shorter than 900, so a small window is the comp
+     in miniature, never clipped. */
+  --u: min(1px, calc(100vw / 1536), calc(100vh / 900));
   /* 1% of the frame's height, but never so little that a docket's print would not fit on its paper. */
   --ch: max(1cqh, calc(9.6 * var(--u)));
 }
@@ -220,7 +221,7 @@
 }
 .grp { position: relative; }
 .grp + .grp { margin-top: calc(0.45 * var(--ch)); }
-.grp-carried { height: calc(23.1 * var(--ch)); }
+.grp-carried { height: calc(22.4 * var(--ch)); } /* the comp's Today label sits 22.85% below Carried over's */
 .grp-today { height: calc(26.6 * var(--ch)); }
 .grp-slim { height: calc(5.9 * var(--ch)); }
 .grp-label { position: absolute; left: 1.24cqw; top: 0; height: calc(2.34 * var(--ch)); }
@@ -292,7 +293,7 @@
 .docket-today .dk-dashes { height: calc(19 * var(--u)); line-height: calc(19 * var(--u)); }
 .docket-today.is-high .dk-head, .docket-today.is-high .dk-title, .docket-today.is-high .dk-source { color: var(--paper-red); }
 
-.biro-ring { position: absolute; z-index: 2; left: -8.7%; top: -3.6%; width: 115.7%; height: 86.5%; pointer-events: none; user-select: none; }
+.biro-ring { position: absolute; z-index: 2; max-width: none; /* wider than its docket, as drawn */ left: -8.7%; top: -3.6%; width: 115.7%; height: 86.5%; pointer-events: none; user-select: none; }
 .docket.is-done .dk-print { opacity: 0.55; }
 .docket.is-done .dk-title { text-decoration: line-through; }
 

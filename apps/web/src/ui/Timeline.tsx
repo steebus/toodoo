@@ -4,7 +4,7 @@ import { m } from "motion/react";
 import { layoutLanes, SNAP, toHM } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
-import { clampBlock, deltaMin, hitSlot, moveBlock, widenRange, type Placed } from "../lib/timeline";
+import { clampBlock, deltaMin, hitSlot, moveBlock, openHour, widenRange, type Placed } from "../lib/timeline";
 import { useIsOffline } from "../lib/offline";
 import { buzz } from "../lib/swipe";
 import { useDropHint } from "./DndProvider";
@@ -23,7 +23,16 @@ const PRESS_SLOP = 5;
 const DAY = 24 * 60;
 
 type Draft = { id: string; start: number; mins: number; via: "key" | "pointer" };
-type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize"; moved: boolean; armed: boolean };
+type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize"; moved: boolean; armed: boolean; k: number };
+
+// The grid's geometry is in comp px (plan.ts); on screen it is scaled by the frame's --u, like the rest of
+// the print. px() writes a comp length for CSS; scaleOf() reads screen px per comp px for pointer maths.
+const px = (n: number) => `calc(${n} * var(--u))`;
+const scaleOf = (el: Element | null) => {
+  const pass = el?.closest(".pass");
+  const fs = pass ? parseFloat(getComputedStyle(pass).fontSize) : NaN;
+  return fs > 0 ? fs / 16 : 1; // .pass sets font-size: calc(16 * var(--u))
+};
 
 const clockOf = (m: number) => (m >= DAY ? "12:00" : clock12(toHM(m)));
 const range = (s: number, mins: number) => `${clockOf(s)}–${clockOf(s + mins)}`;
@@ -72,15 +81,18 @@ export function Timeline({ plan, board, actions }: Props) {
   const drop = useDroppable({
     id: TIMELINE,
     disabled: !live || offline,
-    data: { gridTop: () => grid.current?.getBoundingClientRect().top ?? 0, startM, endM },
+    data: { gridTop: () => grid.current?.getBoundingClientRect().top ?? 0, startM, endM, scale: () => scaleOf(grid.current) },
   });
 
   useEffect(() => {
-    // Open on the start of the day when the anchor is already in view (the comp: 7am at the top, now below);
-    // otherwise scrolled so the anchor sits near the top. Then leave the scroll alone.
+    // Open on the day's shape (lib/timeline.ts openHour), then leave the scroll alone.
     const sc = scroller.current;
-    const y = minToPx(anchorM, startM);
-    if (sc) sc.scrollTop = y + 140 > sc.clientHeight ? Math.max(0, y - 140) : 0;
+    if (!sc) return;
+    const top = openHour({
+      startM, endM, nowM, viewMins: (sc.clientHeight / scaleOf(sc) * 60) / HOUR_PX,
+      spans: (blocks.length ? blocks : [{ startM: anchorM, mins: 0 }]).map((b) => ({ s: b.startM, e: b.startM + b.mins })),
+    });
+    sc.scrollTop = (((top - startM) * HOUR_PX) / 60) * scaleOf(sc);
   }, [date]); // eslint-disable-line react-hooks/exhaustive-deps -- once per day shown
 
   // A keyboard batch waiting on its idle timer. It is saved early rather than dropped: before a batch starts on
@@ -182,7 +194,7 @@ export function Timeline({ plan, board, actions }: Props) {
 
   const dragTo = (y: number) => {
     const d = drag.current!;
-    const dm = deltaMin(y - d.y0);
+    const dm = deltaMin((y - d.y0) / d.k);
     return d.mode === "move" ? moveBlock(d.start + dm, d.mins) : clampBlock(d.start, d.mins + dm);
   };
   const pointer = (b: PlanBlock, mode: Drag["mode"]) => ({
@@ -192,7 +204,7 @@ export function Timeline({ plan, board, actions }: Props) {
       // The resize grip is a handle (touch-action: none) and takes the finger at once; the body waits for a long press.
       const wait = e.pointerType === "touch" && mode === "move";
       if (!wait) e.currentTarget.setPointerCapture?.(e.pointerId);
-      const d: Drag = { id: b.id, x0: e.clientX, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false, armed: !wait };
+      const d: Drag = { id: b.id, x0: e.clientX, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false, armed: !wait, k: scaleOf(e.currentTarget) };
       drag.current = d;
       clearTimeout(pressTimer.current);
       if (!wait) return;
@@ -261,9 +273,10 @@ export function Timeline({ plan, board, actions }: Props) {
     setCursor(c);
     const sc = scroller.current;
     if (sc) {
-      const top = blockTop(c, startM);
+      const k = scaleOf(sc);
+      const top = blockTop(c, startM) * k;
       if (top < sc.scrollTop) sc.scrollTop = top - 8;
-      else if (top + 40 > sc.scrollTop + sc.clientHeight) sc.scrollTop = top + 48 - sc.clientHeight;
+      else if (top + 40 * k > sc.scrollTop + sc.clientHeight) sc.scrollTop = top + 48 * k - sc.clientHeight;
     }
   };
   const onSlotsKey = (e: KeyboardEvent) => {
@@ -286,7 +299,7 @@ export function Timeline({ plan, board, actions }: Props) {
 
   return (
     <m.div className="plan-scroll" layoutScroll ref={(n: HTMLDivElement | null) => { scroller.current = n; drop.setNodeRef(n); }}>
-      <div className="plan-grid" ref={grid} style={{ height: gridHeight(startM, endM) }}>
+      <div className="plan-grid" ref={grid} style={{ height: px(gridHeight(startM, endM)) }}>
         {live && (
           <div
             className="plan-slots"
@@ -299,26 +312,26 @@ export function Timeline({ plan, board, actions }: Props) {
             onClick={(e) => {
               setRevealed(null);
               if (offline || e.target !== e.currentTarget) return;
-              const m = hitSlot(e.clientY - e.currentTarget.getBoundingClientRect().top, startM);
+              const m = hitSlot((e.clientY - e.currentTarget.getBoundingClientRect().top) / scaleOf(e.currentTarget), startM);
               setCursor(m);
               setPicker(m);
             }}
           />
         )}
         {live && cursor !== null && (
-          <span className="plan-cursor" aria-hidden style={{ top: slotTop(cursor), height: (SNAP * HOUR_PX) / 60 + BLOCK_LEAD / 2 }}>
+          <span className="plan-cursor" aria-hidden style={{ top: px(slotTop(cursor)), height: px((SNAP * HOUR_PX) / 60 + BLOCK_LEAD / 2) }}>
             <span className="plan-cursor-time">{clockOf(cursor)}</span>
           </span>
         )}
         <p className="sr-only" aria-live="polite">{cursor !== null && picker === null ? clockOf(cursor) : ""}</p>
         <div className="hour-lines" aria-hidden>
           {hours.map((m) => (
-            <span key={m} className="hour-line" style={{ top: minToPx(m, startM) + LINE_DROP }} />
+            <span key={m} className="hour-line" style={{ top: px(minToPx(m, startM) + LINE_DROP) }} />
           ))}
         </div>
         <ol className="hour-labels" aria-label="Hours">
           {hours.map((m) => (
-            <li key={m} className="hour-label" style={{ top: minToPx(m, startM) }}>
+            <li key={m} className="hour-label" style={{ top: px(minToPx(m, startM)) }}>
               {hourLabel(m / 60)}
             </li>
           ))}
@@ -331,8 +344,8 @@ export function Timeline({ plan, board, actions }: Props) {
             const time = shownAt.start === b.startM ? b.time : clockOf(shownAt.start);
             const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}${revealed === b.id ? " is-revealed" : ""}${pressed === b.id ? " is-pressed" : ""}`;
             const style = {
-              top: blockTop(b.startM, startM),
-              height: blockHeight(b.mins),
+              top: px(blockTop(b.startM, startM)),
+              height: px(blockHeight(b.mins)),
               left: `calc(var(--lane-left) + ${b.col} * var(--lane-w) / ${b.cols})`,
               width: `calc(var(--lane-w) / ${b.cols}${b.cols > 1 ? " - 0.3cqw" : ""})`,
             };
@@ -391,20 +404,20 @@ export function Timeline({ plan, board, actions }: Props) {
             className="plan-ghost"
             aria-hidden
             style={{
-              top: blockTop(ghost.start, startM),
-              height: blockHeight(ghost.mins),
+              top: px(blockTop(ghost.start, startM)),
+              height: px(blockHeight(ghost.mins)),
             }}
           >
             <span className="plan-ghost-time">{range(ghost.start, ghost.mins)}</span>
           </m.p>
         )}
         {live && hint && (
-          <m.p {...glide} className="plan-ghost plan-drop" aria-hidden style={{ top: slotTop(hint.start), height: blockHeight(hint.mins) }}>
+          <m.p {...glide} className="plan-ghost plan-drop" aria-hidden style={{ top: px(slotTop(hint.start)), height: px(blockHeight(hint.mins)) }}>
             <span className="plan-ghost-time">{range(hint.start, hint.mins)}</span>
           </m.p>
         )}
         {nowM !== null && (
-          <p className="nowline" style={{ top: minToPx(nowM, startM) - NOW_LEAD }} aria-label={`Now ${clock12(toHM(nowM))}`}>
+          <p className="nowline" style={{ top: px(minToPx(nowM, startM) - NOW_LEAD) }} aria-label={`Now ${clock12(toHM(nowM))}`}>
             <NowMarker className="now-marker" />
             <span className="now-time">{clock12(toHM(nowM))}</span>
             <span className="now-rule" aria-hidden />
@@ -415,7 +428,7 @@ export function Timeline({ plan, board, actions }: Props) {
             key={picker}
             at={picker}
             board={board!}
-            style={{ top: pickerTop(picker) }}
+            style={{ top: px(pickerTop(picker)) }}
             onPick={(t, mins) => {
               const p = clampBlock(picker, mins);
               actions!.place(t.id, date, p.start, p.mins);

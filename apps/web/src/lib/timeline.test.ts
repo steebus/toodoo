@@ -1,6 +1,6 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BLOCK_LEAD, HOUR_PX, minToPx } from "../ui/plan";
-import { clampBlock, deltaMin, hitSlot, moveBlock, pxToMin, snap, widenRange } from "./timeline";
+import { clampBlock, deltaMin, hitSlot, moveBlock, openHour, pxToMin, snap, widenRange } from "./timeline";
 
 it("px and minutes are inverses of the plan's one mapping", () => {
   for (const m of [0, 360, 615, 1439]) expect(pxToMin(minToPx(m, 360), 360)).toBeCloseTo(m, 6);
@@ -61,4 +61,22 @@ it("widens an hour range to whole hours around new spans, never past the day", (
   expect(widenRange(360, 1320, [{ s: 600, e: 660 }])).toEqual({ startM: 360, endM: 1320 });
   expect(widenRange(360, 1320, [{ s: 290, e: 1350 }])).toEqual({ startM: 240, endM: 1380 });
   expect(widenRange(360, 1320, [{ s: 0, e: 1440 }])).toEqual({ startM: 0, endM: 1440 });
+});
+
+describe("openHour", () => {
+  const day = { startM: 6 * 60, endM: 21 * 60 };
+  it("centres a day that fits: the comp's 9:15-3:30 day with now at 11:20 opens at 7am", () => {
+    const spans = [{ s: 555, e: 585 }, { s: 600, e: 660 }, { s: 780, e: 825 }, { s: 840, e: 855 }, { s: 900, e: 930 }];
+    expect(openHour({ ...day, spans, nowM: 680, viewMins: 656 })).toBe(7 * 60);
+    expect(openHour({ ...day, spans, nowM: 680, viewMins: 615 })).toBe(7 * 60);
+  });
+  it("a long day opens at the earlier of the first block's hour and the hour before now", () => {
+    const spans = [{ s: 8 * 60 + 30, e: 9 * 60 }, { s: 19 * 60, e: 20 * 60 }];
+    expect(openHour({ ...day, spans, nowM: 14 * 60 + 10, viewMins: 300 })).toBe(8 * 60);
+    expect(openHour({ ...day, spans: [{ s: 16 * 60, e: 20 * 60 }], nowM: 9 * 60 + 40, viewMins: 300 })).toBe(8 * 60);
+  });
+  it("stays on the grid", () => {
+    expect(openHour({ ...day, spans: [], nowM: null, viewMins: 600 })).toBe(6 * 60);
+    expect(openHour({ ...day, spans: [{ s: 6 * 60, e: 7 * 60 }], nowM: null, viewMins: 900 })).toBe(6 * 60);
+  });
 });

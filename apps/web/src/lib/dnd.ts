@@ -13,7 +13,8 @@ export type DropEnv = {
   planned: (id: string) => number; // minutes of this task already on the line
 };
 // The slice of dnd-kit's DragEndEvent used here. The timeline droppable carries where its grid is.
-export type TimelineData = { gridTop: () => number; startM: number; endM: number };
+// scale: screen px per comp px (the frame's --u); the grid's geometry is in comp px.
+export type TimelineData = { gridTop: () => number; startM: number; endM: number; scale?: () => number };
 export type DragEndLike = {
   active: { id: string | number };
   over: { id: string | number; data: { current?: Partial<TimelineData> } } | null;
@@ -35,7 +36,7 @@ export function pointerY(e: Pick<DragEndLike, "activatorEvent" | "delta">): numb
 export function minuteUnder(e: Pick<DragEndLike, "activatorEvent" | "delta">, grid: Partial<TimelineData> | undefined): number | null {
   const y = pointerY(e);
   if (y === null || !grid?.gridTop || grid.startM === undefined) return null;
-  return snap(pxToMin(y - grid.gridTop(), grid.startM));
+  return snap(pxToMin((y - grid.gridTop()) / (grid.scale?.() || 1), grid.startM));
 }
 
 export function resolveDragEnd(e: DragEndLike, env: DropEnv): DropResult | null {

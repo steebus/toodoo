@@ -33,3 +33,18 @@ export function widenRange(startM: number, endM: number, spans: Span[]) {
   const hi = Math.max(endM, ...spans.map((x) => x.e));
   return { startM: Math.max(0, Math.floor(lo / 60) * 60), endM: Math.min(DAY, Math.ceil(hi / 60) * 60) };
 }
+
+// The hour the line opens on. The day's busy span (first block to last, and now) is centred in the view
+// when it fits, rounded to the hour; when it does not, the line opens on the earlier of the first block's
+// hour and the hour before now. Always within the drawn grid.
+export function openHour(o: { startM: number; endM: number; spans: Span[]; nowM: number | null; viewMins: number }): number {
+  const { startM, endM, spans, nowM, viewMins } = o;
+  const edges = [...spans.flatMap((x) => [x.s, x.e]), ...(nowM !== null ? [nowM] : [])];
+  if (!edges.length) return startM;
+  const lo = Math.floor(Math.min(...edges) / 60) * 60;
+  const hi = Math.ceil(Math.max(...edges) / 60) * 60;
+  const top = hi - lo <= viewMins
+    ? Math.round((lo - (viewMins - (hi - lo)) / 2) / 60) * 60
+    : Math.floor(Math.min(lo, nowM !== null ? nowM - 60 : lo) / 60) * 60;
+  return clamp(top, startM, Math.max(startM, endM - 60));
+}
