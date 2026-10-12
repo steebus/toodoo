@@ -269,6 +269,9 @@
    belongs to motion's shared layout, the li's to dnd-kit. */
 .docket.is-inflight { visibility: hidden; }
 .docket .plate { width: 100%; height: 100%; }
+/* Today's plates carry a band of steel along their foot (the bottom 7%), more than the comp shows under
+   these dockets: stretch the paper so it runs on down to 97% of the docket, leaving only the lip's edge. */
+.docket-today:not(.docket-compact) .plate { height: 104.3%; object-position: 50% 0; clip-path: inset(0 0 4.1% 0); }
 .dk-print {
   position: absolute; inset: 0; padding: 0 calc(26 * var(--u)) 0 calc(19 * var(--u));
   font-family: var(--font-print); color: var(--paper-ink); line-height: 1;
@@ -284,6 +287,8 @@
 .docket-carried .dk-tag { margin-top: calc(25 * var(--u)); height: calc(20 * var(--u)); display: flex; align-items: center; font-size: calc(16 * var(--u)); color: var(--paper-red); letter-spacing: 0.02em; }
 .docket-carried .dk-title { margin-top: calc(5 * var(--u)); height: calc(28 * var(--u)); display: flex; align-items: center; font-size: calc(20 * var(--u)); font-weight: 700; white-space: nowrap; }
 .docket-carried .dk-rows:first-of-type { margin-top: calc(11 * var(--u)); }
+/* No tags: the one row drops a line, so the dashes and DURATION keep the comp's place at the foot. */
+.docket-carried .dk-rows:first-of-type:has(> .dk-row:only-child) { margin-top: calc(32 * var(--u)); }
 .docket-carried .dk-dashes { height: calc(20 * var(--u)); line-height: calc(20 * var(--u)); }
 
 .docket-today .dk-head { margin-top: calc(18 * var(--u)); height: calc(22 * var(--u)); display: flex; justify-content: space-between; align-items: center; font-size: calc(19.5 * var(--u)); }
