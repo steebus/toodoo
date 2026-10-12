@@ -142,6 +142,6 @@ it("board, placeBlock and removeBlock never reach another user's task", async ()
   expect(b.tasks.some((x) => x.id === theirs)).toBe(false);
   expect(b.blocks).toEqual([]);
   await expect(t.mutation(api.agent.placeBlock, { task_id: theirs, date: "2026-10-12", start: "11:00", mins: 30 })).rejects.toThrow(/task not found/);
-  await expect(t.mutation(api.agent.removeBlock, { task_id: theirs, date: "2026-10-12" })).rejects.toThrow(/task not found/);
+  await t.mutation(api.agent.removeBlock, { task_id: theirs, date: "2026-10-12" });
   expect(await t.run((ctx) => ctx.db.query("plan_blocks").collect())).toMatchObject([{ task_id: theirs, start: "10:00" }]);
 });

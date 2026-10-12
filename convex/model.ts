@@ -217,7 +217,8 @@ export async function placeBlock(db: W, userId: string, a: { task_id: string; da
   return { task_id: task._id, date: a.date, ...row };
 }
 
+// Quietly a no-op for a gone or foreign task: unplan only ever reads this user's blocks, and an undo
+// whose task was deleted elsewhere must not stop partway.
 export async function removeBlock(db: W, userId: string, a: { task_id: string; date: string }) {
-  if (!(await ownedTask(db, userId, a.task_id))) throw new InputError("task not found");
   return unplan(db, userId, a.date, [a.task_id]);
 }
