@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ToastData } from "../lib/useActions";
 
 const UNDO_MS = 5000;
@@ -7,16 +7,31 @@ const RING = 2 * Math.PI * 10;
 
 // One toast at a time. Undo drains a ring over five seconds; an error just goes after six.
 export function Toast({ toast, onDismiss }: { toast: ToastData | null; onDismiss: () => void }) {
+  const [paused, setPaused] = useState(false);
+  useEffect(() => setPaused(false), [toast?.id]);
+  const left = useRef({ id: 0, ms: 0 });
+  // Hover or focus holds the countdown (timer and ring) and resumes with what was left.
   useEffect(() => {
     if (!toast) return;
-    const id = setTimeout(onDismiss, toast.kind === "undo" ? UNDO_MS : ERROR_MS);
-    return () => clearTimeout(id);
-  }, [toast, onDismiss]);
+    if (left.current.id !== toast.id) left.current = { id: toast.id, ms: toast.kind === "undo" ? UNDO_MS : ERROR_MS };
+    if (paused) return;
+    const started = Date.now();
+    const id = setTimeout(onDismiss, left.current.ms);
+    return () => {
+      clearTimeout(id);
+      left.current.ms -= Date.now() - started;
+    };
+  }, [toast, paused, onDismiss]);
 
   return (
     <div className="toast-slot" role="status" aria-live="polite">
       {toast && (
-        <div key={toast.id} className={`toast toast-${toast.kind}`}>
+        <div key={toast.id} className={`toast toast-${toast.kind}${paused ? " is-paused" : ""}`}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
+        >
           <p className="toast-msg">{toast.message}</p>
           {toast.kind === "undo" && toast.undo && (
             <button

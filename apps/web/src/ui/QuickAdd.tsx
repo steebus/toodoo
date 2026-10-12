@@ -13,7 +13,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!line.trim()) return;
+    if (!line.trim()) return setInvalid(true);
     if (!parsed.title.trim()) return setInvalid(true);
     const typed = line;
     setLine("");

@@ -23,7 +23,7 @@ export type Actions = {
   add: (t: NewTask) => Promise<boolean>;
   tick: (id: string, done: boolean) => void;
   remove: (id: string) => void;
-  save: (id: string, patch: Record<string, unknown>) => void;
+  save: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
 };
 
 // Patch every board query that is loaded, so the change shows at once whichever date is being viewed.
@@ -44,6 +44,7 @@ const failure = (e: unknown, fallback: string) => {
 };
 
 let optimisticId = 0;
+export const isOptimistic = (id: string) => id.startsWith("optimistic-");
 
 // Every write the board makes: optimistic through Convex, with one toast at a time (Undo, or an error).
 export function useActions(board: BoardData): Actions {
@@ -99,70 +100,88 @@ export function useActions(board: BoardData): Actions {
 
   const fail = useCallback((what: string, e: unknown) => show({ kind: "error", message: failure(e, what) }), [show]);
 
+  // addTasks reports validation problems in its result instead of throwing.
+  const rejection = (r: unknown): string | null => {
+    const res = r as { created?: { id: string }[]; errors?: { error: string }[] } | undefined;
+    if (res?.errors?.length) return res.errors[0].error;
+    return res?.created?.length ? null : "nothing was created";
+  };
+
   const add = useCallback(
     async (t: NewTask) => {
       try {
-        await addTasks({ tasks: [t] });
+        const bad = rejection(await addTasks({ tasks: [t] }));
+        if (bad) {
+          show({ kind: "error", message: `Couldn't add that: ${bad}` });
+          return false;
+        }
         return true;
       } catch (e) {
         fail("Couldn't add that", e);
         return false;
       }
     },
-    [addTasks, fail],
+    [addTasks, fail, show],
   );
 
   const tick = useCallback(
     (id: string, done: boolean) => {
+      if (isOptimistic(id)) return;
       const t = live.current.tasks.find((x) => x.id === id);
-      updateTask({ id, patch: { done } }).then(
-        () => show({
-          kind: "undo", message: `${done ? "Done" : "Reopened"}: ${t?.title ?? "task"}`,
-          undo: () => void updateTask({ id, patch: { done: !done } }).catch((e) => fail("Couldn't undo", e)),
-        }),
-        (e) => fail("Couldn't save that", e),
-      );
+      show({
+        kind: "undo", message: `${done ? "Done" : "Reopened"}: ${t?.title ?? "task"}`,
+        undo: () => void updateTask({ id, patch: { done: !done } }).catch((e) => fail("Couldn't undo", e)),
+      });
+      updateTask({ id, patch: { done } }).catch((e) => fail("Couldn't save that", e));
     },
     [updateTask, show, fail],
   );
 
   const remove = useCallback(
     (id: string) => {
+      if (isOptimistic(id)) return;
       const b = live.current;
       const t = b.tasks.find((x) => x.id === id);
       if (!t) return;
       const block = b.blocks.find((x) => x.task_id === id && x.date === b.date);
-      deleteTask({ id }).then(
-        () => show({
-          kind: "undo", message: `Deleted: ${t.title}`,
-          undo: () => {
-            void (async () => {
-              try {
-                const r = await addTasks({
-                  tasks: [{
-                    title: t.title, description: t.description, note: t.note, link: t.link, due: t.due, time: t.time,
-                    priority: t.priority, estimate_mins: t.estimate_mins, tags: t.tags, source: t.source, external_id: t.external_id,
-                  }],
-                });
-                const created = (r as { created?: { id: string }[] } | undefined)?.created?.[0]?.id;
-                if (!created) return;
-                if (t.done) await updateTask({ id: created, patch: { done: true, done_on: t.done_on } });
-                if (block) await placeBlock({ task_id: created, date: block.date, start: block.start, mins: block.mins });
-              } catch (e) {
-                fail("Couldn't undo", e);
-              }
-            })();
-          },
-        }),
-        (e) => fail("Couldn't delete that", e),
-      );
+      show({
+        kind: "undo", message: `Deleted: ${t.title}`,
+        undo: () => {
+          void (async () => {
+            try {
+              const r = await addTasks({
+                tasks: [{
+                  title: t.title, description: t.description, note: t.note, link: t.link, due: t.due, time: t.time,
+                  priority: t.priority, estimate_mins: t.estimate_mins, tags: t.tags, source: t.source, external_id: t.external_id,
+                }],
+              });
+              const bad = rejection(r);
+              if (bad) return show({ kind: "error", message: `Couldn't undo: ${bad}` });
+              const created = (r as { created: { id: string }[] }).created[0].id;
+              if (t.done) await updateTask({ id: created, patch: { done: true, done_on: t.done_on } });
+              if (block) await placeBlock({ task_id: created, date: block.date, start: block.start, mins: block.mins });
+            } catch (e) {
+              fail("Couldn't undo", e);
+            }
+          })();
+        },
+      });
+      deleteTask({ id }).catch((e) => fail("Couldn't delete that", e));
     },
     [deleteTask, addTasks, updateTask, placeBlock, show, fail],
   );
 
+  // Resolves false when the server refused, so the sheet can come back with the draft.
   const save = useCallback(
-    (id: string, patch: Record<string, unknown>) => {
-      updateTask({ id, patch }).catch((e) => fail("Couldn't save that", e));
+    async (id: string, patch: Record<string, unknown>) => {
+      if (isOptimistic(id)) return false;
+      try {
+        await updateTask({ id, patch });
+        return true;
+      } catch (e) {
+        fail("Couldn't save that", e);
+        return false;
+      }
     },
     [updateTask, fail],
   );

@@ -5,6 +5,7 @@ import docketToday1 from "../assets/plates/docket-today-1.png";
 import docketToday2 from "../assets/plates/docket-today-2.png";
 import docketToday3 from "../assets/plates/docket-today-3.png";
 import docketToday4 from "../assets/plates/docket-today-4.png";
+import { isOptimistic } from "../lib/useActions";
 import { plateIndex } from "./format";
 import { CheckIcon } from "./icons";
 import type { DocketData, MetaRow } from "./types";
@@ -35,21 +36,22 @@ type Props = {
 // One paper docket. The plate is chosen by a hash of the task id, so it never changes under the reader.
 // The title is the button that opens the edit sheet; its ::after stretches the hit area over the whole docket.
 export function Docket({ docket: d, topPick, onOpen, onTick }: Props) {
+  const busy = isOptimistic(d.id);
   const cls = `docket docket-${d.variant}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}`;
   const open = (children: React.ReactNode) => (
-    <button type="button" className="dk-open" aria-label={`Edit ${d.title}`} onClick={() => onOpen?.(d.id)}>
+    <button type="button" className="dk-open" disabled={busy} aria-label={`Edit ${d.title}`} onClick={() => onOpen?.(d.id)}>
       {children}
     </button>
   );
   return (
-    <li className={cls} data-docket={d.id} data-hm={d.hm ?? undefined}>
+    <li className={cls} aria-busy={busy || undefined} data-docket={d.id} data-hm={d.hm ?? undefined}>
       <img className="plate" src={PLATES[plateIndex(d.id, PLATES.length)]} alt="" draggable={false} />
       {topPick && <img className="biro-ring" src={biroRing} alt="" draggable={false} data-testid="biro-ring" />}
       <article
         className="dk-print"
         aria-label={d.title}
         onKeyDown={(e) => {
-          if (e.key === "x" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          if (e.key === "x" && !busy && !e.metaKey && !e.ctrlKey && !e.altKey) {
             e.preventDefault();
             onTick?.(d.id, !d.done);
           }
@@ -83,6 +85,7 @@ export function Docket({ docket: d, topPick, onOpen, onTick }: Props) {
           <button
             type="button"
             className="dk-bump"
+            disabled={busy}
             aria-label={`${d.done ? "Mark not done" : "Mark done"}: ${d.title}`}
             aria-pressed={d.done}
             onClick={() => onTick(d.id, !d.done)}

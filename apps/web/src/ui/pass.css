@@ -387,3 +387,7 @@
   .toast { animation: none; }
   .toast-ring-drain { animation: none; }
 }
+
+.sheet-error { font-size: 13px; color: var(--red-ink); }
+.toast.is-paused .toast-ring-drain { animation-play-state: paused; }
+.sheet-cell { display: grid; gap: 5px; min-width: 0; }

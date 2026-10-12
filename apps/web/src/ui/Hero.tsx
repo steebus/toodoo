@@ -6,7 +6,7 @@ import type { Actions } from "../lib/useActions";
 import { useStoredView } from "../lib/useStoredView";
 import { buildPass } from "./build";
 import { DayPlan } from "./DayPlan";
-import { EditSheet } from "./EditSheet";
+import { EditSheet, type Draft } from "./EditSheet";
 import { Toast } from "./Toast";
 import { TodoPanel } from "./TodoPanel";
 import { TopBar } from "./TopBar";
@@ -19,6 +19,7 @@ type Props = { board: BoardData; legend?: Legend; quickAdd?: string; onSignOut?:
 // The first viewport of The Pass: top bar, Day plan (left third), To do rails (right two thirds).
 export function Hero({ board, legend, quickAdd, onSignOut, actions }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const editTask = editing ? board.tasks.find((t) => t.id === editing) : undefined;
   const [stored, setView] = useStoredView();
   // A remembered tag that no task carries any more would hide everything: fall back to All and remember that.
@@ -50,12 +51,23 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions }: Props) {
           quickAdd={quickAdd}
           onSignOut={onSignOut}
           onAdd={actions?.add}
-          onOpen={actions && setEditing}
+          onOpen={actions && ((id) => {
+            setDraft(null);
+            setEditing(id);
+          })}
           onTick={actions?.tick}
         />
       </main>
       {actions && editTask && (
-        <EditSheet key={editTask.id} task={editTask} onSave={actions.save} onDelete={actions.remove} onClose={() => setEditing(null)} />
+        <EditSheet key={editTask.id} task={editTask} draft={draft}
+          onSave={(id, patch, values) => {
+            void actions.save(id, patch).then((ok) => {
+              if (ok) return;
+              setDraft(values);
+              setEditing(id);
+            });
+          }}
+          onDelete={actions.remove} onClose={() => setEditing(null)} />
       )}
       {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}
     </div>

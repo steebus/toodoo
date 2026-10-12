@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { formatDuration } from "@shared/planning.ts";
+import { formatDuration, parseDuration } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
+import { normLink } from "@shared/validation.ts";
+
+export type Draft = {
+  title: string; description: string; note: string; link: string; due: string; time: string;
+  priority: string; estimate: string; tags: string;
+};
 
 type Props = {
   task: FullTask;
-  onSave: (id: string, patch: Record<string, unknown>) => void;
+  draft?: Draft | null;
+  onSave: (id: string, patch: Record<string, unknown>, draft: Draft) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 };
@@ -13,10 +20,11 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, 
 
 // A native modal dialog: side sheet on desktop, bottom sheet under 820px (see pass.css).
 // The dialog traps focus; on close focus goes back to whatever opened it.
-export function EditSheet({ task, onSave, onDelete, onClose }: Props) {
+export function EditSheet({ task, draft, onSave, onDelete, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
-  const [f, setF] = useState({
+  const restore = useRef<Element | null>(null);
+  const [f, setF] = useState<Draft>(draft ?? {
     title: task.title,
     description: task.description ?? "",
     note: task.note ?? "",
@@ -27,24 +35,36 @@ export function EditSheet({ task, onSave, onDelete, onClose }: Props) {
     estimate: task.estimate_mins ? formatDuration(task.estimate_mins) : "",
     tags: task.tags.join(", "),
   });
-  const [invalid, setInvalid] = useState(false);
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const [invalid, setInvalid] = useState<Partial<Record<"title" | "estimate" | "link", string>>>({});
+  const set = (k: keyof Draft) => (e: { target: { value: string } }) => {
+    setF((p) => ({ ...p, [k]: e.target.value }));
+    setInvalid((p) => ({ ...p, [k]: undefined }));
+  };
 
   useEffect(() => {
     const d = dialog.current!;
     if (typeof d.showModal === "function") d.showModal();
     else d.setAttribute("open", "");
-    const from = opener.current;
+    const from = () => restore.current ?? opener.current;
     return () => {
       if (d.open && typeof d.close === "function") d.close();
-      if (from instanceof HTMLElement && from.isConnected) from.focus();
+      const el = from();
+      if (el instanceof HTMLElement && el.isConnected) el.focus();
     };
   }, []);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const title = f.title.trim();
-    if (!title) return setInvalid(true);
+    const bad: typeof invalid = {};
+    if (!title) bad.title = "Needs a title";
+    const est = f.estimate.trim();
+    if (est) {
+      const m = parseDuration(est);
+      if (m == null || !Number.isFinite(m) || m < 1 || m > 1440) bad.estimate = "Like 45m or 1h 30m";
+    }
+    if (f.link.trim() && normLink(f.link) === undefined) bad.link = "Not a web address";
+    if (bad.title || bad.estimate || bad.link) return setInvalid(bad);
     const patch: Record<string, unknown> = {};
     if (title !== task.title) patch.title = title;
     if (f.description.trim() !== (task.description ?? "")) patch.description = f.description.trim() || null;
@@ -56,7 +76,7 @@ export function EditSheet({ task, onSave, onDelete, onClose }: Props) {
     if (f.estimate.trim() !== (task.estimate_mins ? formatDuration(task.estimate_mins) : "")) patch.estimate_mins = f.estimate.trim() || null;
     const tags = f.tags.split(",").map((t) => t.trim()).filter(Boolean);
     if (!same(tags, task.tags)) patch.tags = tags;
-    if (Object.keys(patch).length) onSave(task.id, patch);
+    if (Object.keys(patch).length) onSave(task.id, patch, f);
     onClose();
   };
 
@@ -79,10 +99,13 @@ export function EditSheet({ task, onSave, onDelete, onClose }: Props) {
     >
       <form className="sheet-form" onSubmit={submit}>
         <h2 id="sheet-title" className="sheet-title">Edit</h2>
-        <label className="sheet-field">
-          <span>Title</span>
-          <input value={f.title} onChange={set("title")} aria-invalid={invalid || undefined} autoComplete="off" autoFocus />
-        </label>
+        <div className="sheet-cell">
+          <label className="sheet-field">
+            <span>Title</span>
+            <input value={f.title} onChange={set("title")} aria-invalid={invalid.title ? true : undefined} aria-describedby={invalid.title ? "err-title" : undefined} autoComplete="off" autoFocus />
+          </label>
+          {invalid.title && <small id="err-title" className="sheet-error">{invalid.title}</small>}
+        </div>
         <label className="sheet-field">
           <span>Description</span>
           <textarea rows={3} value={f.description} onChange={set("description")} />
@@ -91,10 +114,13 @@ export function EditSheet({ task, onSave, onDelete, onClose }: Props) {
           <span>Note</span>
           <textarea rows={2} value={f.note} onChange={set("note")} />
         </label>
-        <label className="sheet-field">
-          <span>Link</span>
-          <input value={f.link} onChange={set("link")} autoComplete="off" inputMode="url" />
-        </label>
+        <div className="sheet-cell">
+          <label className="sheet-field">
+            <span>Link</span>
+            <input value={f.link} onChange={set("link")} autoComplete="off" inputMode="url" aria-invalid={invalid.link ? true : undefined} aria-describedby={invalid.link ? "err-link" : undefined} />
+          </label>
+          {invalid.link && <small id="err-link" className="sheet-error">{invalid.link}</small>}
+        </div>
         <div className="sheet-pair">
           <label className="sheet-field">
             <span>Date</span>
@@ -115,17 +141,24 @@ export function EditSheet({ task, onSave, onDelete, onClose }: Props) {
               <option value="low">Low</option>
             </select>
           </label>
-          <label className="sheet-field">
-            <span>Estimate</span>
-            <input value={f.estimate} onChange={set("estimate")} autoComplete="off" />
-          </label>
+          <div className="sheet-cell">
+            <label className="sheet-field">
+              <span>Estimate</span>
+              <input value={f.estimate} onChange={set("estimate")} autoComplete="off" aria-invalid={invalid.estimate ? true : undefined} aria-describedby={invalid.estimate ? "err-est" : undefined} />
+            </label>
+            {invalid.estimate && <small id="err-est" className="sheet-error">{invalid.estimate}</small>}
+          </div>
         </div>
         <label className="sheet-field">
           <span>Tags</span>
           <input value={f.tags} onChange={set("tags")} autoComplete="off" />
         </label>
         <div className="sheet-actions">
-          <button type="button" className="sheet-delete" onClick={() => { onDelete(task.id); onClose(); }}>Delete</button>
+          <button type="button" className="sheet-delete" onClick={() => {
+              restore.current = document.querySelector(".quickadd-input");
+              onDelete(task.id);
+              onClose();
+            }}>Delete</button>
           <span className="sheet-spacer" />
           <button type="button" className="sheet-cancel" onClick={onClose}>Cancel</button>
           <button type="submit" className="sheet-save">Save</button>

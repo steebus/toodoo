@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { FullTask } from "@shared/snapshot.ts";
@@ -53,7 +53,10 @@ beforeEach(() => {
   fn("deleteTask").mockResolvedValue({});
   fn("placeBlock").mockResolvedValue({});
 });
-afterEach(cleanup);
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
+});
 
 const input = () => screen.getByRole("textbox", { name: "New to do" });
 
@@ -153,4 +156,73 @@ it("Escape closes the sheet without saving and focus returns to the docket", asy
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(fn("updateTask")).not.toHaveBeenCalled();
   expect(opener).toHaveFocus();
+});
+
+it("a server-side rejection restores the text and shows the first error", async () => {
+  fn("addTasks").mockResolvedValue({ created: [], skipped: [], errors: [{ index: 0, error: "title: too long" }] });
+  await userEvent.type(input(), "Call plumber{Enter}");
+  await waitFor(() => expect(input()).toHaveValue("Call plumber"));
+  expect(screen.getByRole("status")).toHaveTextContent("title: too long");
+});
+
+it("an empty line marks the input invalid", async () => {
+  await userEvent.type(input(), "{Enter}");
+  expect(input()).toHaveAttribute("aria-invalid", "true");
+  expect(fn("addTasks")).not.toHaveBeenCalled();
+});
+
+it("a docket still waiting for its real id is inert", async () => {
+  cleanup();
+  state.board = { ...board(), tasks: [task({ id: "optimistic-1", title: "Fresh one" } as any)] };
+  render(<App />);
+  const bump = screen.getByRole("button", { name: "Mark done: FRESH ONE" });
+  expect(bump).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Edit FRESH ONE" })).toBeDisabled();
+  expect(screen.getByRole("article", { name: "FRESH ONE" }).closest("li")).toHaveAttribute("aria-busy", "true");
+  fireEvent.click(bump);
+  expect(fn("updateTask")).not.toHaveBeenCalled();
+});
+
+it("a bad estimate keeps the sheet open", async () => {
+  const sheet = await openSheet();
+  await userEvent.clear(within(sheet).getByLabelText("Estimate"));
+  await userEvent.type(within(sheet).getByLabelText("Estimate"), "abc");
+  await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(within(sheet).getByLabelText("Estimate")).toHaveAttribute("aria-invalid", "true");
+  expect(fn("updateTask")).not.toHaveBeenCalled();
+});
+
+it("a rejected save reopens the sheet with the draft and shows the error", async () => {
+  fn("updateTask").mockRejectedValue(new Error("nope"));
+  const sheet = await openSheet();
+  await userEvent.type(within(sheet).getByLabelText("Title"), "!");
+  await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+  expect(within(screen.getByRole("dialog")).getByLabelText("Title")).toHaveValue("Write report!");
+  expect(screen.getByRole("status")).toHaveTextContent(/couldn.t save/i);
+});
+
+it("the undo toast shows at once, before the write resolves", () => {
+  fn("updateTask").mockReturnValue(new Promise(() => {}));
+  fireEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
+  expect(within(screen.getByRole("status")).getByRole("button", { name: /undo/i })).toBeInTheDocument();
+});
+
+it("focusing Undo holds the countdown", () => {
+  vi.useFakeTimers();
+  fireEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
+  const undo = within(screen.getByRole("status")).getByRole("button", { name: /undo/i });
+  act(() => undo.focus());
+  act(() => void vi.advanceTimersByTime(8000));
+  expect(screen.getByRole("status")).toHaveTextContent("Done");
+  act(() => undo.blur());
+  act(() => void vi.advanceTimersByTime(5100));
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+});
+
+it("after Delete focus goes to quick add", async () => {
+  const sheet = await openSheet();
+  await userEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
+  expect(input()).toHaveFocus();
 });
