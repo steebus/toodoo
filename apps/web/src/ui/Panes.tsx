@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { GripIcon } from "./icons";
 
 const KEY = "toodoo.split";
@@ -25,10 +25,11 @@ export function saveSplit(v: number) {
 
 export function useSplit() {
   const [split, set] = useState(loadSplit);
-  const apply = useCallback((v: number) => {
+  const apply = useCallback((v: number, persist = true) => {
     const c = clampSplit(v);
     set(c);
-    saveSplit(c);
+    if (persist) saveSplit(c);
+    return c;
   }, []);
   return [split, apply] as const;
 }
@@ -52,15 +53,16 @@ export function Divider({ controls }: { controls?: string }) {
   const c = useContext(Ctx);
   if (!c) return null;
   const [split, setSplit] = c.split;
+  const last = useRef(split);
   const move = (e: PointerEvent<HTMLElement>) => {
     const r = e.currentTarget.closest(".pass")!.getBoundingClientRect();
-    setSplit(((e.clientX - r.left) / r.width) * 100);
+    last.current = setSplit(((e.clientX - r.left) / r.width) * 100, false);
   };
   const key = (e: KeyboardEvent) => {
-    const d = e.key === "ArrowRight" ? 2 : e.key === "ArrowLeft" ? -2 : 0;
-    if (!d) return;
+    const to = e.key === "ArrowRight" ? split + 2 : e.key === "ArrowLeft" ? split - 2 : e.key === "Home" ? 25 : e.key === "End" ? 75 : null;
+    if (to === null) return;
     e.preventDefault();
-    setSplit(split + d);
+    setSplit(to);
   };
   return (
     <div
@@ -69,12 +71,17 @@ export function Divider({ controls }: { controls?: string }) {
       onKeyDown={key}
       onDoubleClick={() => setSplit(PLAN_SPLIT)}
       onPointerDown={(e) => {
+        if (e.button !== 0) return;
         e.currentTarget.setPointerCapture?.(e.pointerId);
+        last.current = split;
         c.drag(true);
       }}
       onPointerMove={(e) => e.currentTarget.hasPointerCapture?.(e.pointerId) && move(e)}
-      onPointerUp={() => c.drag(false)}
-      onPointerCancel={() => c.drag(false)}
+      onPointerUp={(e) => e.currentTarget.releasePointerCapture?.(e.pointerId)}
+      onLostPointerCapture={() => {
+        c.drag(false);
+        saveSplit(last.current);
+      }}
     >
       <GripIcon />
     </div>
