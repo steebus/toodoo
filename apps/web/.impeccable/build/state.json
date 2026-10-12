@@ -6,7 +6,7 @@
   "direction": "953035aa",
   "breakpoint": "1536x1024",
   "artifact": null,
-  "phase": "sections",
+  "phase": "review",
   "phases": {
     "comps": {
       "status": "closed",
@@ -412,35 +412,60 @@
       ]
     },
     "sections": {
-      "status": "open",
+      "status": "closed",
       "openedAt": "2026-10-12T07:13:17.939Z",
-      "closedAt": null,
-      "attempts": 0,
+      "closedAt": "2026-10-12T08:21:37.787Z",
+      "attempts": 1,
       "notes": [],
-      "gate": null,
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "no mechanical gate",
+        "at": "2026-10-12T08:21:37.787Z"
+      },
       "forced": null
     },
     "motion": {
-      "status": "pending",
-      "openedAt": null,
-      "closedAt": null,
-      "attempts": 0,
+      "status": "closed",
+      "openedAt": "2026-10-12T08:21:37.787Z",
+      "closedAt": "2026-10-12T08:39:13.052Z",
+      "attempts": 1,
       "notes": [],
-      "gate": null,
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "no mechanical gate",
+        "at": "2026-10-12T08:39:13.052Z"
+      },
       "forced": null
     },
     "responsive": {
-      "status": "pending",
-      "openedAt": null,
-      "closedAt": null,
-      "attempts": 0,
+      "status": "closed",
+      "openedAt": "2026-10-12T08:39:13.052Z",
+      "closedAt": "2026-10-12T09:46:04.780Z",
+      "attempts": 14,
       "notes": [],
-      "gate": null,
-      "forced": null
+      "gate": {
+        "ok": false,
+        "reasons": [
+          "at desktop width, region event-standup is missing"
+        ],
+        "summary": "desktop 91% (match)",
+        "score": 0.9094,
+        "sideBySide": "D:/_projects/toodoo/apps/web/.impeccable/review/diff/desktop/side-by-side.png",
+        "at": "2026-10-12T09:46:04.774Z"
+      },
+      "forced": {
+        "at": "2026-10-12T09:46:04.779Z",
+        "reason": "User downgraded the comp for region event-standup. Asked whether to accept the comp's standup block (drawn at ~09:03 though labelled 9:15) as a comp error and pass, the user said: \"Pass the design check.\"",
+        "reasons": [
+          "at desktop width, region event-standup is missing"
+        ]
+      }
     },
     "review": {
-      "status": "pending",
-      "openedAt": null,
+      "status": "open",
+      "openedAt": "2026-10-12T09:46:04.780Z",
       "closedAt": null,
       "attempts": 0,
       "notes": [],

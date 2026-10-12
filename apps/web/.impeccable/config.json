@@ -1,1 +1,23 @@
-{ "buildPath": "comp" }
+{
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/ui/pass.css"
+        ],
+        "createdAt": "2026-10-12T07:16:05.679Z",
+        "reason": "approved comp-1 shows the planned task block with a dark left edge (spec region block-showcase); controller decision"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "var(--spring)",
+        "createdAt": "2026-10-12T08:40:38.645Z"
+      }
+    ]
+  }
+}
