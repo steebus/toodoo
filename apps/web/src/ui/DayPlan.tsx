@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { addDays, daysBetween, dayWord } from "@shared/planning.ts";
 import type { Actions } from "../lib/useActions";
-import { GripIcon } from "./icons";
+import { Divider } from "./Panes";
 import { Timeline } from "./Timeline";
 import type { BoardData, PlanData } from "./types";
 
@@ -13,7 +13,7 @@ type Props = { plan: PlanData; board?: BoardData; actions?: Actions; nav?: DayNa
 export function DayPlan({ plan, board, actions, nav }: Props) {
   const { allDay } = plan;
   return (
-    <section className="dayplan" aria-labelledby="dayplan-title">
+    <section id="dayplan" className="dayplan" aria-labelledby="dayplan-title">
       <h2 id="dayplan-title" className="r-dayplan-title panel-title">Day plan</h2>
       <div className="dayplan-head">
         {allDay.length > 0 && (
@@ -27,9 +27,7 @@ export function DayPlan({ plan, board, actions, nav }: Props) {
       </div>
       <Timeline plan={plan} board={board} actions={actions} />
       <div className="r-panel-divider panel-divider" aria-hidden />
-      <button type="button" className="r-divider-grip divider-grip" aria-label="Resize panels">
-        <GripIcon />
-      </button>
+      <Divider controls="dayplan todo" />
     </section>
   );
 }

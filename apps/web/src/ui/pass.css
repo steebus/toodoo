@@ -73,10 +73,10 @@
 /* ---------- day plan ---------- */
 .dayplan::before {
   /* hairline under the "Day plan" title */
-  content: ""; position: absolute; left: 1%; width: 32.2%; top: 13.5%; height: 1px; background: var(--rule-soft);
+  content: ""; position: absolute; left: 1%; width: calc(var(--split) * 1% - 1.65%); top: 13.5%; height: 1px; background: var(--rule-soft);
 }
 .plan-scroll {
-  position: absolute; left: 0.52cqw; width: 32.81cqw; top: 13.48cqh; height: 78.12cqh;
+  position: absolute; left: 0.52cqw; width: calc(var(--split) * 1cqw - 1.04cqw); top: 13.48cqh; height: 78.12cqh;
   overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
 .plan-grid { position: relative; --lane-left: 19.4%; --lane-w: 76.2%; }
@@ -95,7 +95,7 @@
 .hour-lines, .hour-labels { pointer-events: none; }
 /* Header row beside the title: all-day chips give way to the day nav. */
 .dayplan-head {
-  position: absolute; left: 9cqw; width: 24.2cqw; top: 9.38cqh; height: 2.93cqh;
+  position: absolute; left: 9cqw; width: calc(var(--split) * 1cqw - 9.65cqw); top: 9.38cqh; height: 2.93cqh;
   display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0;
 }
 .allday {
@@ -164,7 +164,7 @@
   font-size: 21px; line-height: 1; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
 .add-button:hover { border-color: var(--ink-3) !important; }
-.pass .chips { width: 57.3cqw; }
+.pass .chips { width: calc(57.3cqw * var(--kt)); }
 .chips { display: flex; overflow: hidden; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .chip {
   display: inline-flex; align-items: center; gap: 10px; height: 100%; padding: 0 14px 0 13px;
@@ -205,7 +205,7 @@
 
 /* Rail groups: laid out in the comp's own proportions, stacked in the To do scroll area. */
 .todo-scroll {
-  position: absolute; left: 34.7cqw; width: 65.3cqw; top: 37.11cqh; height: 56.7cqh;
+  position: absolute; left: calc((var(--split) + 0.85 * var(--kt)) * 1cqw); width: calc(65.3cqw * var(--kt)); top: 37.11cqh; height: 56.7cqh;
   overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
 .grp { position: relative; }
@@ -312,7 +312,7 @@
 @media (prefers-reduced-motion: reduce) { .viewmenu-pop { animation: none; } .viewmenu-chevron { transition: none; } }
 
 .plan-all {
-  position: absolute; left: 88cqw; width: 10.4cqw; top: 25.7cqh; height: 2cqh; text-align: right;
+  position: absolute; left: calc((var(--split) + 54.15 * var(--kt)) * 1cqw); width: calc(10.4cqw * var(--kt)); top: 25.7cqh; height: 2cqh; text-align: right;
   font-family: var(--font-print); font-size: 15px; line-height: 1; color: var(--ink-3);
 }
 .plan-all:disabled { cursor: default; }
@@ -560,3 +560,33 @@
 @media (prefers-reduced-motion: reduce) {
   .docket { transition: none !important; }
 }
+
+/* ---------- panes: one custom property, --split, drives the column split ---------- */
+@property --split { syntax: "<number>"; inherits: true; initial-value: 33.85; }
+.pass-main {
+  --kt: calc((100 - var(--split)) / 66.15); /* the To do side scales to what is left of the comp's 66.15% */
+  --r-panel-divider-x: calc(var(--split) * 1%);
+  --r-divider-grip-x: calc((var(--split) - 0.26) * 1%);
+  --r-todo-title-x: calc((var(--split) + 2.61 * var(--kt)) * 1%);
+  --r-span-x: calc((var(--split) + 54.95 * var(--kt)) * 1%); --r-span-w: calc(9.51% * var(--kt));
+  --r-quickadd-x: calc((var(--split) + 2.35 * var(--kt)) * 1%); --r-quickadd-w: calc(57.29% * var(--kt));
+  --r-add-button-x: calc((var(--split) + 60.16 * var(--kt)) * 1%);
+  --r-chips-x: calc((var(--split) + 2.35 * var(--kt)) * 1%); --r-chips-w: calc(26.43% * var(--kt));
+  --r-nextup-box-x: calc((var(--split) + 1.44 * var(--kt)) * 1%); --r-nextup-box-w: calc(64.06% * var(--kt));
+  --r-nextup-label-x: calc((var(--split) + 2.35 * var(--kt)) * 1%);
+  --r-nextup-1-x: calc((var(--split) + 2.74 * var(--kt)) * 1%); --r-nextup-1-w: calc(15.1% * var(--kt));
+  --r-nextup-2-x: calc((var(--split) + 23.70 * var(--kt)) * 1%); --r-nextup-2-w: calc(18.23% * var(--kt));
+  --r-nextup-3-x: calc((var(--split) + 45.84 * var(--kt)) * 1%); --r-nextup-3-w: calc(14.84% * var(--kt));
+  --r-legend-x: calc((var(--split) + 1.70 * var(--kt)) * 1%);
+  --r-legend-keys-x: calc((var(--split) + 50.92 * var(--kt)) * 1%);
+  transition: --split 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pass-main.is-dragging { transition: none; }
+@media (prefers-reduced-motion: reduce) { .pass-main { transition: none; } }
+.divider-grip:focus-visible { outline-offset: 3px; }
+
+/* ---------- help sheet: shortcuts only ---------- */
+.help-list { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; margin: 0; font-family: var(--font-print); font-size: 18px; }
+.help-list dt { display: flex; gap: 6px; }
+.help-list dd { margin: 0; color: var(--ink-2); }
+.help-list kbd { min-width: 1.6em; padding: 2px 6px; text-align: center; font: inherit; background: var(--well); border: 1px solid var(--rule); border-radius: var(--radius); }

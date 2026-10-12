@@ -76,7 +76,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
   }, [groups, visible, comingOpen]);
 
   return (
-    <section className="todo" aria-labelledby="todo-title">
+    <section id="todo" className="todo" aria-labelledby="todo-title">
       <h2 id="todo-title" className="r-todo-title panel-title">To do</h2>
       <ViewMenu view={view} tags={model.tags} onChange={onView} onSignOut={onSignOut} />
       {span && (

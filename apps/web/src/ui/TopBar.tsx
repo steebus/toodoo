@@ -1,6 +1,6 @@
-type Props = { date: string; headline: string; done: number; total: number; presets: string[]; activePreset: string };
+type Props = { date: string; headline: string; done: number; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void };
 
-export function TopBar({ date, headline, done, total, presets, activePreset }: Props) {
+export function TopBar({ date, headline, done, total, presets, activePreset, onPreset }: Props) {
   return (
     <header className="topbar">
       <p className="r-wordmark wordmark">toodoo</p>
@@ -14,7 +14,7 @@ export function TopBar({ date, headline, done, total, presets, activePreset }: P
         {presets.map((p, i) => (
           <span key={p} className="preset-slot">
             {i > 0 && <span className="preset-dot" aria-hidden>·</span>}
-            <button type="button" className="preset" aria-pressed={p === activePreset}>
+            <button type="button" className="preset" aria-pressed={p === activePreset} onClick={() => onPreset?.(p)}>
               {p}
             </button>
           </span>
