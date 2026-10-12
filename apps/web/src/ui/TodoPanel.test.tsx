@@ -83,8 +83,9 @@ it("lists each status group with its count", () => {
 it("shows waiting days on carried dockets", () => {
   show();
   const d = screen.getByRole("article", { name: "FILE EXPENSES" });
-  expect(within(d).getByText("WAITING")).toBeInTheDocument();
-  expect(within(d).getByText("5 DAYS")).toBeInTheDocument();
+  // In red over the title, where a kicker would be: the figure, not a label.
+  expect(within(d).getByText("5 DAYS")).toHaveClass("dk-tag");
+  expect(within(d).queryByText("CARRIED OVER")).not.toBeInTheDocument();
 });
 
 it("shows at most three tags and a mono source label", () => {

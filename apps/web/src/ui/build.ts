@@ -17,6 +17,8 @@ export type PassModel = {
 };
 
 const est = (t: FullTask) => (t.estimate_mins ? `~${formatDuration(t.estimate_mins)}` : "");
+// The footer's clock form, as the comp prints it: ~1:00 for an hour or more, ~45m under.
+const estClock = (m: number | null) => (!m ? "" : m >= 60 ? `~${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : `~${m}m`);
 
 function sourceLabel(t: FullTask): string {
   if (t.source === "you") return "";
@@ -33,17 +35,19 @@ function docket(t: FullTask, hm: string | null, today: string): DocketData {
   if (carried) {
     const n = waitingDays(t.due, today);
     return {
-      ...common, variant: "carried", time: "", duration: "", source: sourceLabel(t), tag: "CARRIED OVER",
+      // The red slot over the title is the data itself (how long it has waited), not a kicker.
+      ...common, variant: "carried", time: "", duration: "", source: sourceLabel(t), tag: `${n} ${n === 1 ? "DAY" : "DAYS"}`,
       lines: [t.title.toUpperCase()],
-      rows: [{ label: "WAITING", value: `${n} ${n === 1 ? "DAY" : "DAYS"}` }, { label: "DUE", value: shortDate(t.due) }, ...tagRow],
+      rows: [{ label: "DUE", value: shortDate(t.due) }, ...tagRow],
       footer: { label: "DURATION", value: est(t) || "--" },
     };
   }
   const rows: MetaRow[] = [
     ...(hm ? [{ label: "START", value: hm }] : []),
+    ...(t.estimate_mins ? [{ label: "DURATION", value: estClock(t.estimate_mins) }] : []),
     ...(t.due !== today ? [{ label: "DUE", value: shortDate(t.due) }] : []),
     ...tagRow,
-  ];
+  ].slice(0, 3); // the paper has room for three
   const flags = [t.done ? "DONE" : "", high ? "! HIGH" : "", sourceLabel(t)].filter(Boolean);
   return {
     ...common, variant: "today", time: clock12(hm), duration: est(t), source: flags.join(" · "), tag: "", rows, footer: null,
@@ -62,7 +66,8 @@ function planOf(b: BoardData, byId: Map<string, FullTask>): PlanData {
     if (pb.date !== b.date || !t || s == null) continue;
     blocks.push({
       id: t.id, kind: "task", startM: s, mins: pb.mins, time: clock12(pb.start), title: t.title,
-      duration: formatDuration(pb.mins), current: isToday && s <= b.nowM && b.nowM < s + pb.mins, done: t.done,
+      // The heavy rule marks the top pick (the docket with the biro ring), as the comp does.
+      duration: formatDuration(pb.mins), current: t.id === b.suggestions[0]?.id, done: t.done,
     });
   }
   blocks.sort((x, y) => x.startM - y.startM);

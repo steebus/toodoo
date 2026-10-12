@@ -238,7 +238,8 @@
   display: flex; gap: var(--dk-gap); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
 .grp-carried .grp-dockets { --dk-gap: 0.76cqw; --dk-w: 15.9cqw; top: calc(1.93 * var(--ch)); height: calc(21.1 * var(--ch)); padding: calc(1 * var(--ch)) 0 calc(1 * var(--ch)) 1.11cqw; }
-.grp-today .grp-dockets { --dk-gap: 1.46cqw; --dk-w: 14.8cqw; top: calc(1.74 * var(--ch)); height: calc(23.68 * var(--ch)); padding: calc(1 * var(--ch)) 0 calc(1 * var(--ch)) 1.37cqw; }
+/* Today: the comp's pitch (docket + gutter = 15.67% of the frame), so the fourth ends well short of the edge. */
+.grp-today .grp-dockets { --dk-gap: 1.07cqw; --dk-w: 14.6cqw; top: calc(1.74 * var(--ch)); height: calc(23.68 * var(--ch)); padding: calc(1 * var(--ch)) 0 calc(1 * var(--ch)) 1.37cqw; }
 .grp-dockets .docket { flex: 0 0 var(--dk-w); }
 .grp-carried .docket { height: calc(19.14 * var(--ch)); }
 .grp-today .docket { height: calc(21.68 * var(--ch)); }
@@ -415,7 +416,9 @@
   font-family: var(--font-print); font-size: calc(16 * var(--u)); line-height: 1;
   box-shadow: 0 calc(8 * var(--u)) calc(24 * var(--u)) rgb(0 0 0 / 0.22); animation: toast-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.toast-error { border-left: calc(4 * var(--u)) solid var(--red); }
+/* An error is a red-ruled slip: a full hairline and red print, AA in both themes. */
+.toast-error { background: var(--surface); color: var(--red-ink); border: 1px solid var(--red); }
+.pass .toast-error .toast-undo { color: var(--red-ink); }
 .toast-msg { margin: 0; max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pass .toast-undo { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(6 * var(--u)); font-size: calc(16 * var(--u)); color: var(--surface); }
 .toast-undo:hover { text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
@@ -706,7 +709,7 @@
 .pass button:disabled, .pass input:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---------- the phone (<820px): the same pass, one room at a time ---------- */
-.tabs, .fab, .docket-compact .plate, .grp-compact .rail-plate { display: none; }
+.tabs, .fab, .docket-compact .plate, .docket-compact .biro-ring, .grp-compact .rail-plate { display: none; }
 
 @media (max-width: 819px) {
   :root { --u: 1px; }
@@ -750,7 +753,7 @@
   .allday-chip { max-width: 30vw; }
   .plan-scroll {
     position: relative; left: auto; top: auto; width: auto; height: auto; grid-column: 1 / -1;
-    margin-top: 12px; padding-bottom: 92px; border-top: 1px solid var(--rule-soft);
+    margin-top: 12px; padding-bottom: 130px; border-top: 1px solid var(--rule-soft); /* clear of the add button */
   }
   .plan-grid { --lane-left: 21%; --lane-w: 75%; }
   .hour-labels { left: 1%; width: 16%; }
@@ -785,7 +788,7 @@
   .nextup-why { margin: 0; font-size: 13px; }
   .todo-scroll, .todo-scroll.is-compact {
     position: relative; left: auto; top: auto; width: auto; height: auto; flex: 1; min-height: 0;
-    margin-top: 6px; padding: 8px 16px 96px;
+    margin-top: 6px; padding: 8px 16px 130px; /* the last stub scrolls clear of the add button */
   }
 
   /* rails: a steel bar under each label, the dockets hanging from it */
@@ -796,6 +799,8 @@
   .grp-compact .grp-dockets { gap: 10px; margin-top: -4px; padding: 0 8px; }
   .grp-dockets .docket-compact { height: 66px; -webkit-touch-callout: none; user-select: none; }
   .docket-compact .plate { display: block; object-position: 50% 0; }
+  /* The top pick keeps its biro ring on the phone: loosely round the time and the start of the title. */
+  .docket-compact .biro-ring { display: block; left: 1%; top: -16%; width: 50%; height: 134%; }
   .docket-compact .dk-paper { background: none; border: 0; box-shadow: 0 2px 5px rgb(0 0 0 / 0.14); }
   .docket-compact .dk-print { padding: 7px 54px 0 16px; gap: 14px; }
   .docket-compact .dk-title { font-size: 17px; line-height: 1.15; white-space: normal; letter-spacing: 0.01em; }

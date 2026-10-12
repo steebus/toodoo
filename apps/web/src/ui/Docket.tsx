@@ -115,7 +115,8 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
       {wrap(<m.div className="dk-paper" layoutId={ghost ? undefined : `${compact ? "stub" : "docket"}:${d.id}`} layoutDependency={layoutDependency}>
         {/* A stub shows its paper only on the phone (pass.css). */}
         <img className="plate" src={PLATES[plateIndex(d.id, PLATES.length)]} alt="" draggable={false} />
-        {topPick && !compact && <img className="biro-ring" src={biroRing} alt="" draggable={false} data-testid="biro-ring" />}
+        {/* On a stub the ring shows only on the phone (pass.css). */}
+        {topPick && <img className="biro-ring" src={biroRing} alt="" draggable={false} data-testid="biro-ring" />}
         <article
           className="dk-print"
           aria-label={d.title}
@@ -131,7 +132,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
         >
           {compact ? (
             <>
-              <span className={d.variant === "carried" ? "dk-stub-tag" : "dk-time"}>{d.variant === "carried" ? "CARRIED" : d.time}</span>
+              <span className={d.variant === "carried" ? "dk-stub-tag" : "dk-time"}>{d.variant === "carried" ? d.tag : d.time}</span>
               <h4 className="dk-title">{open(d.title)}</h4>
               <span className="dk-dur">{d.duration}</span>
             </>
