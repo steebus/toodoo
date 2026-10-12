@@ -51,9 +51,9 @@ export function Panes({ split, children }: { split: Split; children: ReactNode }
 
 export function Divider({ controls }: { controls?: string }) {
   const c = useContext(Ctx);
+  const last = useRef(0);
   if (!c) return null;
   const [split, setSplit] = c.split;
-  const last = useRef(split);
   const move = (e: PointerEvent<HTMLElement>) => {
     const r = e.currentTarget.closest(".pass")!.getBoundingClientRect();
     last.current = setSplit(((e.clientX - r.left) / r.width) * 100, false);
