@@ -12,6 +12,7 @@ vi.mock("convex/react", () => ({
   Unauthenticated: () => null,
   AuthLoading: () => null,
   useQuery: () => state.board,
+  useMutation: () => Object.assign(vi.fn(), { withOptimisticUpdate() { return this; } }),
 }));
 
 import { App } from "../App";

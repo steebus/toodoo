@@ -1,6 +1,7 @@
 import { useAuth } from "@workos-inc/authkit-react";
 import { useEffect, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { useActions } from "./lib/useActions";
 import { useBoard } from "./lib/useBoard";
 import { Hero, HeroShell } from "./ui/Hero";
 import type { BoardData, Legend } from "./ui/types";
@@ -20,10 +21,15 @@ function FixtureHero() {
   return fx ? <Hero board={fx.boardFixture} legend={fx.legendFixture} quickAdd={fx.quickAddFixture} /> : null;
 }
 
+function Live({ board }: { board: BoardData }) {
+  const { signOut } = useAuth();
+  const actions = useActions(board);
+  return <Hero board={board} onSignOut={() => signOut()} actions={actions} />;
+}
+
 function Home() {
   const board = useBoard();
-  const { signOut } = useAuth();
-  return board ? <Hero board={board} onSignOut={() => signOut()} /> : <HeroShell />;
+  return board ? <Live board={board} /> : <HeroShell />;
 }
 
 function SignIn() {

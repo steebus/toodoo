@@ -1,0 +1,171 @@
+import { useCallback, useRef, useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
+import { parseDuration } from "@shared/planning.ts";
+import type { FullTask } from "@shared/snapshot.ts";
+import type { BoardData } from "../ui/types";
+
+export type ToastData = { id: number; kind: "undo" | "error"; message: string; undo?: () => void };
+
+export type NewTask = {
+  title: string;
+  due: string;
+  time: string | null;
+  priority: "high" | "med" | "low" | null;
+  tags: string[];
+  estimate_mins: number | null;
+  source: "you";
+};
+
+export type Actions = {
+  toast: ToastData | null;
+  dismiss: () => void;
+  add: (t: NewTask) => Promise<boolean>;
+  tick: (id: string, done: boolean) => void;
+  remove: (id: string) => void;
+  save: (id: string, patch: Record<string, unknown>) => void;
+};
+
+// Patch every board query that is loaded, so the change shows at once whichever date is being viewed.
+type Store = {
+  getAllQueries: (q: typeof api.agent.board) => { args: any; value: BoardData | undefined }[];
+  setQuery: (q: typeof api.agent.board, args: any, v: BoardData) => void;
+};
+const patchBoards = (store: Store, edit: (b: BoardData) => BoardData) => {
+  for (const { args, value } of store.getAllQueries(api.agent.board)) {
+    if (value) store.setQuery(api.agent.board, args, edit(value));
+  }
+};
+
+const failure = (e: unknown, fallback: string) => {
+  const data = (e as { data?: unknown })?.data;
+  const msg = typeof data === "object" && data && "message" in data ? String((data as { message: unknown }).message) : "";
+  return msg ? `${fallback}: ${msg}` : fallback;
+};
+
+let optimisticId = 0;
+
+// Every write the board makes: optimistic through Convex, with one toast at a time (Undo, or an error).
+export function useActions(board: BoardData): Actions {
+  const [toast, setToast] = useState<ToastData | null>(null);
+  const seq = useRef(0);
+  const show = useCallback((t: Omit<ToastData, "id">) => setToast({ ...t, id: ++seq.current }), []);
+  const dismiss = useCallback(() => setToast(null), []);
+  const live = useRef(board);
+  live.current = board;
+
+  const addTasks = useMutation(api.agent.addTasks).withOptimisticUpdate((store, { tasks }) =>
+    patchBoards(store as Store, (b) => ({
+      ...b,
+      tasks: [
+        ...b.tasks,
+        ...(tasks as Partial<FullTask>[]).map((t, i): FullTask => ({
+          id: `optimistic-${++optimisticId}`, title: t.title ?? "", due: t.due ?? b.today, time: t.time ?? null,
+          priority: t.priority ?? null, estimate_mins: typeof t.estimate_mins === "number" ? t.estimate_mins : null,
+          done: false, done_on: null, sort_order: 1e9 + i, source: t.source ?? "you", external_id: t.external_id ?? null,
+          tags: Array.isArray(t.tags) ? t.tags : [], link: t.link ?? null, note: t.note ?? null, description: t.description ?? null,
+        })),
+      ],
+    })),
+  );
+  const updateTask = useMutation(api.agent.updateTask).withOptimisticUpdate((store, { id, patch }) =>
+    patchBoards(store as Store, (b) => ({
+      ...b,
+      tasks: b.tasks.map((t) => {
+        if (t.id !== id) return t;
+        const p = patch as Partial<FullTask>;
+        const next = { ...t, ...p };
+        const e = (patch as { estimate_mins?: unknown }).estimate_mins;
+        if (e !== undefined) {
+          const mins = typeof e === "string" ? parseDuration(e) : e;
+          next.estimate_mins = typeof mins === "number" && Number.isFinite(mins) ? Math.round(mins) : null;
+        }
+        if (p.done === true) next.done_on = p.done_on ?? b.today;
+        if (p.done === false) next.done_on = null;
+        return next;
+      }),
+    })),
+  );
+  const deleteTask = useMutation(api.agent.deleteTask).withOptimisticUpdate((store, { id }) =>
+    patchBoards(store as Store, (b) => ({
+      ...b, tasks: b.tasks.filter((t) => t.id !== id), blocks: b.blocks.filter((x) => x.task_id !== id),
+    })),
+  );
+  const placeBlock = useMutation(api.agent.placeBlock).withOptimisticUpdate((store, a) =>
+    patchBoards(store as Store, (b) => ({
+      ...b, blocks: [...b.blocks.filter((x) => !(x.task_id === a.task_id && x.date === a.date)), a],
+    })),
+  );
+
+  const fail = useCallback((what: string, e: unknown) => show({ kind: "error", message: failure(e, what) }), [show]);
+
+  const add = useCallback(
+    async (t: NewTask) => {
+      try {
+        await addTasks({ tasks: [t] });
+        return true;
+      } catch (e) {
+        fail("Couldn't add that", e);
+        return false;
+      }
+    },
+    [addTasks, fail],
+  );
+
+  const tick = useCallback(
+    (id: string, done: boolean) => {
+      const t = live.current.tasks.find((x) => x.id === id);
+      updateTask({ id, patch: { done } }).then(
+        () => show({
+          kind: "undo", message: `${done ? "Done" : "Reopened"}: ${t?.title ?? "task"}`,
+          undo: () => void updateTask({ id, patch: { done: !done } }).catch((e) => fail("Couldn't undo", e)),
+        }),
+        (e) => fail("Couldn't save that", e),
+      );
+    },
+    [updateTask, show, fail],
+  );
+
+  const remove = useCallback(
+    (id: string) => {
+      const b = live.current;
+      const t = b.tasks.find((x) => x.id === id);
+      if (!t) return;
+      const block = b.blocks.find((x) => x.task_id === id && x.date === b.date);
+      deleteTask({ id }).then(
+        () => show({
+          kind: "undo", message: `Deleted: ${t.title}`,
+          undo: () => {
+            void (async () => {
+              try {
+                const r = await addTasks({
+                  tasks: [{
+                    title: t.title, description: t.description, note: t.note, link: t.link, due: t.due, time: t.time,
+                    priority: t.priority, estimate_mins: t.estimate_mins, tags: t.tags, source: t.source, external_id: t.external_id,
+                  }],
+                });
+                const created = (r as { created?: { id: string }[] } | undefined)?.created?.[0]?.id;
+                if (!created) return;
+                if (t.done) await updateTask({ id: created, patch: { done: true, done_on: t.done_on } });
+                if (block) await placeBlock({ task_id: created, date: block.date, start: block.start, mins: block.mins });
+              } catch (e) {
+                fail("Couldn't undo", e);
+              }
+            })();
+          },
+        }),
+        (e) => fail("Couldn't delete that", e),
+      );
+    },
+    [deleteTask, addTasks, updateTask, placeBlock, show, fail],
+  );
+
+  const save = useCallback(
+    (id: string, patch: Record<string, unknown>) => {
+      updateTask({ id, patch }).catch((e) => fail("Couldn't save that", e));
+    },
+    [updateTask, fail],
+  );
+
+  return { toast, dismiss, add, tick, remove, save };
+}

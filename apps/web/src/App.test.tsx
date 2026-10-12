@@ -9,6 +9,7 @@ vi.mock("convex/react", () => ({
   Authenticated: ({ children }: any) => (state.authed ? children : null),
   Unauthenticated: ({ children }: any) => (state.authed ? null : children),
   AuthLoading: () => null,
+  useMutation: () => Object.assign(vi.fn(), { withOptimisticUpdate() { return this; } }),
   useQuery: () => ({
     today: "2026-03-10", date: "2026-03-10", nowM: 600, app_url: null, day: null, tasks: [], blocks: [], suggestions: [],
   }),

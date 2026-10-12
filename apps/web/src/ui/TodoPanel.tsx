@@ -3,6 +3,7 @@ import { spanOf, type View } from "@shared/board.ts";
 import railCarried from "../assets/plates/rail-carried.png";
 import railComingup from "../assets/plates/rail-comingup.png";
 import railToday from "../assets/plates/rail-today.png";
+import type { NewTask } from "../lib/useActions";
 import type { PassModel } from "./build";
 import { Docket } from "./Docket";
 import { clock12 } from "./format";
@@ -24,6 +25,9 @@ type Props = {
   legend?: Legend;
   quickAdd?: string;
   onSignOut?: () => void;
+  onAdd?: (t: NewTask) => Promise<boolean>;
+  onOpen?: (id: string) => void;
+  onTick?: (id: string, done: boolean) => void;
 };
 
 // Which dockets are inside the scroll area right now. null = unknown (no IntersectionObserver): treat all as visible.
@@ -47,7 +51,7 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
   return visible;
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const scroll = useRef<HTMLDivElement>(null);
 
@@ -78,7 +82,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
           {clock12(span.to)}
         </p>
       )}
-      <QuickAdd today={today} nowM={nowM} initial={quickAdd} />
+      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} />
       <NextUp items={model.nextUp} />
       <div className="todo-scroll" ref={scroll}>
         {groups.map((g) => {
@@ -93,7 +97,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
               geo={geo}
               toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) } : undefined}
             >
-              {open && g.dockets.map((d) => <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} />)}
+              {open && g.dockets.map((d) => <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} onOpen={onOpen} onTick={onTick} />)}
             </Rail>
           );
         })}
