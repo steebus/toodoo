@@ -1,0 +1,78 @@
+/* The Pass: palette, type and spacing measured from the approved comp (.impeccable/build/spec.json). */
+:root {
+  color-scheme: light;
+
+  /* ground and ink */
+  --ground: #fcfcfc;
+  --surface: #ffffff;
+  --well: #f6f6f6;
+  --well-strong: #e8e8e8;
+  --ink: #111111;
+  --ink-2: #3c3c3c;
+  --ink-3: #5f5f5f;
+  --rule: #c4c4c4;
+  --rule-soft: #dcdcdc;
+  --rule-dash: #cfcfcf;
+
+  /* signals */
+  --red: #d7261e;
+  --red-ink: #b3161b;
+  --red-soft: #f2d4d2;
+  --green: #1e8a4c;
+
+  /* paper print: dockets are always thermal paper, so their ink never inverts */
+  --paper-ink: #121212;
+  --paper-red: #b3161b;
+
+  /* type */
+  --font-wordmark: "Carlito", "Calibri", system-ui, sans-serif;
+  --font-date: "RocknRoll One", "Carlito", system-ui, sans-serif;
+  --font-ui: "Carlito", "Calibri", system-ui, sans-serif;
+  --font-print: "Iosevka Charon Mono", ui-monospace, monospace;
+
+  /* spacing rhythm (comp px at 1536 wide) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 20px;
+  --space-5: 28px;
+  --radius: 4px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #161616;
+  --surface: #1e1e1e;
+  --well: #222222;
+  --well-strong: #2a2a2a;
+  --ink: #f0f0f0;
+  --ink-2: #cfcfcf;
+  --ink-3: #a3a3a3;
+  --rule: #4a4a4a;
+  --rule-soft: #333333;
+  --rule-dash: #3d3d3d;
+  --red: #ff5a4f;
+  --red-ink: #ff6b61;
+  --red-soft: #4a2220;
+  --green: #4cc982;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #161616;
+    --surface: #1e1e1e;
+    --well: #222222;
+    --well-strong: #2a2a2a;
+    --ink: #f0f0f0;
+    --ink-2: #cfcfcf;
+    --ink-3: #a3a3a3;
+    --rule: #4a4a4a;
+    --rule-soft: #333333;
+    --rule-dash: #3d3d3d;
+    --red: #ff5a4f;
+    --red-ink: #ff6b61;
+    --red-soft: #4a2220;
+    --green: #4cc982;
+  }
+}

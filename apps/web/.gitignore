@@ -3,3 +3,4 @@
 .impeccable/mocks/
 .impeccable/prompts/
 .impeccable/decision-payload.json
+src/ui/fixtures.ts

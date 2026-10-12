@@ -2,6 +2,22 @@ import { useAuth } from "@workos-inc/authkit-react";
 import { useEffect, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { Hero } from "./ui/Hero";
+import type { HeroData } from "./ui/types";
+
+// The comp's content lives in a gitignored fixtures file; the glob is empty when it is absent (CI),
+// and production builds drop it entirely so the fixture never ships.
+const fixtureModules: Record<string, () => Promise<{ heroFixture: HeroData }>> = import.meta.env.DEV
+  ? import.meta.glob<{ heroFixture: HeroData }>("./ui/fixtures.ts")
+  : {};
+
+function FixtureHero() {
+  const [data, setData] = useState<HeroData | null>(null);
+  useEffect(() => {
+    fixtureModules["./ui/fixtures.ts"]?.().then((m) => setData(m.heroFixture));
+  }, []);
+  return data ? <Hero data={data} /> : null;
+}
 
 // Placeholder home until Plan 2 builds the real UI.
 // Convex queries are cached, so hand the server a minute-rounded clock to keep "today" fresh.
@@ -39,6 +55,7 @@ function SignIn() {
 }
 
 export function App() {
+  if (new URLSearchParams(window.location.search).get("fixture") === "1") return <FixtureHero />;
   return (
     <>
       <AuthLoading>{null}</AuthLoading>
