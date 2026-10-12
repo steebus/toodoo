@@ -9,7 +9,8 @@
    - `pnpm convex env set TOODOO_API_KEY <random>`
    - `pnpm convex env set APP_URL http://localhost:5173`
 4. Add `VITE_WORKOS_CLIENT_ID` and `VITE_WORKOS_REDIRECT_URI=http://localhost:5173/callback` to `.env.local` (see `.env.example`).
-5. First sign-in is expected to fail: until `ALLOWED_USER_ID` is set, data loads are rejected. Sign in once, copy your user ID from WorkOS → **Users** (`user_...`), run `pnpm convex env set ALLOWED_USER_ID <user id>`, then reload.
+5. Windows: if `convex dev` fails with EBUSY, the temp dir and the project are on different drives; set `CONVEX_TMPDIR` to a folder on the project's drive.
+6. First sign-in is expected to fail: until `ALLOWED_USER_ID` is set, data loads are rejected. Sign in once, copy your user ID from WorkOS → **Users** (`user_...`), run `pnpm convex env set ALLOWED_USER_ID <user id>`, then reload.
 
 ## WorkOS (AuthKit)
 1. Optional: `npx workos@latest integrate` provisions a sandbox environment and writes WORKOS_* vars to `.env.local`. Ignore the code it generates — the app already has its AuthKit wiring — and run `npx workos profile claim` to link the environment to your account.
