@@ -9,3 +9,7 @@ scripts/artifact-export
 .convex
 .env.local
 docs/private/
+
+# local tool output (may capture real task data)
+/.impeccable/
+/.playwright-mcp/
