@@ -43,3 +43,79 @@ describe("parseQuickAdd", () => {
     expect(p("Call Sam tomorrow 3pm !high").chips.map((c) => c.kind)).toEqual(["date", "time", "priority"]);
   });
 });
+
+describe("calendar date validation", () => {
+  it("does not consume an impossible day/month slash date", () => {
+    expect(p("x 31/2")).toMatchObject({ title: "x 31/2", due: null });
+    expect(p("x 31/2").chips.some((c) => c.kind === "date")).toBe(false);
+  });
+  it("does not consume an impossible day-month word date", () => {
+    expect(p("x 40 oct")).toMatchObject({ title: "x 40 oct", due: null });
+  });
+});
+
+describe("date roll-forward", () => {
+  it("moves a day+month that has passed this year to next year", () => {
+    expect(p("x 30 sep").due).toBe("2027-09-30");
+    expect(p("x 3/10").due).toBe("2027-10-03");
+  });
+  it("keeps future dates and today in this year", () => {
+    expect(p("x 20 oct").due).toBe("2026-10-20");
+    expect(p("x 12 oct").due).toBe("2026-10-12");
+  });
+  it("treats a weekday that is today as next week", () => {
+    expect(parseQuickAdd("x fri", "2026-10-16", 540).due).toBe("2026-10-23");
+  });
+});
+
+describe("strict month words", () => {
+  it("does not read ordinary words starting with a month as months", () => {
+    expect(p("Buy 2 marbles")).toMatchObject({ title: "Buy 2 marbles", due: null });
+    expect(p("Order 5 decks")).toMatchObject({ title: "Order 5 decks", due: null });
+  });
+  it("accepts full month names and sept", () => {
+    expect(p("x 20 september").due).toBe("2027-09-20");
+    expect(p("x 20 sept").due).toBe("2027-09-20");
+  });
+});
+
+describe("time range checks", () => {
+  it("rejects out-of-range am/pm hours and minutes", () => {
+    expect(p("x 13pm")).toMatchObject({ title: "x 13pm", time: null });
+    expect(p("x 9:75am")).toMatchObject({ title: "x 9:75am", time: null });
+  });
+  it("rejects an out-of-range 'at' hour", () => {
+    expect(p("x at 25")).toMatchObject({ title: "x at 25", time: null });
+  });
+  it("reads 12pm as noon and 12am as midnight", () => {
+    expect(p("x 12pm").time).toBe("12:00");
+    expect(p("x 12am").time).toBe("00:00");
+  });
+  it("reads 'at 7' as 07:00", () => {
+    expect(p("x at 7").time).toBe("07:00");
+  });
+});
+
+describe("lead-in words", () => {
+  it("absorbs 'at' before a time into the time chip", () => {
+    const r = p("Call Sam at 3pm");
+    expect(r).toMatchObject({ title: "Call Sam", time: "15:00" });
+    expect(r.chips).toContainEqual({ kind: "time", text: "at 3pm" });
+  });
+  it("absorbs 'on' before a date into the date chip", () => {
+    const r = p("Pay rent on friday");
+    expect(r).toMatchObject({ title: "Pay rent", due: "2026-10-16" });
+    expect(r.chips).toContainEqual({ kind: "date", text: "on friday" });
+  });
+});
+
+describe("pinned behaviour", () => {
+  it("keeps '~0m' in the title because zero is not an estimate", () => {
+    expect(p("x ~0m")).toMatchObject({ title: "x ~0m", estimate_mins: null });
+  });
+  it("produces one tag for duplicate tags", () => {
+    const r = p("x #work #work");
+    expect(r.tags).toEqual(["work"]);
+    expect(r.chips.filter((c) => c.kind === "tag")).toHaveLength(1);
+  });
+});
