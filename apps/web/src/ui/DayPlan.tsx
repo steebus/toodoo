@@ -1,87 +1,87 @@
-import { useEffect, useMemo, useRef } from "react";
-import { layoutLanes, toHM } from "@shared/planning.ts";
-import { clock12, hourLabel } from "./format";
-import { GripIcon, NowMarker } from "./icons";
-import { blockHeight, blockTop, gridHeight, LINE_DROP, minToPx, NOW_LEAD } from "./plan";
-import type { PlanData } from "./types";
+import { useRef } from "react";
+import { addDays, daysBetween, dayWord } from "@shared/planning.ts";
+import type { Actions } from "../lib/useActions";
+import { GripIcon } from "./icons";
+import { Timeline } from "./Timeline";
+import type { BoardData, PlanData } from "./types";
 
-// Read-only: moving and resizing blocks arrives with the editing task.
-export function DayPlan({ plan }: { plan: PlanData }) {
-  const { startM, endM, blocks, allDay, nowM, anchorM } = plan;
-  const scroller = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = Math.max(0, minToPx(anchorM, startM) - 140);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- open scrolled once, then leave the scroll to the reader
+export type DayNavProps = { date: string; onDate: (d: string) => void };
 
-  const hours = useMemo(() => {
-    const out: number[] = [];
-    for (let m = startM; m <= endM; m += 60) out.push(m);
-    return out;
-  }, [startM, endM]);
-  const lanes = useMemo(() => layoutLanes(blocks.map((b) => ({ ...b, s: b.startM, e: b.startM + b.mins }))), [blocks]);
+type Props = { plan: PlanData; board?: BoardData; actions?: Actions; nav?: DayNavProps };
 
+// The Day plan panel: title, all-day chips and day navigation in the header, the line below.
+export function DayPlan({ plan, board, actions, nav }: Props) {
+  const { allDay } = plan;
   return (
     <section className="dayplan" aria-labelledby="dayplan-title">
       <h2 id="dayplan-title" className="r-dayplan-title panel-title">Day plan</h2>
-      {allDay.length > 0 && (
-        <ul className="allday" aria-label="All day">
-          {allDay.map((e) => (
-            <li key={e.id} className="allday-chip" title={e.title}>{e.title}</li>
-          ))}
-        </ul>
-      )}
-      <div className="plan-scroll" ref={scroller}>
-        <div className="plan-grid" style={{ height: gridHeight(startM, endM) }}>
-          <div className="hour-lines" aria-hidden>
-            {hours.map((m) => (
-              <span key={m} className="hour-line" style={{ top: minToPx(m, startM) + LINE_DROP }} />
+      <div className="dayplan-head">
+        {allDay.length > 0 && (
+          <ul className="allday" aria-label="All day">
+            {allDay.map((e) => (
+              <li key={e.id} className="allday-chip" title={e.title}>{e.title}</li>
             ))}
-          </div>
-          <ol className="hour-labels" aria-label="Hours">
-            {hours.map((m) => (
-              <li key={m} className="hour-label" style={{ top: minToPx(m, startM) }}>
-                {hourLabel(m / 60)}
-              </li>
-            ))}
-          </ol>
-          <ol className="plan-blocks" aria-label="Plan">
-            {lanes.map((b) => (
-              <li
-                key={b.id}
-                className={`plan-block plan-${b.kind}${b.current ? " is-current" : ""}`}
-                style={{
-                  top: blockTop(b.startM, startM),
-                  height: blockHeight(b.mins),
-                  left: `calc(var(--lane-left) + ${b.col} * var(--lane-w) / ${b.cols})`,
-                  width: `calc(var(--lane-w) / ${b.cols}${b.cols > 1 ? " - 0.3cqw" : ""})`,
-                }}
-              >
-                <span className="plan-time">{b.time}</span>
-                <span className="plan-title">
-                  {b.title}
-                  {b.duration && (
-                    <>
-                      <span className="sep" aria-hidden>·</span>
-                      {b.duration}
-                    </>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ol>
-          {nowM !== null && (
-            <p className="nowline" style={{ top: minToPx(nowM, startM) - NOW_LEAD }} aria-label={`Now ${clock12(toHM(nowM))}`}>
-              <NowMarker className="now-marker" />
-              <span className="now-time">{clock12(toHM(nowM))}</span>
-              <span className="now-rule" aria-hidden />
-            </p>
-          )}
-        </div>
+          </ul>
+        )}
+        {nav && board && <DayNav {...nav} today={board.today} />}
       </div>
+      <Timeline plan={plan} board={board} actions={actions} />
       <div className="r-panel-divider panel-divider" aria-hidden />
       <button type="button" className="r-divider-grip divider-grip" aria-label="Resize panels">
         <GripIcon />
       </button>
     </section>
+  );
+}
+
+const shortDay = (d: string) =>
+  new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" })
+    .format(new Date(d + "T12:00:00Z")).replace(",", "");
+
+function relative(date: string, today: string): string {
+  if (date === today) return "";
+  const w = dayWord(date, today);
+  if (w === "tomorrow" || w === "yesterday") return w[0].toUpperCase() + w.slice(1);
+  const n = daysBetween(today, date);
+  return n > 0 ? `in ${n} days` : `${-n} days ago`;
+}
+
+// Quiet mono controls: ‹ date › and, away from today, how far away it is and a way back.
+function DayNav({ date, today, onDate }: DayNavProps & { today: string }) {
+  const picker = useRef<HTMLInputElement>(null);
+  const rel = relative(date, today);
+  const open = () => {
+    const el = picker.current;
+    if (!el) return;
+    try {
+      el.showPicker();
+    } catch {
+      el.focus();
+      el.click();
+    }
+  };
+  return (
+    <nav className="daynav" aria-label="Day">
+      <button type="button" className="daynav-step" aria-label="Previous day" onClick={() => onDate(addDays(date, -1))}>‹</button>
+      <span className="daynav-pick">
+        <button type="button" className="daynav-date" aria-label={`Choose day, ${shortDay(date)}`} onClick={open}>
+          {shortDay(date)}
+        </button>
+        <input
+          ref={picker}
+          type="date"
+          className="daynav-input"
+          tabIndex={-1}
+          aria-hidden
+          value={date}
+          onChange={(e) => e.target.value && onDate(e.target.value)}
+        />
+      </span>
+      <button type="button" className="daynav-step" aria-label="Next day" onClick={() => onDate(addDays(date, 1))}>›</button>
+      {rel && <span className="daynav-rel">{rel}</span>}
+      {date !== today && (
+        <button type="button" className="daynav-today" onClick={() => onDate(today)}>Today</button>
+      )}
+    </nav>
   );
 }

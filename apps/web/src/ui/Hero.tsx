@@ -5,7 +5,7 @@ import "./pass.css";
 import type { Actions } from "../lib/useActions";
 import { useStoredView } from "../lib/useStoredView";
 import { buildPass } from "./build";
-import { DayPlan } from "./DayPlan";
+import { DayPlan, type DayNavProps } from "./DayPlan";
 import { EditSheet, type Draft } from "./EditSheet";
 import { Toast } from "./Toast";
 import { TodoPanel } from "./TodoPanel";
@@ -14,10 +14,12 @@ import type { BoardData, Legend } from "./types";
 
 const PRESETS = ["Capture", "Plan", "Focus"];
 
-type Props = { board: BoardData; legend?: Legend; quickAdd?: string; onSignOut?: () => void; actions?: Actions };
+type Props = {
+  board: BoardData; legend?: Legend; quickAdd?: string; onSignOut?: () => void; actions?: Actions; nav?: DayNavProps;
+};
 
 // The first viewport of The Pass: top bar, Day plan (left third), To do rails (right two thirds).
-export function Hero({ board, legend, quickAdd, onSignOut, actions }: Props) {
+export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const editTask = editing ? board.tasks.find((t) => t.id === editing) : undefined;
@@ -40,7 +42,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions }: Props) {
         activePreset="Plan"
       />
       <main className="pass-main">
-        <DayPlan plan={model.plan} />
+        <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} />
         <TodoPanel
           model={model}
           today={board.today}

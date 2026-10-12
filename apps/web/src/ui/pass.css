@@ -90,9 +90,16 @@
   position: absolute; right: 0; transform: translateY(-50%);
   font-family: var(--font-print); font-weight: 300; font-size: 19px; line-height: 1; color: var(--ink-2); margin-right: 3px;
 }
-.plan-blocks { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+.plan-blocks { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.plan-blocks > li, .plan-grid .slotpick { pointer-events: auto; }
+.hour-lines, .hour-labels { pointer-events: none; }
+/* Header row beside the title: all-day chips give way to the day nav. */
+.dayplan-head {
+  position: absolute; left: 9cqw; width: 24.2cqw; top: 9.38cqh; height: 2.93cqh;
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0;
+}
 .allday {
-  position: absolute; left: 9cqw; width: 24cqw; top: 9.38cqh; height: 2.93cqh;
+  flex: 1 1 auto; min-width: 0; height: 100%;
   display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0; padding: 0; list-style: none; overflow: hidden;
 }
 .allday-chip {
@@ -115,13 +122,17 @@
 .plan-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .plan-title .sep { margin: 0 0.6em; }
 
-.nowline { position: absolute; left: 0; right: 0; height: 22px; margin: 0; color: var(--red); }
+.nowline { position: absolute; left: 0; right: 0; height: 22px; margin: 0; color: var(--red); pointer-events: none; }
 .now-marker { position: absolute; left: 4px; top: 3px; color: var(--red); }
 .now-time {
   position: absolute; left: 24px; top: 50%; transform: translateY(-50%);
   font-family: var(--font-print); font-size: 19px; line-height: 1; color: var(--red);
 }
 .now-rule { position: absolute; left: 82px; right: 0; top: 50%; height: 1px; background: var(--red); }
+/* The now-line breathes: opacity only. */
+.now-marker, .now-rule { animation: now-pulse 2.8s ease-in-out infinite; }
+@keyframes now-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .now-marker, .now-rule { animation: none; } }
 
 .panel-divider {
   background: var(--well-strong);
@@ -391,3 +402,148 @@
 .sheet-error { font-size: 13px; color: var(--red-ink); }
 .toast.is-paused .toast-ring-drain { animation-play-state: paused; }
 .sheet-cell { display: grid; gap: 5px; min-width: 0; }
+
+/* ---------- day nav: quiet mono controls in the Day plan header ---------- */
+.daynav {
+  flex: none; display: flex; align-items: center; gap: 2px; white-space: nowrap;
+  font-family: var(--font-print); font-size: 16px; line-height: 1; color: var(--ink-2);
+}
+.pass .daynav-step { width: 26px; height: 26px; display: grid; place-items: center; font-size: 21px; color: var(--ink-2); border-radius: var(--radius); }
+.pass .daynav-step:hover, .pass .daynav-date:hover, .pass .daynav-today:hover { color: var(--ink); background: var(--well); }
+.daynav-pick { position: relative; display: inline-flex; }
+.pass .daynav-date { padding: 5px 6px; color: var(--ink); border-radius: var(--radius); }
+.daynav-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+.daynav-rel { margin-left: 6px; color: var(--ink-3); }
+.pass .daynav-today {
+  margin-left: 8px; padding: 4px 8px; color: var(--ink-2);
+  border: 1px solid var(--rule); border-radius: var(--radius); animation: fade-in 0.16s ease-out both;
+}
+
+/* Changing day: the line slides the way you travelled (a View Transition; instant without one). */
+.plan-scroll { view-transition-name: dayplan; }
+::view-transition-old(dayplan) { animation: day-out-next 0.2s ease-in both; }
+::view-transition-new(dayplan) { animation: day-in-next 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+:root[data-day-dir="prev"]::view-transition-old(dayplan) { animation-name: day-out-prev; }
+:root[data-day-dir="prev"]::view-transition-new(dayplan) { animation-name: day-in-prev; }
+@keyframes day-out-next { to { opacity: 0; transform: translateX(-28px); } }
+@keyframes day-in-next { from { opacity: 0; transform: translateX(28px); } }
+@keyframes day-out-prev { to { opacity: 0; transform: translateX(28px); } }
+@keyframes day-in-prev { from { opacity: 0; transform: translateX(-28px); } }
+@keyframes fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(dayplan), :root[data-day-dir]::view-transition-old(dayplan) { animation: fade-out 0.12s linear both; }
+  ::view-transition-new(dayplan), :root[data-day-dir]::view-transition-new(dayplan) { animation: fade-in 0.12s linear both; }
+  .pass .daynav-today { animation: none; }
+}
+
+/* ---------- the line, live: blocks drag and take keys, empty time opens the picker ---------- */
+.plan-slots { position: absolute; inset: 0; cursor: cell; }
+.pass .plan-slots:focus-visible { outline: none; }
+.plan-cursor {
+  position: absolute; left: var(--lane-left); width: var(--lane-w); pointer-events: none;
+  border: 1px dashed var(--ink-3); border-radius: var(--radius); background: var(--well);
+  display: flex; align-items: center; padding-left: 19px; box-sizing: border-box;
+  font-family: var(--font-print); font-size: 15px; line-height: 1; color: var(--ink-2);
+  opacity: 0; transition: opacity 0.14s ease-out;
+}
+.plan-slots:focus-visible ~ .plan-cursor, .plan-grid:has(.slotpick) .plan-cursor { opacity: 1; }
+
+.plan-block.is-live { padding-left: 0; transition: opacity 0.16s ease-out; }
+.plan-block.is-live.is-current { padding-left: 0; }
+.pass .plan-body {
+  flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; padding-left: 19px; text-align: left;
+  white-space: nowrap; cursor: grab; touch-action: none; user-select: none;
+}
+.is-current .plan-body { padding-left: 17px; }
+.pass .plan-body:focus-visible { outline: none; }
+.plan-block:has(.plan-body:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.plan-block.is-keyed { z-index: 2; box-shadow: 0 4px 12px rgb(0 0 0 / 0.12); }
+.plan-block.is-lifted { opacity: 0.4; }
+.plan-block.is-done .plan-title { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--ink-3); }
+.plan-block.is-done .plan-time { color: var(--ink-3); }
+
+/* Tick and unplan float over the block's right end, so the printed line keeps its full width. */
+.plan-acts {
+  position: absolute; top: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 22px;
+  background: linear-gradient(to right, transparent, var(--surface) 18px);
+  opacity: 0; transition: opacity 0.14s ease-out;
+}
+.plan-block:hover .plan-acts, .plan-block:focus-within .plan-acts, .plan-block.is-done .plan-acts { opacity: 1; }
+@media (hover: none) { .plan-acts { opacity: 1; } }
+.plan-tick { position: relative; width: 22px; height: 22px; display: grid; place-items: center; cursor: pointer; }
+.plan-tick input {
+  appearance: none; margin: 0; width: 17px; height: 17px; cursor: pointer;
+  border: 1.5px solid var(--green); border-radius: 50%; background: var(--surface);
+}
+.plan-tick input:checked { background: var(--green); }
+.plan-tick-mark { position: absolute; color: var(--surface); pointer-events: none; opacity: 0; }
+.plan-tick input:checked + .plan-tick-mark { opacity: 1; }
+.pass .plan-x { width: 22px; height: 22px; display: grid; place-items: center; font-size: 18px; color: var(--ink-3); border-radius: var(--radius); }
+.pass .plan-x:hover { color: var(--red-ink); background: var(--well); }
+.plan-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; cursor: ns-resize; touch-action: none; }
+.plan-resize::after {
+  content: ""; position: absolute; left: 50%; bottom: 2px; width: 22px; height: 2px; margin-left: -11px;
+  border-radius: 1px; background: var(--rule); opacity: 0; transition: opacity 0.14s ease-out;
+}
+.plan-block:hover .plan-resize::after { opacity: 1; }
+
+.plan-ghost {
+  position: absolute; left: var(--lane-left); width: var(--lane-w); margin: 0; z-index: 3; pointer-events: none;
+  box-sizing: border-box; display: flex; align-items: center; padding-left: 19px;
+  background: var(--surface); border: 1.5px dashed var(--ink); border-radius: var(--radius);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.14);
+  font-family: var(--font-print); font-size: 16.5px; line-height: 1; color: var(--ink);
+}
+.plan-ghost-time { white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .plan-cursor, .plan-acts, .plan-resize::after, .plan-block.is-live { transition: none; }
+}
+
+/* ---------- slot picker: popover beside the slot, bottom sheet on small screens ---------- */
+.slotpick {
+  position: absolute; left: var(--lane-left); width: min(var(--lane-w), 380px); margin: 0; padding: 12px; z-index: 6;
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 8px; max-height: 330px; box-sizing: border-box;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
+  font-family: var(--font-print); font-size: 16px; line-height: 1;
+  animation: pop-in 0.16s ease-out both;
+}
+.slotpick:not([open]) { display: none; }
+.slotpick-at { margin: 0 0 2px 2px; font-size: 15px; color: var(--ink-3); }
+.slotpick-search {
+  min-width: 0; padding: 8px 10px; font: inherit; font-size: 17px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); caret-color: var(--red);
+}
+.pass .slotpick-search:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.slotpick-list { margin: 0; padding: 0; list-style: none; overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+.slotpick-opt {
+  display: flex; align-items: baseline; gap: 10px; padding: 9px 10px; border-radius: var(--radius); cursor: pointer; white-space: nowrap;
+}
+.slotpick-opt[aria-selected="true"] { background: var(--well-strong); }
+.slotpick-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.slotpick-why { margin-left: auto; flex: none; font-size: 14px; color: var(--ink-3); }
+.slotpick-opt.is-create .slotpick-title { color: var(--ink-2); }
+.slotpick-plus { font-family: var(--font-ui); font-weight: 700; color: var(--ink-2); }
+.slotpick.is-sheet {
+  position: fixed; inset: auto 0 0 0; width: 100vw; max-width: none; max-height: 80dvh; padding: 18px 16px 22px;
+  border: 0; border-top: 1px solid var(--rule); border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: 0 -10px 30px rgb(0 0 0 / 0.14); animation: sheet-up 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.slotpick.is-sheet::backdrop { background: rgb(0 0 0 / 0.22); animation: fade-in 0.2s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .slotpick, .slotpick.is-sheet { animation: fade-in 0.12s linear both; }
+}
+
+/* ---------- done that day: quiet rows under the line ---------- */
+.plan-done { margin: 6px 0 18px; padding: 14px 0 0 calc(4.36% + 4px); border-top: 1px solid var(--rule-soft); }
+.plan-done-label {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 8px;
+  font-family: var(--font-ui); font-weight: 700; font-size: 15px; line-height: 1; letter-spacing: 0.01em;
+}
+.plan-done-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.plan-done-row {
+  display: flex; align-items: center; gap: 10px; height: 26px; padding-right: 12px;
+  font-family: var(--font-print); font-size: 15.5px; line-height: 1; color: var(--ink-2); white-space: nowrap;
+}
+.plan-done-tick { flex: none; color: var(--green); }
+.plan-done-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

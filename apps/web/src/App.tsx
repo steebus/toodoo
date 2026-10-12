@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { useActions } from "./lib/useActions";
 import { useBoard } from "./lib/useBoard";
+import { useDayChange } from "./lib/useDayChange";
+import { useViewDate } from "./lib/useViewDate";
 import { Hero, HeroShell } from "./ui/Hero";
 import type { BoardData, Legend } from "./ui/types";
 
@@ -18,18 +20,24 @@ function FixtureHero() {
   useEffect(() => {
     fixtureModules["./ui/fixtures.ts"]?.().then(setFx);
   }, []);
-  return fx ? <Hero board={fx.boardFixture} legend={fx.legendFixture} quickAdd={fx.quickAddFixture} /> : null;
+  return fx ? (
+    <Hero board={fx.boardFixture} legend={fx.legendFixture} quickAdd={fx.quickAddFixture}
+      nav={{ date: fx.boardFixture.date, onDate: () => {} }} />
+  ) : null;
 }
 
-function Live({ board }: { board: BoardData }) {
+function Live({ board, date, onDate }: { board: BoardData; date: string; onDate: (d: string) => void }) {
   const { signOut } = useAuth();
   const actions = useActions(board);
-  return <Hero board={board} onSignOut={() => signOut()} actions={actions} />;
+  return <Hero board={board} onSignOut={() => signOut()} actions={actions} nav={{ date, onDate }} />;
 }
 
 function Home() {
-  const board = useBoard();
-  return board ? <Live board={board} /> : <HeroShell />;
+  const [date, setDate] = useViewDate();
+  const board = useDayChange(useBoard(date));
+  if (!board) return <HeroShell />;
+  // The nav follows the requested day at once, even while its board is still on the way.
+  return <Live board={board} date={date ?? board.today} onDate={(d) => setDate(d === board.today ? undefined : d)} />;
 }
 
 function SignIn() {

@@ -23,6 +23,7 @@ export type PlanBlock = {
   title: string;
   duration?: string;
   current?: boolean;
+  done?: boolean;
 };
 
 export type PlanData = {

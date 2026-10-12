@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { parseDuration } from "@shared/planning.ts";
+import { parseDuration, toHM } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import type { BoardData } from "../ui/types";
 
@@ -24,6 +24,9 @@ export type Actions = {
   tick: (id: string, done: boolean) => void;
   remove: (id: string) => void;
   save: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
+  place: (id: string, date: string, start: number, mins: number) => void;
+  unplace: (id: string, date: string) => void;
+  addAndPlace: (t: NewTask, date: string, start: number, mins: number) => Promise<boolean>;
 };
 
 // Patch every board query that is loaded, so the change shows at once whichever date is being viewed.
@@ -95,6 +98,12 @@ export function useActions(board: BoardData): Actions {
   const placeBlock = useMutation(api.agent.placeBlock).withOptimisticUpdate((store, a) =>
     patchBoards(store as Store, (b) => ({
       ...b, blocks: [...b.blocks.filter((x) => !(x.task_id === a.task_id && x.date === a.date)), a],
+    })),
+  );
+
+  const removeBlock = useMutation(api.agent.removeBlock).withOptimisticUpdate((store, a) =>
+    patchBoards(store as Store, (b) => ({
+      ...b, blocks: b.blocks.filter((x) => !(x.task_id === a.task_id && x.date === a.date)),
     })),
   );
 
@@ -186,5 +195,61 @@ export function useActions(board: BoardData): Actions {
     [updateTask, fail],
   );
 
-  return { toast, dismiss, add, tick, remove, save };
+  // Callers clamp (lib/timeline.ts); the server clamps again. Undo restores the block as it was, or unplans.
+  const place = useCallback(
+    (id: string, date: string, start: number, mins: number) => {
+      if (isOptimistic(id)) return;
+      const b = live.current;
+      const t = b.tasks.find((x) => x.id === id);
+      const prev = b.blocks.find((x) => x.task_id === id && x.date === date);
+      show({
+        kind: "undo", message: `${prev ? "Moved" : "Planned"}: ${t?.title ?? "task"}`,
+        undo: () => {
+          const back = prev
+            ? placeBlock({ task_id: id, date, start: prev.start, mins: prev.mins })
+            : removeBlock({ task_id: id, date });
+          void back.catch((e) => fail("Couldn't undo", e));
+        },
+      });
+      placeBlock({ task_id: id, date, start: toHM(start), mins }).catch((e) => fail("Couldn't plan that", e));
+    },
+    [placeBlock, removeBlock, show, fail],
+  );
+
+  const unplace = useCallback(
+    (id: string, date: string) => {
+      const b = live.current;
+      const prev = b.blocks.find((x) => x.task_id === id && x.date === date);
+      if (!prev || isOptimistic(id)) return;
+      const t = b.tasks.find((x) => x.id === id);
+      show({
+        kind: "undo", message: `Unplanned: ${t?.title ?? "task"}`,
+        undo: () => void placeBlock({ task_id: id, date, start: prev.start, mins: prev.mins }).catch((e) => fail("Couldn't undo", e)),
+      });
+      removeBlock({ task_id: id, date }).catch((e) => fail("Couldn't unplan that", e));
+    },
+    [placeBlock, removeBlock, show, fail],
+  );
+
+  const addAndPlace = useCallback(
+    async (t: NewTask, date: string, start: number, mins: number) => {
+      try {
+        const r = await addTasks({ tasks: [t] });
+        const bad = rejection(r);
+        if (bad) {
+          show({ kind: "error", message: `Couldn't add that: ${bad}` });
+          return false;
+        }
+        const id = (r as { created: { id: string }[] }).created[0].id;
+        await placeBlock({ task_id: id, date, start: toHM(start), mins });
+        return true;
+      } catch (e) {
+        fail("Couldn't plan that", e);
+        return false;
+      }
+    },
+    [addTasks, placeBlock, show, fail],
+  );
+
+  return { toast, dismiss, add, tick, remove, save, place, unplace, addAndPlace };
 }

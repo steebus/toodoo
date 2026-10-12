@@ -62,7 +62,7 @@ function planOf(b: BoardData, byId: Map<string, FullTask>): PlanData {
     if (pb.date !== b.date || !t || s == null) continue;
     blocks.push({
       id: t.id, kind: "task", startM: s, mins: pb.mins, time: clock12(pb.start), title: t.title,
-      duration: formatDuration(pb.mins), current: isToday && s <= b.nowM && b.nowM < s + pb.mins,
+      duration: formatDuration(pb.mins), current: isToday && s <= b.nowM && b.nowM < s + pb.mins, done: t.done,
     });
   }
   blocks.sort((x, y) => x.startM - y.startM);
