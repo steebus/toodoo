@@ -41,12 +41,10 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const split = useSplit();
   const setSplit = split[1];
   const [stored, setView] = useStoredView();
-  // A remembered tag that no task carries any more would hide everything: fall back to All and remember that.
+  // A remembered tag that no task carries would hide everything: show All for now, but keep the tag
+  // (the board may be a passing one, e.g. a day still loading or a kept copy).
   const stale = !!stored.tag && stored.tag !== NO_TAG && !board.tasks.some((t) => t.tags.includes(stored.tag));
   const view = useMemo(() => (stale ? { ...stored, tag: "" } : stored), [stale, stored]);
-  useEffect(() => {
-    if (stale) setView(view);
-  }, [stale, view, setView]);
   const model = useMemo(() => buildPass(board, view), [board, view]);
   // Shortcuts act on the focused docket (j/k move that focus); x and p are handled by the docket itself.
   const onDate = nav?.onDate;
@@ -62,7 +60,8 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
       if (!a || e.defaultPrevented) return;
       const dockets = [...document.querySelectorAll<HTMLElement>(".pass [data-docket] .dk-open:not(:disabled)")];
       const at = dockets.indexOf(document.activeElement as HTMLElement);
-      const id = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("[data-docket]")?.dataset.docket;
+      const el = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("[data-docket], .plan-block[data-block]");
+      const id = el?.dataset.docket ?? el?.dataset.block;
       if (a === "add") narrow ? actions && !offline && setAdding("") : document.querySelector<HTMLElement>(".quickadd-input")?.focus();
       else if (a === "down") dockets[at < 0 ? 0 : Math.min(at + 1, dockets.length - 1)]?.focus();
       else if (a === "up") dockets[at < 0 ? dockets.length - 1 : Math.max(at - 1, 0)]?.focus();
@@ -97,6 +96,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           onPreset={(p) => setSplit(PRESET_SPLIT[p])}
           celebrate={celebrate}
           offline={offline}
+          unsaved={!!actions?.unsaved}
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} compact={compact} actions={actions}>
         <Panes split={split}>

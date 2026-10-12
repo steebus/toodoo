@@ -7,6 +7,7 @@ const PREFIX = "toodoo.board.";
 const USER = "toodoo.lastUser";
 const KEEP = 2;
 const DEAD_AFTER = 3000;
+const COLD_AFTER = 4000;
 
 type Saved = { at: number; board: BoardData };
 const keyOf = (user: string, date: string) => `${PREFIX}${user}.${date}`;
@@ -57,17 +58,26 @@ const subscribe = (cb: () => void) => {
   };
 };
 
-// No network, or a socket that has been down a few seconds after having connected (a blip doesn't count).
+// Once a cold start has waited that out, what mounts after it (the kept board) needn't wait again.
+let coldDead = false;
+
+// No network, or a socket down a few seconds (a blip doesn't count). A cold start that has never
+// connected counts too, after a little longer: the radio can be on with no network behind it.
 export function useOffline() {
   const online = useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
   const c = useConvexConnectionState();
-  const down = c.hasEverConnected && !c.isWebSocketConnected;
-  const [dead, setDead] = useState(false);
+  const down = !c.isWebSocketConnected;
+  const cold = !c.hasEverConnected;
+  const [dead, setDead] = useState(() => down && cold && coldDead);
   useEffect(() => {
     if (!down) return setDead(false);
-    const t = setTimeout(() => setDead(true), DEAD_AFTER);
+    if (cold && coldDead) return setDead(true);
+    const t = setTimeout(() => {
+      if (cold) coldDead = true;
+      setDead(true);
+    }, cold ? COLD_AFTER : DEAD_AFTER);
     return () => clearTimeout(t);
-  }, [down]);
+  }, [down, cold]);
   return !online || dead;
 }
 

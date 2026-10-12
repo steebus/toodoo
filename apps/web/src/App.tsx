@@ -1,7 +1,7 @@
 import { useAuth } from "@workos-inc/authkit-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Component, Fragment, useEffect, useState, type ReactNode } from "react";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
-import { clearCache, hasCachedBoard, lastUser, setLastUser, useOffline } from "./lib/offline";
+import { clearCache, hasCachedBoard, lastUser, loadBoard, localDate, setLastUser, useOffline } from "./lib/offline";
 import { useActions } from "./lib/useActions";
 import { useBoard } from "./lib/useBoard";
 import { useDayChange } from "./lib/useDayChange";
@@ -27,13 +27,17 @@ function FixtureHero() {
   ) : null;
 }
 
-function Live({ board, date, onDate }: { board: BoardData; date: string; onDate: (d: string) => void }) {
+function useSignOut() {
   const { signOut } = useAuth();
-  const actions = useActions(board);
-  const out = () => {
+  return () => {
     clearCache();
     void signOut();
   };
+}
+
+function Live({ board, date, onDate }: { board: BoardData; date: string; onDate: (d: string) => void }) {
+  const out = useSignOut();
+  const actions = useActions(board);
   return <Hero board={board} onSignOut={out} actions={actions} nav={{ date, onDate }} />;
 }
 
@@ -51,12 +55,43 @@ function Home({ cached }: { cached?: string }) {
   return <Live board={board} date={date ?? board.today} onDate={(d) => setDate(d === board.today ? undefined : d)} />;
 }
 
+// A query that throws (a server error, or "sign in required" on a cold start) lands here, not on a white screen:
+// today's kept board read-only if there is one, with Retry (a remount) and Sign out.
+function Fault({ cached, onRetry }: { cached?: string; onRetry: () => void }) {
+  const { user } = useAuth();
+  const out = useSignOut();
+  const userId = user?.id ?? cached;
+  const kept = userId ? loadBoard(userId, localDate()) : undefined;
+  return (
+    <>
+      {kept ? <Hero board={kept} onSignOut={out} /> : <HeroShell />}
+      <p className="fault">
+        <button type="button" onClick={onRetry}>Retry</button>
+        <button type="button" onClick={out}>Sign out</button>
+      </p>
+    </>
+  );
+}
+
+class Guard extends Component<{ cached?: string; children: ReactNode }, { failed: boolean; key: number }> {
+  state = { failed: false, key: 0 };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) {
+      return <Fault cached={this.props.cached} onRetry={() => this.setState((s) => ({ failed: false, key: s.key + 1 }))} />;
+    }
+    return <Fragment key={this.state.key}>{this.props.children}</Fragment>;
+  }
+}
+
 // Offline with no way to sign in: the last signed-in person's kept board is shown read-only (Home gates its writes).
 // Once Convex reconnects and auth resolves, the Authenticated path takes over.
 function ColdStart({ children }: { children: ReactNode }) {
   const offline = useOffline();
   const last = lastUser();
-  return offline && last && hasCachedBoard(last) ? <Home cached={last} /> : <>{children}</>;
+  return offline && last && hasCachedBoard(last) ? <Guard cached={last}><Home cached={last} /></Guard> : <>{children}</>;
 }
 
 function SignIn() {
@@ -75,7 +110,7 @@ export function App() {
     <>
       <AuthLoading><ColdStart>{null}</ColdStart></AuthLoading>
       <Unauthenticated><ColdStart><SignIn /></ColdStart></Unauthenticated>
-      <Authenticated><Home /></Authenticated>
+      <Authenticated><Guard><Home /></Guard></Authenticated>
     </>
   );
 }

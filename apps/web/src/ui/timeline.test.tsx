@@ -161,6 +161,23 @@ it("the search filters, and Create new adds the parsed task then places it", asy
     tasks: [{ title: "plumber", due: T, time: null, priority: "high", tags: [], estimate_mins: 30, source: "you" }],
   });
   await waitFor(() => expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: "new1", date: T, start: "14:30", mins: 30 }));
+  fn("deleteTask").mockResolvedValue({});
+  await userEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
+  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: "new1", date: T });
+  await waitFor(() => expect(fn("deleteTask")).toHaveBeenCalledWith({ id: "new1" }));
+});
+
+it("e on a focused block opens its task's edit sheet", () => {
+  show();
+  block().focus();
+  fireEvent.keyDown(document.activeElement!, { key: "e" });
+  expect(within(screen.getByRole("dialog")).getByDisplayValue("Write report")).toBeInTheDocument();
+});
+
+it("a next up title opens its task's edit sheet", async () => {
+  show();
+  await userEvent.click(within(screen.getByRole("region", { name: "NEXT UP" })).getByRole("button", { name: "Water plants" }));
+  expect(within(screen.getByRole("dialog")).getByDisplayValue("Water plants")).toBeInTheDocument();
 });
 
 it("Enter on the focused grid opens the picker at the slot cursor; Esc closes it and focus returns", async () => {

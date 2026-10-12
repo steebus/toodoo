@@ -196,11 +196,11 @@ it("renders the frame with both panel headings while the board loads", () => {
   expect(screen.getByRole("heading", { name: "To do" })).toBeInTheDocument();
 });
 
-it("falls back to All when the stored tag no longer exists", () => {
+it("shows All when the stored tag is on no task, but keeps the tag for a later board", () => {
   localStorage.setItem("toodoo.view", JSON.stringify({ group: "status", sort: "manual", tag: "gone" }));
   show();
   expect(within(rail("TODAY")).getAllByRole("article")).toHaveLength(3);
-  expect(JSON.parse(localStorage.getItem("toodoo.view")!).tag).toBe("");
+  expect(JSON.parse(localStorage.getItem("toodoo.view")!).tag).toBe("gone");
 });
 
 it("shows All in the tag select after a stale tag resets", async () => {

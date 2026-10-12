@@ -1,6 +1,6 @@
 import type { NextUpItem } from "./types";
 
-export function NextUp({ items, onPlanAll }: { items: NextUpItem[]; onPlanAll?: () => void }) {
+export function NextUp({ items, onPlanAll, onOpen }: { items: NextUpItem[]; onPlanAll?: () => void; onOpen?: (id: string) => void }) {
   return (
     <section className="nextup" aria-labelledby="nextup-label">
       <div className="r-nextup-box nextup-box" aria-hidden />
@@ -9,7 +9,7 @@ export function NextUp({ items, onPlanAll }: { items: NextUpItem[]; onPlanAll?: 
       <ol className="nextup-list">
         {items.slice(0, 3).map((it, i) => (
           <li key={it.id} className={`r-nextup-${i + 1} nextup-item`}>
-            <button type="button" className="nextup-title">{it.title}</button>
+            <button type="button" className="nextup-title" onClick={() => onOpen?.(it.id)}>{it.title}</button>
             <p className="nextup-why">
               {it.when}
               {it.why && (

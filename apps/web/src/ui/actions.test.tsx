@@ -5,7 +5,7 @@ import type { FullTask } from "@shared/snapshot.ts";
 import type { BoardData } from "./types";
 
 const auth = vi.hoisted(() => ({ signIn: vi.fn(), signOut: vi.fn() }));
-const state = vi.hoisted(() => ({ board: null as unknown, fns: {} as Record<string, any> }));
+const state = vi.hoisted(() => ({ board: null as unknown, fns: {} as Record<string, any>, inflight: false }));
 vi.mock("@workos-inc/authkit-react", () => ({ useAuth: () => auth }));
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
@@ -13,7 +13,7 @@ vi.mock("convex/react", async () => {
     Authenticated: ({ children }: any) => children,
     Unauthenticated: () => null,
     AuthLoading: () => null,
-    useConvexConnectionState: () => ({ hasEverConnected: true, isWebSocketConnected: true }),
+    useConvexConnectionState: () => ({ hasEverConnected: true, isWebSocketConnected: true, hasInflightRequests: state.inflight }),
     useQuery: () => state.board,
     useMutation: (ref: any) => {
       const name = getFunctionName(ref).split(":")[1];
@@ -48,6 +48,7 @@ beforeEach(() => {
   localStorage.clear();
   state.board = board();
   state.fns = {};
+  state.inflight = false;
   render(<App />);
   fn("addTasks").mockResolvedValue({ created: [{ id: "new1", title: "x", source: "you", external_id: null }], skipped: [], errors: [] });
   fn("updateTask").mockResolvedValue({});
@@ -128,6 +129,25 @@ it("deleting asks for nothing more, then Undo re-adds the task and its block", a
     }],
   });
   await waitFor(() => expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: "re1", date: T, start: "09:00", mins: 60 }));
+  expect(fn("updateTask")).toHaveBeenCalledWith({ id: "re1", patch: { sort_order: report.sort_order } });
+});
+
+it("Undo of a delete puts back the task's blocks on every loaded day", async () => {
+  cleanup();
+  state.board = {
+    ...board(),
+    blocks: [{ task_id: report.id, date: T, start: "09:00", mins: 60 }, { task_id: report.id, date: "2026-03-11", start: "14:00", mins: 30 }],
+  };
+  render(<App />);
+  fn("addTasks").mockResolvedValue({ created: [{ id: "re1", title: report.title, source: "jira", external_id: "CORE-9" }], skipped: [], errors: [] });
+  fn("updateTask").mockResolvedValue({});
+  fn("deleteTask").mockResolvedValue({});
+  fn("placeBlock").mockResolvedValue({});
+  await userEvent.click(within(await openSheet()).getByRole("button", { name: "Delete" }));
+  await userEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
+  await waitFor(() => expect(fn("placeBlock")).toHaveBeenCalledTimes(2));
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: "re1", date: T, start: "09:00", mins: 60 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: "re1", date: "2026-03-11", start: "14:00", mins: 30 });
 });
 
 it("the edit sheet saves only the changed fields", async () => {
@@ -226,6 +246,22 @@ it("after Delete focus goes to quick add", async () => {
   const sheet = await openSheet();
   await userEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
   expect(input()).toHaveFocus();
+});
+
+it("Undo still goes through offline (Convex queues it), and the stamp reads unsaved while writes wait", async () => {
+  await userEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
+  Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+  try {
+    state.inflight = true;
+    fireEvent(window, new Event("offline"));
+    expect(screen.getByText("unsaved")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
+    expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { done: false } });
+  } finally {
+    state.inflight = false;
+    Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+    fireEvent(window, new Event("online"));
+  }
 });
 
 it("offline, writes are blocked and nothing is sent", async () => {

@@ -134,7 +134,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
         </p>
       )}
       <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} />
-      <NextUp items={model.nextUp} onPlanAll={onPlanAll} />
+      <NextUp items={model.nextUp} onPlanAll={onPlanAll} onOpen={onOpen} />
       {/* Changing between the rails and the Focus column crossfades the two forms. */}
       <AnimatePresence initial={false}>
         <m.div
