@@ -1,51 +1,103 @@
-import biroRing from "../assets/plates/biro-ring.png";
-import docketCarried1 from "../assets/plates/docket-carried-1.png";
-import docketCarried2 from "../assets/plates/docket-carried-2.png";
-import docketToday1 from "../assets/plates/docket-today-1.png";
-import docketToday2 from "../assets/plates/docket-today-2.png";
-import docketToday3 from "../assets/plates/docket-today-3.png";
-import docketToday4 from "../assets/plates/docket-today-4.png";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { spanOf, type View } from "@shared/board.ts";
 import railCarried from "../assets/plates/rail-carried.png";
 import railComingup from "../assets/plates/rail-comingup.png";
 import railToday from "../assets/plates/rail-today.png";
-import { CarriedTicket, TodayTicket } from "./Docket";
-import { CheckIcon, ChevronIcon } from "./icons";
+import type { PassModel } from "./build";
+import { Docket } from "./Docket";
+import { clock12 } from "./format";
+import { CheckIcon } from "./icons";
 import { NextUp } from "./NextUp";
 import { QuickAdd } from "./QuickAdd";
-import { Rail } from "./Rail";
-import type { HeroData } from "./types";
+import { Rail, type RailGeo } from "./Rail";
+import type { GroupData, Legend } from "./types";
+import { ViewMenu } from "./ViewMenu";
 
-const CARRIED_PLATES = [docketCarried1, docketCarried2];
-const TODAY_PLATES = [docketToday1, docketToday2, docketToday3, docketToday4];
+const PLATE: Record<RailGeo, string> = { carried: railCarried, today: railToday, slim: railComingup };
 
-type Props = Omit<HeroData, "date" | "headline" | "done" | "total" | "presets" | "activePreset" | "hours" | "now" | "blocks">;
+type Props = {
+  model: PassModel;
+  today: string;
+  nowM: number;
+  view: View;
+  onView: (v: View) => void;
+  legend?: Legend;
+  quickAdd?: string;
+  onSignOut?: () => void;
+};
 
-export function TodoPanel({ span, quickAdd, chips, nextUp, carried, today, comingUp, legend }: Props) {
+// Which dockets are inside the scroll area right now. null = unknown (no IntersectionObserver): treat all as visible.
+function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unknown[]) {
+  const [visible, setVisible] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    const el = root.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const seen = new Map<string, boolean>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) seen.set((e.target as HTMLElement).dataset.docket!, e.isIntersecting);
+        setVisible(new Set([...seen].filter(([, v]) => v).map(([k]) => k)));
+      },
+      { root: el, threshold: 0.5 },
+    );
+    el.querySelectorAll("[data-docket]").forEach((n) => io.observe(n));
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-observe when the dockets on screen change
+  }, deps);
+  return visible;
+}
+
+export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut }: Props) {
+  const [comingOpen, setComingOpen] = useState(false);
+  const scroll = useRef<HTMLDivElement>(null);
+
+  const groups = useMemo(
+    () => model.groups.filter((g) => g.count > 0 || g.key === "today" || g.key === "comingup"),
+    [model.groups],
+  );
+  const shown = (g: GroupData) => g.dockets.length > 0 && (g.key !== "comingup" || comingOpen);
+  const sig = groups.map((g) => (shown(g) ? g.dockets.map((d) => d.id).join(",") : "")).join("|");
+  const visible = useVisibleDockets(scroll, [sig]);
+
+  const span = useMemo(() => {
+    const times = groups.filter(shown).flatMap((g) =>
+      g.dockets.filter((d) => !visible || visible.has(d.id)).map((d) => d.hm),
+    );
+    return spanOf(times);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` only reads comingOpen
+  }, [groups, visible, comingOpen]);
+
   return (
     <section className="todo" aria-labelledby="todo-title">
       <h2 id="todo-title" className="r-todo-title panel-title">To do</h2>
-      <p className="r-span span" aria-label={`From ${span.from} to ${span.to}`}>
-        {span.from}
-        <span className="span-arrow" aria-hidden>→</span>
-        {span.to}
-      </p>
-      <QuickAdd quickAdd={quickAdd} chips={chips} />
-      <NextUp items={nextUp} />
-      <Rail id="carried" label="CARRIED OVER" count={carried.length} plate={railCarried}>
-        {carried.slice(0, 2).map((d, i) => (
-          <CarriedTicket key={d.title} region={`docket-carried-${i + 1}`} plate={CARRIED_PLATES[i]} docket={d} />
-        ))}
-      </Rail>
-      <Rail id="today" label="TODAY" count={today.length} plate={railToday}>
-        {today.slice(0, 4).map((d, i) => (
-          <TodayTicket key={d.title.join(" ")} region={`docket-today-${i + 1}`} plate={TODAY_PLATES[i]} docket={d} />
-        ))}
-      </Rail>
-      {today.some((d) => d.topPick) && <img className="r-biro-ring plate biro-ring" src={biroRing} alt="" draggable={false} />}
-      <Rail id="comingup" label="COMING UP" count={comingUp} plate={railComingup} />
-      <button type="button" className="r-comingup-chevron chevron" aria-label="Show coming up" aria-expanded={false}>
-        <ChevronIcon />
-      </button>
+      <ViewMenu view={view} tags={model.tags} onChange={onView} onSignOut={onSignOut} />
+      {span && (
+        <p className="r-span span" aria-label={`From ${clock12(span.from)} to ${clock12(span.to)}`}>
+          {clock12(span.from)}
+          <span className="span-arrow" aria-hidden>→</span>
+          {clock12(span.to)}
+        </p>
+      )}
+      <QuickAdd today={today} nowM={nowM} initial={quickAdd} />
+      <NextUp items={model.nextUp} />
+      <div className="todo-scroll" ref={scroll}>
+        {groups.map((g) => {
+          const open = shown(g);
+          const geo: RailGeo = !open ? "slim" : g.dockets.every((d) => d.variant === "carried") ? "carried" : "today";
+          return (
+            <Rail
+              key={g.key}
+              label={g.label}
+              count={g.count}
+              plate={PLATE[geo]}
+              geo={geo}
+              toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) } : undefined}
+            >
+              {open && g.dockets.map((d) => <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} />)}
+            </Rail>
+          );
+        })}
+      </div>
       {legend && (
         <footer className="legend-bar">
           <p className="r-legend legend">

@@ -1,6 +1,4 @@
-import type { HeroData } from "./types";
-
-type Props = Pick<HeroData, "date" | "headline" | "done" | "total" | "presets" | "activePreset">;
+type Props = { date: string; headline: string; done: number; total: number; presets: string[]; activePreset: string };
 
 export function TopBar({ date, headline, done, total, presets, activePreset }: Props) {
   return (

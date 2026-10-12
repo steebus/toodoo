@@ -5,14 +5,20 @@ export function NextUp({ items }: { items: NextUpItem[] }) {
     <section className="nextup" aria-labelledby="nextup-label">
       <div className="r-nextup-box nextup-box" aria-hidden />
       <h3 id="nextup-label" className="r-nextup-label section-label">NEXT UP</h3>
+      {/* Plan all is wired to auto-plan in Task 9; until then it stays disabled. */}
+      <button type="button" className="plan-all" disabled>Plan all</button>
       <ol className="nextup-list">
         {items.slice(0, 3).map((it, i) => (
-          <li key={it.title} className={`r-nextup-${i + 1} nextup-item`}>
+          <li key={it.id} className={`r-nextup-${i + 1} nextup-item`}>
             <button type="button" className="nextup-title">{it.title}</button>
             <p className="nextup-why">
               {it.when}
-              <span className="sep" aria-hidden>·</span>
-              {it.why}
+              {it.why && (
+                <>
+                  <span className="sep" aria-hidden>·</span>
+                  {it.why}
+                </>
+              )}
             </p>
           </li>
         ))}

@@ -9,7 +9,9 @@ vi.mock("convex/react", () => ({
   Authenticated: ({ children }: any) => (state.authed ? children : null),
   Unauthenticated: ({ children }: any) => (state.authed ? null : children),
   AuthLoading: () => null,
-  useQuery: () => ({ tasks: { carried: [{}], due: [{}, {}], upcoming: [] } }),
+  useQuery: () => ({
+    today: "2026-03-10", date: "2026-03-10", nowM: 600, app_url: null, day: null, tasks: [], blocks: [], suggestions: [],
+  }),
 }));
 
 import { App } from "./App";
@@ -22,8 +24,8 @@ it("offers sign-in when signed out", async () => {
   expect(auth.signIn).toHaveBeenCalled();
 });
 
-it("shows the open count when signed in", () => {
+it("shows the board when signed in", () => {
   state.authed = true;
   render(<App />);
-  expect(screen.getByText("3 open")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
 });
