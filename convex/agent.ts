@@ -45,7 +45,7 @@ export const unplan = mutation({
 });
 export const board = query({
   args: { date, now },
-  handler: async (ctx, { now, ...a }) => m.board(ctx.db, await requireUser(ctx), a, at(now)),
+  handler: async (ctx, { now = Date.now(), ...a }) => m.board(ctx.db, await requireUser(ctx), a, new Date(now)),
 });
 export const placeBlock = mutation({
   args: { task_id: v.string(), date: v.string(), start: v.string(), mins: v.number() },
@@ -53,5 +53,5 @@ export const placeBlock = mutation({
 });
 export const removeBlock = mutation({
   args: { task_id: v.string(), date: v.string() },
-  handler: async (ctx, a) => m.removeBlock(ctx.db, await requireUser(ctx), a),
+  handler: async (ctx, a) => m.removeBlock(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),
 });

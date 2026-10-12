@@ -178,7 +178,7 @@ export async function listBySource(db: R, userId: string, source: string | null)
   }));
 }
 
-export async function board(db: R, userId: string, a: { date?: string }, now = new Date()) {
+export async function board(db: R, userId: string, a: { date?: string }, now: Date) {
   checkDate(a.date);
   const { t, nowM } = clock(now);
   const date = a.date ?? t;
@@ -218,5 +218,6 @@ export async function placeBlock(db: W, userId: string, a: { task_id: string; da
 }
 
 export async function removeBlock(db: W, userId: string, a: { task_id: string; date: string }) {
+  if (!(await ownedTask(db, userId, a.task_id))) throw new InputError("task not found");
   return unplan(db, userId, a.date, [a.task_id]);
 }

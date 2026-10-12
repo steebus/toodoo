@@ -120,3 +120,28 @@ it("removeBlock removes only that task's block on that date", async () => {
   await t.mutation(api.agent.removeBlock, { task_id: created[0].id, date: "2026-10-12" });
   expect((await t.query(api.agent.board, {})).blocks.map((x) => x.task_id)).toEqual([created[1].id]);
 });
+
+it("board, placeBlock and removeBlock need a signed-in user", async () => {
+  const anon = convexTest(schema, modules);
+  await expect(anon.query(api.agent.board, {})).rejects.toThrow(/sign in required/);
+  await expect(anon.mutation(api.agent.placeBlock, { task_id: "x", date: "2026-10-12", start: "10:00", mins: 30 })).rejects.toThrow(/sign in required/);
+  await expect(anon.mutation(api.agent.removeBlock, { task_id: "x", date: "2026-10-12" })).rejects.toThrow(/sign in required/);
+});
+
+it("board, placeBlock and removeBlock never reach another user's task", async () => {
+  const t = setup();
+  const theirs = await t.run(async (ctx) => {
+    const id = await ctx.db.insert("tasks", {
+      user_id: "user_other", title: "Theirs", description: null, note: null, link: null, source: "you", external_id: null,
+      due: "2026-10-12", time: null, priority: null, estimate_mins: null, tags: [], done: false, done_on: null, sort_order: 1, created_at: "2026-10-12", updated_at: 0,
+    });
+    await ctx.db.insert("plan_blocks", { user_id: "user_other", date: "2026-10-12", task_id: id, start: "10:00", mins: 30 });
+    return id;
+  });
+  const b = await t.query(api.agent.board, {});
+  expect(b.tasks.some((x) => x.id === theirs)).toBe(false);
+  expect(b.blocks).toEqual([]);
+  await expect(t.mutation(api.agent.placeBlock, { task_id: theirs, date: "2026-10-12", start: "11:00", mins: 30 })).rejects.toThrow(/task not found/);
+  await expect(t.mutation(api.agent.removeBlock, { task_id: theirs, date: "2026-10-12" })).rejects.toThrow(/task not found/);
+  expect(await t.run((ctx) => ctx.db.query("plan_blocks").collect())).toMatchObject([{ task_id: theirs, start: "10:00" }]);
+});
