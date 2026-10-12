@@ -6,7 +6,7 @@ import { CalendarIcon, ClockIcon } from "./icons";
 // Where the last line was filed from, so its docket can fly out of the input (see TodoPanel).
 export const launch: { from: DOMRect | null; at: number } = { from: null, at: 0 };
 
-type Props = { today: string; nowM: number; initial?: string; onAdd?: (t: NewTask) => Promise<boolean>; disabled?: boolean };
+type Props = { today: string; nowM: number; initial?: string; onAdd?: (t: NewTask, line: string) => Promise<boolean>; disabled?: boolean };
 
 // Parses as you type and shows what it understood. Enter files it; a line with no title is not filed.
 export function QuickAdd({ today, nowM, initial = "", onAdd, disabled }: Props) {
@@ -31,7 +31,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled }: Props) 
     void onAdd?.({
       title: parsed.title, due: parsed.due ?? today, time: parsed.time, priority: parsed.priority,
       tags: parsed.tags, estimate_mins: parsed.estimate_mins, source: "you",
-    }).then((ok) => ok || setLine((cur) => cur || typed));
+    }, typed).then((ok) => ok || setLine((cur) => cur || typed));
   };
 
   return (

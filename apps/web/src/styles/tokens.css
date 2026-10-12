@@ -23,6 +23,7 @@
   /* paper print: dockets are always thermal paper, so their ink never inverts */
   --paper-ink: #121212;
   --paper-red: #b3161b;
+  --paper-green: #1e8a4c;
 
   /* type */
   --font-wordmark: "Carlito", "Calibri", system-ui, sans-serif;

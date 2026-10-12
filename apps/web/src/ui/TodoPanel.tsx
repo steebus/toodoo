@@ -38,6 +38,8 @@ type Props = {
   compact?: boolean; // Focus: the list is a narrow column of one-line stubs
   offline?: boolean; // no writes: the add line is disabled
   arrivals?: Map<string, number>; // dockets that just arrived from elsewhere, and their place in the stagger
+  onTomorrow?: (id: string) => void; // set on the phone: dockets swipe (right to bump, left for Plan / Tomorrow)
+  swipe?: boolean;
 };
 
 const NO_ARRIVALS = new Map<string, number>();
@@ -98,7 +100,7 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
   return visible;
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const scroll = useRef<HTMLDivElement | null>(null);
 
@@ -155,7 +157,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
                 key={g.key}
                 label={g.label}
                 count={g.count}
-                plate={geo === "compact" ? undefined : PLATE[geo]}
+                plate={PLATE[geo === "compact" ? "slim" : geo]} // a stub column hangs from a rail only on the phone
                 geo={geo}
                 toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) } : undefined}
               >
@@ -163,7 +165,8 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
                   <SortableContext id={g.key} items={g.dockets.map((d) => d.id)} strategy={compact ? verticalListSortingStrategy : horizontalListSortingStrategy}>
                     {g.dockets.map((d) => (
                       <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} onOpen={onOpen} onTick={onTick} onPlan={onPlan}
-                        dnd={dnd ? { manual: view.sort === "manual" } : undefined} compact={compact} arrival={arrivals.get(d.id)} inflight={flight.hidden(d)} />
+                        dnd={dnd ? { manual: view.sort === "manual" } : undefined} compact={compact} arrival={arrivals.get(d.id)} inflight={flight.hidden(d)}
+                        swipe={swipe ? { onTomorrow } : undefined} />
                     ))}
                   </SortableContext>
                 )}

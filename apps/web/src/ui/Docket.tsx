@@ -14,6 +14,7 @@ import { isOptimistic } from "../lib/useActions";
 import { plateIndex } from "./format";
 import { DrawnCheck } from "./icons";
 import { useLayoutDependency } from "./motion";
+import { Swipe } from "./Swipe";
 import type { DocketData, MetaRow } from "./types";
 
 const PLATES = [docketCarried1, docketCarried2, docketToday1, docketToday2, docketToday3, docketToday4];
@@ -67,10 +68,12 @@ type Props = {
   compact?: boolean; // Focus: a one-line stub in a narrow column instead of the paper docket
   arrival?: number; // just arrived from elsewhere: prints in, this many places into the stagger
   inflight?: boolean; // its picture is still flying in from the quick add: hidden until it lands
+  swipe?: { onTomorrow?: (id: string) => void }; // on the phone: swipe right to bump, left for Plan / Tomorrow
 };
 
 type ViewProps = Props & {
   ghost?: boolean; // the drag overlay and the morph: a picture of the docket, not a second one
+  held?: boolean; // dnd-kit is carrying it
   li?: HTMLAttributes<HTMLLIElement> & { ref?: Ref<HTMLLIElement> };
   open?: HTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> };
 };
@@ -79,7 +82,7 @@ type ViewProps = Props & {
 // The title is the button that opens the edit sheet; its ::after stretches the hit area over the whole docket.
 // The paper (plate and print) is one motion layer: when the docket changes rail (bumped into Done today)
 // it travels there, and its neighbours close up behind it. The li stays dnd-kit's alone.
-function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, open: openProps, compact, arrival, inflight }: ViewProps) {
+function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, open: openProps, compact, arrival, inflight, swipe, held = false }: ViewProps) {
   const offline = useIsOffline();
   const busy = isOptimistic(d.id);
   const layoutDependency = useLayoutDependency();
@@ -98,12 +101,20 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
       {children}
     </button>
   );
+  const wrap = (paper: React.ReactNode) => !swipe || !onTick || ghost ? paper : (
+    <Swipe held={held} disabled={busy || offline} onTick={() => tick(!d.done)}
+      onPlan={onPlan && !d.done ? () => onPlan(d.id) : undefined}
+      onTomorrow={swipe.onTomorrow && !d.done ? () => swipe.onTomorrow!(d.id) : undefined}>
+      {paper}
+    </Swipe>
+  );
   return (
     <li {...li} className={cls} aria-busy={busy || undefined} aria-hidden={ghost || undefined}
       data-docket={ghost ? undefined : d.id} data-hm={d.hm ?? undefined}
       style={arrival !== undefined ? { ...li?.style, ["--i" as string]: arrival } : li?.style}>
-      <m.div className="dk-paper" layoutId={ghost ? undefined : `${compact ? "stub" : "docket"}:${d.id}`} layoutDependency={layoutDependency}>
-        {!compact && <img className="plate" src={PLATES[plateIndex(d.id, PLATES.length)]} alt="" draggable={false} />}
+      {wrap(<m.div className="dk-paper" layoutId={ghost ? undefined : `${compact ? "stub" : "docket"}:${d.id}`} layoutDependency={layoutDependency}>
+        {/* A stub shows its paper only on the phone (pass.css). */}
+        <img className="plate" src={PLATES[plateIndex(d.id, PLATES.length)]} alt="" draggable={false} />
         {topPick && !compact && <img className="biro-ring" src={biroRing} alt="" draggable={false} data-testid="biro-ring" />}
         <article
           className="dk-print"
@@ -161,7 +172,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             </button>
           )}
         </article>
-      </m.div>
+      </m.div>)}
     </li>
   );
 }
@@ -181,6 +192,7 @@ function SortableDocket(props: Props) {
   return (
     <DocketView
       {...props}
+      held={s.isDragging}
       li={{ ref: s.setNodeRef, style, ...s.listeners }}
       open={{
         ref: s.setActivatorNodeRef,

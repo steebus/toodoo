@@ -6,12 +6,14 @@ import "./pass.css";
 import { OfflineContext } from "../lib/offline";
 import { isOptimistic, type Actions } from "../lib/useActions";
 import { actionFor } from "../lib/shortcuts";
+import { useNarrow } from "../lib/useNarrow";
 import { useStoredView } from "../lib/useStoredView";
 import { buildPass } from "./build";
 import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
 import { EditSheet, type Draft } from "./EditSheet";
 import { HelpSheet } from "./HelpSheet";
+import { AddButton, AddSheet, Tabs, type Tab } from "./Mobile";
 import { MotionRoot, useArrivals, useCelebration } from "./motion";
 import { COMPACT_AT, PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
 import { Toast } from "./Toast";
@@ -32,6 +34,10 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
   const [draft, setDraft] = useState<Draft | null>(null);
   const editTask = editing ? board.tasks.find((t) => t.id === editing) : undefined;
   const [help, setHelp] = useState(false);
+  // The phone: two tabs instead of two panes, and the quick add in a sheet (null: closed; else its line).
+  const narrow = useNarrow();
+  const [tab, setTab] = useState<Tab>("today");
+  const [adding, setAdding] = useState<string | null>(null);
   const split = useSplit();
   const setSplit = split[1];
   const [stored, setView] = useStoredView();
@@ -57,7 +63,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
       const dockets = [...document.querySelectorAll<HTMLElement>(".pass [data-docket] .dk-open:not(:disabled)")];
       const at = dockets.indexOf(document.activeElement as HTMLElement);
       const id = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("[data-docket]")?.dataset.docket;
-      if (a === "add") document.querySelector<HTMLElement>(".quickadd-input")?.focus();
+      if (a === "add") narrow ? actions && !offline && setAdding("") : document.querySelector<HTMLElement>(".quickadd-input")?.focus();
       else if (a === "down") dockets[at < 0 ? 0 : Math.min(at + 1, dockets.length - 1)]?.focus();
       else if (a === "up") dockets[at < 0 ? dockets.length - 1 : Math.max(at - 1, 0)]?.focus();
       else if (a === "edit") id && openTask?.(id);
@@ -74,13 +80,13 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
     return () => document.removeEventListener("keydown", onKey);
   });
   const preset = PRESETS.find((p) => Math.abs(PRESET_SPLIT[p] - split[0]) < 0.5) ?? "";
-  const compact = split[0] > COMPACT_AT;
+  const compact = narrow || split[0] > COMPACT_AT; // the phone's list is the stub column, hung from rails
   const arrivals = useArrivals(board.tasks.map((t) => t.id), isOptimistic);
   const celebrate = useCelebration({ date: board.date, done: model.done, total: model.total });
   return (
     <MotionRoot>
       <OfflineContext value={offline}>
-      <div className="pass" data-offline={offline || undefined}>
+      <div className="pass" data-offline={offline || undefined} data-tab={narrow ? tab : undefined}>
         <TopBar
           date={model.dateLabel}
           headline={model.headline}
@@ -113,9 +119,23 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
             compact={compact}
             offline={offline}
             arrivals={arrivals}
+            swipe={narrow && !!actions}
+            onTomorrow={actions && !offline ? ((id) => void actions.save(id, { due: addDays(board.today, 1) })) : undefined}
           />
         </Panes>
         </DndProvider>
+        {narrow && (
+          <>
+            {actions && <AddButton disabled={offline} onClick={() => setAdding("")} />}
+            <Tabs tab={tab} onTab={setTab} />
+          </>
+        )}
+        {narrow && actions && adding !== null && (
+          <AddSheet today={board.today} nowM={board.nowM} initial={adding} onAdd={(t) => {
+            setTab("today");
+            return actions.add(t);
+          }} onClose={() => setAdding(null)} onFailed={setAdding} />
+        )}
         {actions && editTask && (
           <EditSheet key={editTask.id} task={editTask} draft={draft} offline={offline}
             onSave={(id, patch, values) => {

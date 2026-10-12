@@ -6,6 +6,7 @@ import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
 import { clampBlock, deltaMin, hitSlot, moveBlock, widenRange, type Placed } from "../lib/timeline";
 import { useIsOffline } from "../lib/offline";
+import { buzz } from "../lib/swipe";
 import { useDropHint } from "./DndProvider";
 import { clock12, hourLabel } from "./format";
 import { CheckIcon, DrawnCheck, NowMarker } from "./icons";
@@ -16,10 +17,13 @@ import type { BoardData, PlanBlock, PlanData } from "./types";
 
 const KEY_IDLE = 400; // arrow presses batch into one save after this pause
 const DRAG_SLOP = 4;
+// On touch a block moves only after a stationary long press, so a swipe over the line still scrolls it.
+export const LONG_PRESS = 250;
+const PRESS_SLOP = 5;
 const DAY = 24 * 60;
 
 type Draft = { id: string; start: number; mins: number; via: "key" | "pointer" };
-type Drag = { id: string; y0: number; start: number; mins: number; mode: "move" | "resize"; moved: boolean };
+type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize"; moved: boolean; armed: boolean };
 
 const clockOf = (m: number) => (m >= DAY ? "12:00" : clock12(toHM(m)));
 const range = (s: number, mins: number) => `${clockOf(s)}–${clockOf(s + mins)}`;
@@ -48,6 +52,11 @@ export function Timeline({ plan, board, actions }: Props) {
   const hint = useDropHint();
   const [cursor, setCursor] = useState<number | null>(null);
   const [picker, setPicker] = useState<number | null>(null);
+  // Touch has no hover: a tap on a block shows its tick and unplan; a long press lifts it.
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const [pressed, setPressed] = useState<string | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const lastPointer = useRef("mouse");
   // Blocks, the drag ghost and the drop hint spring between 15-minute slots instead of jumping.
   const layoutDependency = useLayoutDependency();
   const glide = { layout: "position" as const, transition: SNAPPY };
@@ -67,8 +76,12 @@ export function Timeline({ plan, board, actions }: Props) {
   });
 
   useEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = Math.max(0, minToPx(anchorM, startM) - 140);
-  }, [date]); // eslint-disable-line react-hooks/exhaustive-deps -- open scrolled to the day's anchor, then leave the scroll alone
+    // Open on the start of the day when the anchor is already in view (the comp: 7am at the top, now below);
+    // otherwise scrolled so the anchor sits near the top. Then leave the scroll alone.
+    const sc = scroller.current;
+    const y = minToPx(anchorM, startM);
+    if (sc) sc.scrollTop = y + 140 > sc.clientHeight ? Math.max(0, y - 140) : 0;
+  }, [date]); // eslint-disable-line react-hooks/exhaustive-deps -- once per day shown
 
   // A keyboard batch waiting on its idle timer. It is saved early rather than dropped: before a batch starts on
   // another block, when the line unmounts, and when the page is hidden.
@@ -90,6 +103,20 @@ export function Timeline({ plan, board, actions }: Props) {
     return () => {
       window.removeEventListener("pagehide", onHide);
       flushRef.current();
+    };
+  }, []);
+
+  // Once a long press has lifted a block, the finger moves it rather than scrolling the line.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const hold = (e: TouchEvent) => {
+      if (drag.current?.armed && e.cancelable) e.preventDefault();
+    };
+    el.addEventListener("touchmove", hold, { passive: false });
+    return () => {
+      el.removeEventListener("touchmove", hold);
+      clearTimeout(pressTimer.current);
     };
   }, []);
 
@@ -160,13 +187,40 @@ export function Timeline({ plan, board, actions }: Props) {
   };
   const pointer = (b: PlanBlock, mode: Drag["mode"]) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
+      lastPointer.current = e.pointerType;
       if (offline || e.button !== 0 || draftRef.current?.via === "key") return;
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-      drag.current = { id: b.id, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false };
+      // The resize grip is a handle (touch-action: none) and takes the finger at once; the body waits for a long press.
+      const wait = e.pointerType === "touch" && mode === "move";
+      if (!wait) e.currentTarget.setPointerCapture?.(e.pointerId);
+      const d: Drag = { id: b.id, x0: e.clientX, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false, armed: !wait };
+      drag.current = d;
+      clearTimeout(pressTimer.current);
+      if (!wait) return;
+      const el = e.currentTarget;
+      const pid = e.pointerId;
+      pressTimer.current = setTimeout(() => {
+        if (drag.current !== d) return;
+        d.armed = true;
+        try {
+          el.setPointerCapture?.(pid);
+        } catch {
+          /* the pointer is already gone */
+        }
+        buzz(8);
+        setPressed(b.id);
+      }, LONG_PRESS);
     },
     onPointerMove: (e: PointerEvent<HTMLElement>) => {
       const d = drag.current;
       if (!d || d.id !== b.id) return;
+      if (!d.armed) {
+        // Moved before the long press landed: it is a scroll, not a lift.
+        if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > PRESS_SLOP) {
+          clearTimeout(pressTimer.current);
+          drag.current = null;
+        }
+        return;
+      }
       if (!d.moved && Math.abs(e.clientY - d.y0) < DRAG_SLOP) return;
       d.moved = true;
       const next = dragTo(e.clientY);
@@ -174,20 +228,26 @@ export function Timeline({ plan, board, actions }: Props) {
       if (!cur || cur.start !== next.start || cur.mins !== next.mins) setDraft({ id: b.id, ...next, via: "pointer" });
     },
     onPointerUp: (e: PointerEvent<HTMLElement>) => {
+      clearTimeout(pressTimer.current);
+      setPressed(null);
       const d = drag.current;
       if (!d || d.id !== b.id) return;
       const next = d.moved ? dragTo(e.clientY) : null;
       drag.current = null;
+      if (d.armed && e.pointerType === "touch" && d.mode === "move") swallowClick.current = true; // a long press is not a tap
       if (!next) return;
       swallowClick.current = true;
       commit(b.id, next);
     },
     onPointerCancel: () => {
+      clearTimeout(pressTimer.current);
+      setPressed(null);
       drag.current = null;
       setDraft(null);
     },
     onLostPointerCapture: () => {
-      if (drag.current?.id === b.id) {
+      if (drag.current?.id === b.id && drag.current.armed) {
+        setPressed(null);
         drag.current = null;
         setDraft(null);
       }
@@ -237,6 +297,7 @@ export function Timeline({ plan, board, actions }: Props) {
             onBlur={() => picker === null && setCursor(null)}
             onKeyDown={onSlotsKey}
             onClick={(e) => {
+              setRevealed(null);
               if (offline || e.target !== e.currentTarget) return;
               const m = hitSlot(e.clientY - e.currentTarget.getBoundingClientRect().top, startM);
               setCursor(m);
@@ -268,7 +329,7 @@ export function Timeline({ plan, board, actions }: Props) {
             const dragging = ghost?.id === b.id;
             const shownAt = at(b);
             const time = shownAt.start === b.startM ? b.time : clockOf(shownAt.start);
-            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}`;
+            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}${revealed === b.id ? " is-revealed" : ""}${pressed === b.id ? " is-pressed" : ""}`;
             const style = {
               top: blockTop(b.startM, startM),
               height: blockHeight(b.mins),
@@ -302,8 +363,10 @@ export function Timeline({ plan, board, actions }: Props) {
                   }}
                   onClick={(e) => {
                     if (swallowClick.current) e.preventDefault();
+                    else if (lastPointer.current === "touch") setRevealed((r) => (r === b.id ? null : b.id));
                     swallowClick.current = false;
                   }}
+                  onContextMenu={(e) => lastPointer.current === "touch" && e.preventDefault()}
                   {...pointer(b, "move")}
                 >
                   {face}

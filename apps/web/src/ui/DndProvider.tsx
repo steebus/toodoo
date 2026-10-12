@@ -43,7 +43,8 @@ function Live({ board, groups, manual, compact, actions, children }: Props & { a
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), // a click still opens the sheet
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }), // long-press; Task 12 owns the rest
+    // A stationary long press lifts a docket; a finger that moves first is scrolling, or swiping it (Swipe.tsx).
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     // Enter stays the docket's own: it opens the sheet. Only Space picks up and drops.
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates, keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } }),
   );
