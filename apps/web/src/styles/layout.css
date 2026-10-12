@@ -75,10 +75,6 @@
   --r-comingup-label-cap: 10px; --r-comingup-label-font: 15px;
   --r-comingup-chevron-x: 96.480%; --r-comingup-chevron-y: 87.500%; --r-comingup-chevron-w: 1.820%; --r-comingup-chevron-h: 2.340%;
   --r-rail-comingup-x: 35.030%; --r-rail-comingup-y: 90.030%; --r-rail-comingup-w: 64.450%; --r-rail-comingup-h: 3.120%;
-  --r-legend-x: 35.550%; --r-legend-y: 94.730%; --r-legend-w: 35.680%; --r-legend-h: 2.540%;
-  --r-legend-cap: 11px; --r-legend-font: 16px;
-  --r-legend-keys-x: 84.770%; --r-legend-keys-y: 94.530%; --r-legend-keys-w: 12.630%; --r-legend-keys-h: 2.930%;
-  --r-legend-keys-cap: 13px; --r-legend-keys-font: 19px;
 }
 
 .comp-frame { position: relative; width: 100%; aspect-ratio: 1536 / 1024; overflow: hidden; }
@@ -133,5 +129,3 @@
 .r-comingup-label { position: absolute; left: var(--r-comingup-label-x); top: var(--r-comingup-label-y); width: var(--r-comingup-label-w); height: var(--r-comingup-label-h); }
 .r-comingup-chevron { position: absolute; left: var(--r-comingup-chevron-x); top: var(--r-comingup-chevron-y); width: var(--r-comingup-chevron-w); height: var(--r-comingup-chevron-h); }
 .r-rail-comingup { position: absolute; left: var(--r-rail-comingup-x); top: var(--r-rail-comingup-y); width: var(--r-rail-comingup-w); height: var(--r-rail-comingup-h); }
-.r-legend { position: absolute; left: var(--r-legend-x); top: var(--r-legend-y); width: var(--r-legend-w); height: var(--r-legend-h); }
-.r-legend-keys { position: absolute; left: var(--r-legend-keys-x); top: var(--r-legend-keys-y); width: var(--r-legend-keys-w); height: var(--r-legend-keys-h); }

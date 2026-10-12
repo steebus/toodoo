@@ -57,4 +57,3 @@ export type DocketData = {
 
 export type GroupData = { key: string; label: string; count: number; dockets: DocketData[] };
 
-export type Legend = { hints: string[]; bumpHint: string; tail: string[]; keys: { bumped: string; high: string } };

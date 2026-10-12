@@ -300,21 +300,6 @@
 
 .chevron { display: grid; place-items: center; color: var(--ink-2); }
 
-/* ---------- legend ---------- */
-.legend {
-  display: flex; align-items: center; white-space: nowrap;
-  font-size: calc(16.6 * var(--u)); line-height: 1; color: var(--ink-3); padding-left: calc(4 * var(--u));
-}
-.legend-item { display: inline-flex; align-items: center; }
-.legend-tick { color: var(--ink-2); margin-right: calc(7 * var(--u)); }
-.legend-keys {
-  display: flex; align-items: center; justify-content: space-between;
-  font-family: var(--font-print); font-size: calc(17.5 * var(--u)); line-height: 1; color: var(--ink-2); white-space: nowrap;
-}
-.key { display: inline-flex; align-items: center; gap: calc(12 * var(--u)); }
-.key-tick { color: var(--green); }
-.key-bang { font-family: var(--font-ui); font-weight: 700; font-size: calc(26 * var(--u)); color: var(--red); }
-
 /* ---------- view menu: a quiet mono control beside the span ---------- */
 .viewmenu { position: absolute; right: 12.4cqw; top: 9.57cqh; height: 2.73cqh; display: flex; align-items: center; z-index: 5; }
 .viewmenu-button {
@@ -617,8 +602,6 @@
   --r-nextup-1-x: calc((var(--split) + 2.74 * var(--kt)) * 1%); --r-nextup-1-w: calc(15.1% * var(--kt));
   --r-nextup-2-x: calc((var(--split) + 23.70 * var(--kt)) * 1%); --r-nextup-2-w: calc(18.23% * var(--kt));
   --r-nextup-3-x: calc((var(--split) + 45.84 * var(--kt)) * 1%); --r-nextup-3-w: calc(14.84% * var(--kt));
-  --r-legend-x: calc((var(--split) + 1.70 * var(--kt)) * 1%);
-  --r-legend-keys-x: calc((var(--split) + 50.92 * var(--kt)) * 1%);
   transition: --split 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .pass-main.is-dragging { transition: none; }
@@ -672,7 +655,7 @@
 }
 
 /* ---------- Focus: the list as a narrow column of one-line stubs ---------- */
-.todo.is-compact .nextup, .todo.is-compact .legend-bar, .todo.is-compact .span, .todo.is-compact .add-button { display: none; }
+.todo.is-compact .nextup, .todo.is-compact .span, .todo.is-compact .add-button { display: none; }
 .todo.is-compact .quickadd-input { width: calc((100 - var(--split) - 1.6 - 2.35 * var(--kt)) * 1cqw); }
 .todo-scroll.is-compact { top: 23.4cqh; height: 70.4cqh; }
 .grp-compact { height: auto; padding-bottom: calc(1.4 * var(--ch)); }
@@ -729,7 +712,7 @@
   .progress-track { left: 0; bottom: 0; }
   .date { grid-column: 1 / -1; justify-content: flex-start; margin: 12px 0 0; padding: 0; font-size: 18px; }
   .headline { grid-column: 1 / -1; justify-content: flex-start; margin-top: 7px; font-size: 15px; line-height: 1.35; white-space: normal; color: var(--ink-2); }
-  .presets, .topbar-sep, .topbar-rule, .divider-grip, .panel-divider, .dayplan::before, .legend-bar, .todo .quickadd { display: none; }
+  .presets, .topbar-sep, .topbar-rule, .divider-grip, .panel-divider, .dayplan::before, .todo .quickadd { display: none; }
   .offline-stamp { left: calc(118px + env(safe-area-inset-left)); top: calc(19px + env(safe-area-inset-top)); }
   .bumped-slot { left: auto; right: calc(14px + env(safe-area-inset-right)); top: calc(46px + env(safe-area-inset-top)); width: 104px; }
   .bumped-tick { left: auto; right: 2px; top: calc(12px + env(safe-area-inset-top)); height: 24px; }

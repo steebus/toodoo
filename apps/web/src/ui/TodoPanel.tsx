@@ -15,7 +15,7 @@ import { NextUp } from "./NextUp";
 import { reducedMotion } from "./motion";
 import { launch, QuickAdd } from "./QuickAdd";
 import { Rail, type RailGeo } from "./Rail";
-import type { DocketData, GroupData, Legend } from "./types";
+import type { DocketData, GroupData } from "./types";
 import { ViewMenu } from "./ViewMenu";
 
 const PLATE: Record<Exclude<RailGeo, "compact">, string> = { carried: railCarried, today: railToday, slim: railComingup };
@@ -26,7 +26,6 @@ type Props = {
   nowM: number;
   view: View;
   onView: (v: View) => void;
-  legend?: Legend;
   quickAdd?: string;
   onSignOut?: () => void;
   onAdd?: (t: NewTask) => Promise<boolean>;
@@ -101,7 +100,7 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
   return visible;
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const scroll = useRef<HTMLDivElement | null>(null);
 
@@ -177,27 +176,6 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
         </m.div>
       </AnimatePresence>
       {flight.view}
-      {legend && (
-        <footer className="legend-bar">
-          <p className="r-legend legend">
-            {legend.hints.map((h) => (
-              <span key={h} className="legend-item">{h}<span className="sep" aria-hidden>·</span></span>
-            ))}
-            <span className="legend-item">
-              <CheckIcon size={15} className="legend-tick" />
-              {legend.bumpHint}
-              <span className="sep" aria-hidden>·</span>
-            </span>
-            {legend.tail.map((t) => (
-              <span key={t} className="legend-item">{t}</span>
-            ))}
-          </p>
-          <p className="r-legend-keys legend-keys">
-            <span className="key"><CheckIcon size={22} className="key-tick" />{legend.keys.bumped}</span>
-            <span className="key"><span className="key-bang" aria-hidden>!</span>{legend.keys.high}</span>
-          </p>
-        </footer>
-      )}
     </section>
   );
 }

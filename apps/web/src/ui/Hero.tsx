@@ -19,16 +19,16 @@ import { COMPACT_AT, PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
 import { Toast } from "./Toast";
 import { TodoPanel } from "./TodoPanel";
 import { TopBar } from "./TopBar";
-import type { BoardData, Legend } from "./types";
+import type { BoardData } from "./types";
 
 const PRESETS = ["Capture", "Plan", "Focus"];
 
 type Props = {
-  board: BoardData; legend?: Legend; quickAdd?: string; onSignOut?: () => void; actions?: Actions; nav?: DayNavProps;
+  board: BoardData; quickAdd?: string; onSignOut?: () => void; actions?: Actions; nav?: DayNavProps;
 };
 
 // The first viewport of The Pass: top bar, Day plan (left third), To do rails (right two thirds).
-export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props) {
+export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const offline = !!actions?.offline;
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -107,7 +107,6 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
             nowM={board.nowM}
             view={view}
             onView={setView}
-            legend={legend}
             quickAdd={quickAdd}
             onSignOut={onSignOut}
             onAdd={actions?.add}

@@ -7,11 +7,11 @@ import { useBoard } from "./lib/useBoard";
 import { useDayChange } from "./lib/useDayChange";
 import { useViewDate } from "./lib/useViewDate";
 import { Hero, HeroShell } from "./ui/Hero";
-import type { BoardData, Legend } from "./ui/types";
+import type { BoardData } from "./ui/types";
 
 // The comp's content lives in a gitignored fixtures file; the glob is empty when it is absent (CI),
 // and production builds drop it entirely so the fixture never ships.
-type Fixture = { boardFixture: BoardData; legendFixture?: Legend; quickAddFixture?: string };
+type Fixture = { boardFixture: BoardData; quickAddFixture?: string };
 const fixtureModules: Record<string, () => Promise<Fixture>> = import.meta.env.DEV
   ? import.meta.glob<Fixture>("./ui/fixtures.ts")
   : {};
@@ -22,7 +22,7 @@ function FixtureHero() {
     fixtureModules["./ui/fixtures.ts"]?.().then(setFx);
   }, []);
   return fx ? (
-    <Hero board={fx.boardFixture} legend={fx.legendFixture} quickAdd={fx.quickAddFixture}
+    <Hero board={fx.boardFixture} quickAdd={fx.quickAddFixture}
       nav={{ date: fx.boardFixture.date, onDate: () => {} }} />
   ) : null;
 }
