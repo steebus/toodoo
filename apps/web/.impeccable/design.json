@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-13T00:00:00Z",
+  "title": "Design System: toodoo",
+  "extensions": {
+    "colorMeta": {
+      "ground": { "role": "neutral", "displayName": "Ground", "canonical": "#fcfcfc", "tonalRamp": ["#111111", "#3c3c3c", "#5f5f5f", "#c4c4c4", "#dcdcdc", "#e8e8e8", "#f6f6f6", "#fcfcfc"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#111111", "tonalRamp": ["#111111", "#3c3c3c", "#5f5f5f", "#8a8a8a", "#c4c4c4", "#dcdcdc", "#e8e8e8", "#f6f6f6"] },
+      "docket-red": { "role": "primary", "displayName": "Docket Red", "canonical": "#d7261e", "tonalRamp": ["#5a0f0b", "#7f1511", "#b3161b", "#d7261e", "#e8645d", "#f0908b", "#f2d4d2", "#fbeeed"] },
+      "bump-green": { "role": "secondary", "displayName": "Bump Green", "canonical": "#1e8a4c", "tonalRamp": ["#0a2f19", "#0f4a29", "#166c3b", "#1e8a4c", "#4cc982", "#8adbae", "#c4eed6", "#e9f8ef"] },
+      "paper": { "role": "neutral", "displayName": "Thermal Paper", "canonical": "#fbfbf8", "tonalRamp": ["#121212", "#3c3c3a", "#6b6b6b", "#a8a8a4", "#dedede", "#eeeeea", "#f6f6f2", "#fbfbf8"] }
+    },
+    "typographyMeta": {
+      "wordmark": { "displayName": "Wordmark", "purpose": "The lower-case toodoo, once, top left." },
+      "date": { "displayName": "Date", "purpose": "The day in the top bar." },
+      "panel-title": { "displayName": "Panel title", "purpose": "Day plan, To do, sheet titles." },
+      "section-label": { "displayName": "Section label", "purpose": "Rail group names and Next up." },
+      "print": { "displayName": "Print", "purpose": "Every time, duration, count, chip and docket line, in tabular mono." }
+    },
+    "shadows": [
+      { "name": "rest", "value": "0 1px 2px rgb(0 0 0 / 0.05)", "purpose": "Hint under inputs, buttons and plan blocks." },
+      { "name": "popover", "value": "0 8px 24px rgb(0 0 0 / 0.14)", "purpose": "Slot picker and view menu." },
+      { "name": "sheet", "value": "-10px 0 30px rgb(0 0 0 / 0.14)", "purpose": "Edit sheet edge." },
+      { "name": "toast", "value": "0 8px 24px rgb(0 0 0 / 0.22)", "purpose": "Toast slip." },
+      { "name": "dragged", "value": "0 10px 22px rgb(0 0 0 / 0.22)", "purpose": "Docket held in a drag." }
+    ],
+    "motion": [
+      { "name": "spring", "value": "linear(0, 0.1017, 0.3081, 0.5244, 0.7063, 0.8401, 0.9286, 0.9809, 1.0077, 1.0183, 1.0197, 1.0168, 1.0125, 1.0084, 1.005, 1.0026, 1.0011, 1.0002, 1, 1)", "purpose": "Shared by sheets, popovers, chips, tab rooms and arrivals; 0.6s wall time." },
+      { "name": "ease-out-soft", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Split change, day slide, toast." },
+      { "name": "now-pulse", "value": "2.8s ease-in-out infinite, opacity to 0.45", "purpose": "Now-line breathing." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "max-width: 819px" },
+      { "name": "stage-width", "value": "1536px (unit shrinks below this)" },
+      { "name": "stage-height", "value": "900px (unit shrinks below this)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Today Docket",
+      "kind": "card",
+      "refersTo": "docket-today",
+      "description": "Thermal paper slip with live mono print; high priority prints red.",
+      "html": "<div class=\"ds-docket\"><div class=\"ds-dk-head\"><span>10:00</span><span>~1:00</span></div><div class=\"ds-dk-title\">PREP SPRINT SHOWCASE</div><div class=\"ds-dk-dash\">- - - - - - - - -</div><div class=\"ds-dk-row\"><span>START</span><span>10:00</span></div></div>",
+      "css": ".ds-docket { width: 220px; padding: 18px 26px 14px 19px; background: #fbfbf8; color: #121212; font-family: 'Iosevka Charon Mono', ui-monospace, monospace; border-radius: 2px; border-top: 1px dashed #c4c4c4; box-shadow: 0 1px 2px rgb(0 0 0 / 0.07); line-height: 1; } .ds-dk-head { display: flex; justify-content: space-between; font-size: 19.5px; color: #b3161b; } .ds-dk-title { margin-top: 6px; font-size: 21.5px; font-weight: 700; color: #b3161b; } .ds-dk-dash { margin: 10px 0; font-size: 15.5px; letter-spacing: -0.02em; overflow: hidden; white-space: nowrap; } .ds-dk-row { display: flex; justify-content: space-between; font-size: 15.5px; }"
+    },
+    {
+      "name": "Plan Block",
+      "kind": "custom",
+      "refersTo": "plan-block-task",
+      "description": "Task on the timeline: white, hairline, mono.",
+      "html": "<div class=\"ds-block\"><span class=\"ds-time\">10:00</span><span>Prep sprint showcase</span></div>",
+      "css": ".ds-block { display: flex; align-items: center; height: 56px; padding-left: 19px; background: #ffffff; border: 1px solid #c4c4c4; border-radius: 4px; font-family: 'Iosevka Charon Mono', ui-monospace, monospace; font-size: 16.5px; color: #111; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); } .ds-time { width: 71px; } .ds-block:hover { border-color: #5f5f5f; }"
+    },
+    {
+      "name": "Quick Add",
+      "kind": "input",
+      "refersTo": "quickadd-input",
+      "description": "One-line capture input in mono.",
+      "html": "<input class=\"ds-quickadd\" value=\"Call Sam tomorrow 3pm !high ~30m\">",
+      "css": ".ds-quickadd { width: 420px; height: 50px; padding: 0 19px; background: #fff; border: 1px solid #c4c4c4; border-radius: 4px; font-family: 'Iosevka Charon Mono', ui-monospace, monospace; font-size: 20.5px; color: #111; caret-color: #d7261e; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); } .ds-quickadd:focus-visible { outline: 2px solid #111; outline-offset: 2px; border-color: #5f5f5f; }"
+    },
+    {
+      "name": "Parsed Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Parsed token under quick add; the high variant is red.",
+      "html": "<span class=\"ds-chip\">~30m</span> <span class=\"ds-chip ds-chip-high\">high</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; height: 36px; padding: 0 14px 0 13px; background: #fff; border: 1px solid #c4c4c4; border-radius: 4px; font-family: 'Iosevka Charon Mono', ui-monospace, monospace; font-size: 17.5px; color: #3c3c3c; } .ds-chip-high { color: #b3161b; border-color: #f2d4d2; }"
+    },
+    {
+      "name": "Preset Tabs",
+      "kind": "nav",
+      "description": "Capture, Plan, Focus; active is bold with an ink underline.",
+      "html": "<nav class=\"ds-presets\"><button>Capture</button><button class=\"on\">Plan</button><button>Focus</button></nav>",
+      "css": ".ds-presets { display: flex; gap: 20px; font-family: Carlito, Calibri, sans-serif; font-size: 20px; color: #3c3c3c; } .ds-presets button { position: relative; background: none; border: 0; padding: 6px 0; font: inherit; color: inherit; cursor: pointer; } .ds-presets button:hover { color: #111; } .ds-presets .on { color: #111; font-weight: 700; } .ds-presets .on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -10px; height: 2.5px; background: #111; border-radius: 1px; } .ds-presets button:focus-visible { outline: 2px solid #111; outline-offset: 2px; }"
+    },
+    {
+      "name": "Save Button",
+      "kind": "button",
+      "refersTo": "button-save",
+      "description": "The one filled button.",
+      "html": "<button class=\"ds-save\">Save</button>",
+      "css": ".ds-save { padding: 9px 16px; font-family: Carlito, Calibri, sans-serif; font-size: 17px; line-height: 1; background: #111; color: #fff; border: 1px solid #111; border-radius: 4px; cursor: pointer; } .ds-save:focus-visible { outline: 2px solid #111; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Pass",
+    "overview": "The day is a working kitchen pass. Tasks are paper dockets that come up on a steel ticket rail, get fired onto the line (the timeline) at a time, and are bumped when done. The ground is white and near-white, the ink is near-black, and the only colours are signals: docket red for high priority or carried, bump green for done. Times, durations and counts are set in a tabular monospace as if printed by a ticket machine.",
+    "keyCharacteristics": [
+      "Near-monochrome ground; red and green are signals, never decoration.",
+      "Dockets are illustrated paper with live type printed on top.",
+      "Mono for every time, duration, count and print line; a humanist sans for chrome labels.",
+      "Hairline rules and dashed hour lines; soft, small shadows only.",
+      "Motion is first-class, on one shared spring, always with a reduced-motion fallback."
+    ],
+    "rules": [
+      { "name": "The Signal Rule", "body": "Red means high priority, carried over, now, or error; green means done. Neither is decoration or a plain action colour.", "section": "colors" },
+      { "name": "The Paper Never Inverts Rule", "body": "Printed slips keep paper and print colours in both themes; only the room around them changes.", "section": "colors" },
+      { "name": "The Mono-For-Numbers Rule", "body": "Any time, duration, count or span is set in the print mono with tabular figures.", "section": "typography" },
+      { "name": "The Printed Capitals Rule", "body": "Capitals are used where the paper would print them: docket titles and docket field names, not UI labels.", "section": "typography" },
+      { "name": "The Lifted-Only Rule", "body": "Beyond the 1px resting hint, a shadow means the thing is above the surface right now.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do size anything on the stage in comp px times --u, and take colours from the custom properties.",
+      "Do set times, durations and counts in the print mono with tabular figures.",
+      "Do keep red and green to their signal meanings.",
+      "Do keep dockets as paper with live print on top; update the print, not the plate.",
+      "Do give every new animation the shared spring and a reduced-motion fallback.",
+      "Do keep a visible focus ring (2px ink, 2px offset) on every control."
+    ],
+    "donts": [
+      "Don't replace dockets with card-on-grey list rows, or the rail with a checklist.",
+      "Don't invert the paper in dark mode.",
+      "Don't add explainer copy; help lives behind the shortcut sheet.",
+      "Don't use shadows for decoration at rest.",
+      "Don't introduce a third signal colour."
+    ]
+  }
+}
