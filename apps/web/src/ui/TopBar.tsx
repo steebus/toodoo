@@ -11,12 +11,9 @@ export function TopBar({ date, headline, done, total, presets, activePreset, onP
     <header className="topbar">
       <p className="r-wordmark wordmark">toodoo</p>
       <h1 className="r-date date">{date}</h1>
-      {/* The hero line: the one thing that moves on first paint. */}
+      {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
       <p className="r-headline headline">
-        <m.span key={headline} className="headline-line" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}>
-          {headline}
-        </m.span>
+        <span key={headline} className="headline-line">{headline}</span>
       </p>
       <p className="r-progress progress">
         <span>{`${done} of ${total} done`}</span>

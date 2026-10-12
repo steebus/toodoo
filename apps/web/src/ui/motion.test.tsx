@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, renderHook, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { finishedTheDay, newArrivals } from "./motion";
+import { finishedTheDay, MAX_ARRIVALS, newArrivals, useCelebration, type Tally } from "./motion";
 
 const day = (done: number, total: number, date = "2026-10-12") => ({ date, done, total });
 
@@ -22,6 +22,21 @@ it("counts dockets from elsewhere as arrivals, not this device's own adds", () =
   // the optimistic docket was swapped for its saved self: the same docket
   expect(newArrivals(new Set(["a", "optimistic-1"]), ["a", "x"], local)).toEqual([]);
   expect(newArrivals(new Set(["a", "optimistic-1"]), ["a", "x", "y"], local)).toEqual(["y"]);
+  // a catch-up of many at once is not staggered in at all
+  const many = Array.from({ length: MAX_ARRIVALS + 1 }, (_, i) => `n${i}`);
+  expect(newArrivals(new Set(["a"]), ["a", ...many], local)).toEqual([]);
+  expect(newArrivals(new Set(["a"]), ["a", ...many.slice(1)], local)).toHaveLength(MAX_ARRIVALS);
+});
+
+it("a rolled-back last tick ends the celebration, and a later delete does not bring it back", () => {
+  const { result, rerender } = renderHook((t: Tally) => useCelebration(t), { initialProps: day(8, 9) });
+  expect(result.current).toBe(false);
+  rerender(day(9, 9)); // the last docket bumped
+  expect(result.current).toBe(true);
+  rerender(day(8, 9)); // the optimistic tick rolled back
+  expect(result.current).toBe(false);
+  rerender(day(8, 8)); // the last open docket deleted: everything done, but nothing was bumped
+  expect(result.current).toBe(false);
 });
 
 afterEach(() => vi.unstubAllGlobals());

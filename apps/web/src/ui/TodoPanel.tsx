@@ -15,7 +15,7 @@ import { NextUp } from "./NextUp";
 import { reducedMotion } from "./motion";
 import { launch, QuickAdd } from "./QuickAdd";
 import { Rail, type RailGeo } from "./Rail";
-import type { GroupData, Legend } from "./types";
+import type { DocketData, GroupData, Legend } from "./types";
 import { ViewMenu } from "./ViewMenu";
 
 const PLATE: Record<Exclude<RailGeo, "compact">, string> = { carried: railCarried, today: railToday, slim: railComingup };
@@ -41,28 +41,39 @@ type Props = {
 
 const NO_ARRIVALS = new Map<string, number>();
 
-// A docket added from the quick add flies out of the input to its place in the rail.
+// A docket added from the quick add flies out of the input to its place in the rail. Until it lands, the
+// docket there stays hidden: the optimistic one, and the saved one that replaces it mid-flight (a new id
+// with the same title that was not on the board when the flight began).
+type AddFlight = { plan: FlightPlan; known: Set<string> };
 function useAddFlight(groups: GroupData[], scroll: React.RefObject<HTMLElement | null>, compact: boolean) {
-  const [flight, setFlight] = useState<FlightPlan | null>(null);
+  const [flight, setFlight] = useState<AddFlight | null>(null);
   const seen = useRef(new Set<string>());
   useLayoutEffect(() => {
-    for (const d of groups.flatMap((g) => g.dockets)) {
+    const all = groups.flatMap((g) => g.dockets);
+    for (const d of all) {
       if (!isOptimistic(d.id) || seen.current.has(d.id)) continue;
       seen.current.add(d.id);
       const from = launch.from;
       if (!from || Date.now() - launch.at > 1500 || reducedMotion()) continue;
       launch.from = null;
-      const target = `[data-docket="${CSS.escape(d.id)}"]`;
-      const el = scroll.current?.querySelector<HTMLElement>(target);
+      const el = scroll.current?.querySelector<HTMLElement>(`[data-docket="${CSS.escape(d.id)}"]`);
       if (!el) continue;
       el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
       const at = el.getBoundingClientRect();
       const w = at.width * 0.3;
       const h = at.height * 0.3;
-      setFlight({ docket: d, compact, at, target, from: { left: from.left + 14, top: from.top + (from.height - h) / 2, width: w, height: h } });
+      setFlight({
+        plan: { docket: d, compact, at, from: { left: from.left + 14, top: from.top + (from.height - h) / 2, width: w, height: h } },
+        known: new Set(all.filter((x) => x.id !== d.id).map((x) => x.id)),
+      });
     }
   }, [groups, scroll, compact]);
-  return flight && <Flight key={flight.docket.id} plan={flight} onDone={() => setFlight(null)} />;
+  const hidden = (d: DocketData) =>
+    !!flight && (d.id === flight.plan.docket.id || (!flight.known.has(d.id) && d.title === flight.plan.docket.title));
+  const view = flight && (
+    <Flight key={flight.plan.docket.id} plan={flight.plan} onDone={() => setFlight((f) => (f === flight ? null : f))} />
+  );
+  return { view, hidden };
 }
 
 // Which dockets are inside the scroll area right now. null = unknown (no IntersectionObserver): treat all as visible.
@@ -151,7 +162,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
                   <SortableContext id={g.key} items={g.dockets.map((d) => d.id)} strategy={compact ? verticalListSortingStrategy : horizontalListSortingStrategy}>
                     {g.dockets.map((d) => (
                       <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} onOpen={onOpen} onTick={onTick} onPlan={onPlan}
-                        dnd={dnd ? { manual: view.sort === "manual" } : undefined} compact={compact} arrival={arrivals.get(d.id)} />
+                        dnd={dnd ? { manual: view.sort === "manual" } : undefined} compact={compact} arrival={arrivals.get(d.id)} inflight={flight.hidden(d)} />
                     ))}
                   </SortableContext>
                 )}
@@ -160,7 +171,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
           })}
         </m.div>
       </AnimatePresence>
-      {flight}
+      {flight.view}
       {legend && (
         <footer className="legend-bar">
           <p className="r-legend legend">

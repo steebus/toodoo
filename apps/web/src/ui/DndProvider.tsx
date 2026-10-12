@@ -134,7 +134,7 @@ function Live({ board, groups, manual, compact, actions, children }: Props & { a
       <DragOverlay dropAnimation={toLine || reduced() ? null : undefined}>
         {dragged && <DocketGhost docket={dragged} compact={compact} />}
       </DragOverlay>
-      {morph && <Flight key={morph.docket.id} plan={morph} onDone={() => setMorph(null)} />}
+      {morph && <Flight key={morph.docket.id} plan={morph} onDone={() => setMorph((m) => (m === morph ? null : m))} />}
     </DndContext>
   );
 }

@@ -1,9 +1,7 @@
-import { m } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { parseQuickAdd } from "@shared/quickadd.ts";
 import type { NewTask } from "../lib/useActions";
 import { CalendarIcon, ClockIcon } from "./icons";
-import { SNAPPY } from "./motion";
 
 // Where the last line was filed from, so its docket can fly out of the input (see TodoPanel).
 export const launch: { from: DOMRect | null; at: number } = { from: null, at: 0 };
@@ -16,7 +14,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
   const [invalid, setInvalid] = useState(false);
   const parsed = parseQuickAdd(line, today, nowM);
   const input = useRef<HTMLInputElement>(null);
-  // Chips pop in as they are understood; the ones there at first paint just sit there.
+  // Chips pop in (CSS) as they are understood; the ones there at first paint just sit there.
   const live = useRef(false);
   useEffect(() => {
     live.current = true;
@@ -57,13 +55,12 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
         {parsed.chips.map((c, i) => {
           const high = c.kind === "priority" && parsed.priority === "high";
           return (
-            <m.li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}`}
-              initial={live.current ? { opacity: 0, scale: 0.6, y: 4 } : false} animate={{ opacity: 1, scale: 1, y: 0 }} transition={SNAPPY}>
+            <li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}${live.current ? " chip-pop" : ""}`}>
               {c.kind === "date" && <CalendarIcon className="chip-icon" />}
               {(c.kind === "time" || c.kind === "estimate") && <ClockIcon className="chip-icon" />}
               {c.kind === "priority" && <span className="chip-bang" aria-hidden>!</span>}
               {c.kind === "priority" ? c.text.replace(/^!/, "") || "high" : c.text}
-            </m.li>
+            </li>
           );
         })}
       </ul>

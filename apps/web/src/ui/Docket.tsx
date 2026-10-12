@@ -27,6 +27,22 @@ const DASHES = "-".repeat(26);
 const ticked = new Map<string, number>();
 const tickedJustNow = (id: string) => Date.now() - (ticked.get(id) ?? 0) < 600;
 
+// A ticked docket leaves its rail, so focus would fall to the page. It goes on to the next open docket
+// instead, or (none left, or reopening) follows the ticked docket to its new place.
+function focusAfterTick(id: string, done: boolean) {
+  const open = [...document.querySelectorAll<HTMLElement>(".pass .todo-scroll [data-docket]:not(.is-done)")].map((e) => e.dataset.docket!);
+  const next = done ? open[open.indexOf(id) + 1] : undefined;
+  const want = next ?? id;
+  const doneThere = next ? false : done; // wait for the board to show the docket in its new state
+  let frames = 0;
+  const go = () => {
+    const li = [...document.querySelectorAll<HTMLElement>(".pass .todo-scroll [data-docket]")].find((e) => e.dataset.docket === want);
+    if (li && li.classList.contains("is-done") === doneThere) return li.querySelector<HTMLElement>(".dk-open")?.focus();
+    if (++frames < 30) requestAnimationFrame(go);
+  };
+  requestAnimationFrame(go);
+}
+
 function Rows({ rows }: { rows: MetaRow[] }) {
   return (
     <dl className="dk-rows">
@@ -49,6 +65,7 @@ type Props = {
   dnd?: { manual: boolean }; // inside a DndProvider: draggable, and sortable while the sort is manual
   compact?: boolean; // Focus: a one-line stub in a narrow column instead of the paper docket
   arrival?: number; // just arrived from elsewhere: prints in, this many places into the stagger
+  inflight?: boolean; // its picture is still flying in from the quick add: hidden until it lands
 };
 
 type ViewProps = Props & {
@@ -61,15 +78,16 @@ type ViewProps = Props & {
 // The title is the button that opens the edit sheet; its ::after stretches the hit area over the whole docket.
 // The paper (plate and print) is one motion layer: when the docket changes rail (bumped into Done today)
 // it travels there, and its neighbours close up behind it. The li stays dnd-kit's alone.
-function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, open: openProps, compact, arrival }: ViewProps) {
+function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, open: openProps, compact, arrival, inflight }: ViewProps) {
   const busy = isOptimistic(d.id);
   const layoutDependency = useLayoutDependency();
   const [drawTick] = useState(() => d.done && !ghost && tickedJustNow(d.id));
   const tick = (done: boolean) => {
     if (done) ticked.set(d.id, Date.now());
     onTick?.(d.id, done);
+    if (onTick && !ghost) focusAfterTick(d.id, done);
   };
-  const cls = `docket docket-${d.variant}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}`;
+  const cls = `docket docket-${d.variant}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}`;
   const open = (children: React.ReactNode) => (
     <button type="button" className="dk-open" disabled={busy} aria-label={`Edit ${d.title}`} onClick={(e) => !afterKeyDrag(e) && onOpen?.(d.id)}
       tabIndex={ghost ? -1 : undefined} {...openProps}

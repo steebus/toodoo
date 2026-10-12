@@ -1,13 +1,16 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { LazyMotion, MotionConfig } from "motion/react";
+import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
 
 // One feel for the whole pass: springs that settle in about a third of a second, with a little give.
 export const SPRING = { type: "spring", visualDuration: 0.3, bounce: 0.2 } as const;
 export const SNAPPY = { type: "spring", visualDuration: 0.22, bounce: 0.3 } as const;
 
-// The animation features arrive in their own chunk after first paint (nothing moves on load but the hero
-// line, which simply starts once they land). Movement turns into fades under prefers-reduced-motion ("user"); layout animations stop.
-const loadFeatures = () => import("./motionFeatures").then((r) => r.default);
+// The full feature set (layout animations) arrives in its own chunk after first paint. If that chunk cannot
+// load (offline, or a stale hash after a deploy), the smaller set bundled here takes over: everything still
+// lands on its final state, only layout moves are lost. Nothing waits on it to be visible: no element's
+// first-paint state is hidden (initial={false} or CSS), so a slow chunk only delays motion, never content.
+// Movement turns into fades under prefers-reduced-motion ("user"); layout animations stop.
+const loadFeatures = () => import("./motionFeatures").then((r) => r.default, () => domAnimation);
 
 export function MotionRoot({ children }: { children: ReactNode }) {
   return (
@@ -43,7 +46,9 @@ export const finishedTheDay = (prev: Tally | null, next: Tally) =>
 
 // Dockets that were not on the board a moment ago and did not come from this device (the agent's morning
 // drop, another device): they print in with a stagger. An optimistic docket swapped for its saved self is
-// the same docket, not an arrival.
+// the same docket, not an arrival. A big catch-up (reconnecting, another device's backlog) is not news:
+// more than MAX_ARRIVALS at once and none of them print in.
+export const MAX_ARRIVALS = 5;
 export function newArrivals(prev: ReadonlySet<string> | null, ids: string[], isLocal: (id: string) => boolean): string[] {
   if (!prev) return [];
   let swaps = [...prev].filter((id) => isLocal(id) && !ids.includes(id)).length;
@@ -53,7 +58,7 @@ export function newArrivals(prev: ReadonlySet<string> | null, ids: string[], isL
     if (swaps > 0) swaps--;
     else out.push(id);
   }
-  return out;
+  return out.length > MAX_ARRIVALS ? [] : out;
 }
 
 const ARRIVAL_MS = 2400;
@@ -86,12 +91,13 @@ export function useArrivals(ids: string[], isLocal: (id: string) => boolean): Ma
 
 const CELEBRATE_MS = 2600;
 
-// True for a moment after the day's last docket is bumped; a rollback (done < total again) ends it at once.
+// True for a moment after the day's last docket is bumped; a rollback (done < total again) ends it for good.
 export function useCelebration(t: Tally): boolean {
   const prev = useRef<Tally | null>(null);
   const [at, setAt] = useState(0);
   useEffect(() => {
     if (finishedTheDay(prev.current, t)) setAt(Date.now());
+    else if (t.done < t.total) setAt(0); // rolled back: over, and a later delete must not bring it back
     prev.current = t;
   }, [t.date, t.done, t.total]); // eslint-disable-line react-hooks/exhaustive-deps -- the tally's fields are the deps
   useEffect(() => {
