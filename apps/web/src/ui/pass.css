@@ -1,5 +1,11 @@
 /* The Pass: semantic layer over the measured layout (styles/layout.css) and the plates. */
 
+/* One spring for CSS and the Web Animations API (motion's spring(0.32, 0.22)): settles visually in ~320ms,
+   the tail is a hair of overshoot. Runs over 600ms of wall time but never holds up input. */
+:root {
+  --spring: linear(0, 0.1017, 0.3081, 0.5244, 0.7063, 0.8401, 0.9286, 0.9809, 1.0077, 1.0183, 1.0197, 1.0168, 1.0125, 1.0084, 1.005, 1.0026, 1.0011, 1.0002, 1, 1);
+}
+
 .pass {
   position: relative;
   width: 100vw;
@@ -227,17 +233,30 @@
 }
 .grp-carried .grp-dockets { --dk-gap: 0.76cqw; --dk-w: 15.9cqw; top: 1.93cqh; height: 21.1cqh; padding: 1cqh 0 1cqh 1.11cqw; }
 .grp-today .grp-dockets { --dk-gap: 1.46cqw; --dk-w: 14.8cqw; top: 1.74cqh; height: 23.68cqh; padding: 1cqh 0 1cqh 1.37cqw; }
-.grp-dockets .docket { flex: 0 0 var(--dk-w); animation: dk-in 0.3s ease-out backwards; }
+.grp-dockets .docket { flex: 0 0 var(--dk-w); }
 .grp-carried .docket { height: 19.14cqh; }
 .grp-today .docket { height: 21.68cqh; }
-@keyframes dk-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) {
   .grp-chevron svg { transition: none; }
-  .grp-dockets .docket { animation: none; }
+}
+
+/* Arrivals from elsewhere (the agent's morning drop): each docket feeds down onto the rail in turn, and the
+   paper flushes warm for a moment like fresh thermal print. Nothing moves on first paint. */
+.docket.is-arrived { animation: dk-arrive 0.6s var(--spring) backwards; animation-delay: calc(var(--i, 0) * 90ms); }
+.docket.is-arrived .dk-paper::after {
+  content: ""; position: absolute; inset: 0; border-radius: 2px; pointer-events: none;
+  background: var(--red-soft); mix-blend-mode: multiply; opacity: 0;
+  animation: dk-heat 1.6s ease-out; animation-delay: calc(var(--i, 0) * 90ms + 0.15s);
+}
+@keyframes dk-arrive { from { opacity: 0; transform: translateY(-16px); } }
+@keyframes dk-heat { 25% { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .docket.is-arrived { animation: fade-in 0.2s linear backwards; animation-delay: calc(var(--i, 0) * 60ms); }
 }
 
 /* ---------- dockets: print on the paper plate ---------- */
 .docket { position: relative; }
+.dk-paper { position: absolute; inset: 0; }
 .docket .plate { width: 100%; height: 100%; }
 .dk-print {
   position: absolute; inset: 0; padding: 0 26px 0 19px;
@@ -299,7 +318,7 @@
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
   font-family: var(--font-print); font-size: 16px; color: var(--ink-2);
-  animation: pop-in 0.16s ease-out both;
+  transform-origin: top right; animation: pop-in 0.6s var(--spring) both;
 }
 .viewmenu-field { display: grid; grid-template-columns: 5ch 1fr; align-items: center; gap: 10px; }
 .viewmenu-field select {
@@ -308,7 +327,7 @@
 }
 .viewmenu-out { justify-self: start; font-family: var(--font-print); font-size: 16px; color: var(--ink-3); }
 .viewmenu-out:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-@keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(0.94); } }
 @media (prefers-reduced-motion: reduce) { .viewmenu-pop { animation: none; } .viewmenu-chevron { transition: none; } }
 
 .plan-all {
@@ -343,8 +362,9 @@
   padding: 0; border: 0; border-left: 1px solid var(--rule); background: var(--surface); color: var(--ink);
   font-family: var(--font-print); box-shadow: -10px 0 30px rgb(0 0 0 / 0.14); overflow-y: auto;
 }
-.sheet[open] { animation: sheet-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.sheet::backdrop { background: rgb(0 0 0 / 0.22); animation: fade-in 0.2s ease-out both; }
+/* Sheets spring in from the edge they live on; the room behind softens and blurs as they come. */
+.sheet[open] { animation: sheet-in 0.6s var(--spring) both; }
+.sheet::backdrop { background: rgb(0 0 0 / 0.16); backdrop-filter: blur(3px); animation: fade-in 0.24s ease-out both; }
 .sheet-form { display: grid; gap: 14px; padding: 26px 26px 22px; }
 .sheet-title { margin: 0; font-family: var(--font-ui); font-weight: 700; font-size: 27px; line-height: 1; }
 .sheet-field { display: grid; gap: 5px; min-width: 0; font-size: 14px; color: var(--ink-3); }
@@ -370,8 +390,8 @@
   }
   .sheet[open] { animation-name: sheet-up; }
 }
-@keyframes sheet-in { from { opacity: 0; transform: translateX(28px); } }
-@keyframes sheet-up { from { opacity: 0; transform: translateY(28px); } }
+@keyframes sheet-in { from { opacity: 0; transform: translateX(72px); } }
+@keyframes sheet-up { from { opacity: 0; transform: translateY(72px); } }
 @keyframes fade-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .sheet[open] { animation-name: fade-in; animation-duration: 0.12s; }
@@ -507,7 +527,7 @@
   background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--radius);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
   font-family: var(--font-print); font-size: 16px; line-height: 1;
-  animation: pop-in 0.16s ease-out both;
+  transform-origin: top left; animation: pop-in 0.6s var(--spring) both;
 }
 .slotpick:not([open]) { display: none; }
 .slotpick-at { margin: 0 0 2px 2px; font-size: 15px; color: var(--ink-3); }
@@ -528,9 +548,9 @@
 .slotpick.is-sheet {
   position: fixed; inset: auto 0 0 0; width: 100vw; max-width: none; max-height: 80dvh; padding: 18px 16px 22px;
   border: 0; border-top: 1px solid var(--rule); border-radius: var(--radius) var(--radius) 0 0;
-  box-shadow: 0 -10px 30px rgb(0 0 0 / 0.14); animation: sheet-up 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  box-shadow: 0 -10px 30px rgb(0 0 0 / 0.14); animation: sheet-up 0.6s var(--spring) both;
 }
-.slotpick.is-sheet::backdrop { background: rgb(0 0 0 / 0.22); animation: fade-in 0.2s ease-out both; }
+.slotpick.is-sheet::backdrop { background: rgb(0 0 0 / 0.16); backdrop-filter: blur(3px); animation: fade-in 0.24s ease-out both; }
 @media (prefers-reduced-motion: reduce) {
   .slotpick, .slotpick.is-sheet { animation: fade-in 0.12s linear both; }
 }
@@ -590,3 +610,62 @@
 .help-list dt { display: flex; gap: 6px; }
 .help-list dd { margin: 0; color: var(--ink-2); }
 .help-list kbd { min-width: 1.6em; padding: 2px 6px; text-align: center; font: inherit; background: var(--well); border: 1px solid var(--rule); border-radius: var(--radius); }
+
+/* ---------- the count, and the day's last bump ---------- */
+.headline-line { display: inline-block; }
+.progress-track {
+  position: absolute; left: 9px; right: 0; bottom: -9px; height: 2px; overflow: hidden;
+  background: var(--rule-soft); border-radius: 1px;
+}
+.progress-fill { display: block; height: 100%; background: var(--green); transform-origin: 0 50%; }
+
+/* A slip of thermal paper feeds out of the top bar's rule under the count, then tears off and drops. */
+.bumped-slot {
+  position: absolute; z-index: 30; pointer-events: none;
+  left: calc(var(--r-progress-x) + 1.2%); top: calc(var(--r-topbar-rule-y) + 0.2%); width: 6.6%;
+  clip-path: inset(0 -60px -160px -60px); /* the rule is the printer's mouth: nothing shows above it */
+  filter: drop-shadow(0 5px 9px rgb(0 0 0 / 0.18)) drop-shadow(0 0 1px rgb(0 0 0 / 0.25));
+}
+.bumped-slip {
+  --zig: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 13px 6px 18px;
+  background: #fbfbf8; color: var(--paper-ink); font-family: var(--font-print); line-height: 1; white-space: nowrap;
+  transform-origin: 25% 0;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--zig) calc(var(--zig) / 2) repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--zig) / 2) no-repeat;
+}
+.bumped-head { font-weight: 700; font-size: 15px; letter-spacing: 0.03em; }
+.bumped-count { font-size: 22px; }
+.bumped-dashes { max-width: 100%; overflow: hidden; font-size: 12px; letter-spacing: -0.02em; }
+.bumped-foot { font-size: 12px; letter-spacing: 0.24em; color: #6b6b6b; }
+.bumped-tick {
+  position: absolute; left: calc(var(--r-progress-x) + var(--r-progress-w) + 0.1%); top: var(--r-progress-y); height: var(--r-progress-h);
+  display: grid; place-items: center; color: var(--green);
+}
+
+/* ---------- Focus: the list as a narrow column of one-line stubs ---------- */
+.todo.is-compact .nextup, .todo.is-compact .legend-bar, .todo.is-compact .span, .todo.is-compact .add-button { display: none; }
+.todo.is-compact .quickadd-input { width: calc((100 - var(--split) - 1.6 - 2.35 * var(--kt)) * 1cqw); }
+.todo-scroll.is-compact { top: 23.4cqh; height: 70.4cqh; }
+.grp-compact { height: auto; padding-bottom: 1.4cqh; }
+.grp-compact .grp-label { position: static; height: 3.2cqh; padding-left: 0.6cqw; }
+.grp-compact .grp-chevron { left: auto; right: 1.2cqw; top: 0.4cqh; }
+.grp-compact .grp-dockets {
+  position: static; flex-direction: column; gap: 7px; overflow: visible; height: auto; padding: 2px 1.2cqw 0 0.6cqw;
+}
+.grp-dockets .docket-compact { flex: none; height: 46px; }
+.docket-compact .dk-paper {
+  background: #fbfbf8; border: 1px solid #dedede; border-top: 1px dashed #c4c4c4; border-radius: 2px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.07);
+}
+.docket-compact .dk-print { display: flex; align-items: center; gap: 12px; padding: 0 48px 0 14px; }
+.docket-compact .dk-time, .docket-compact .dk-stub-tag { flex: none; width: 56px; font-size: 16px; }
+.docket-compact .dk-stub-tag { font-size: 12px; letter-spacing: 0.02em; color: var(--paper-red); }
+.docket-compact .dk-title {
+  flex: 1; min-width: 0; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.docket-compact .dk-open { display: block; overflow: hidden; text-overflow: ellipsis; }
+.docket-compact .dk-dur { flex: none; font-size: 14px; color: #5f5f5f; }
+.docket-compact.is-high .dk-title, .docket-compact.is-high .dk-time { color: var(--paper-red); }
+.pass .docket-compact .dk-bump { top: 8px; right: 9px; width: 28px; height: 28px; }

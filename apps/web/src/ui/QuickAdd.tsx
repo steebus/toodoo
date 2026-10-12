@@ -1,7 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { m } from "motion/react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { parseQuickAdd } from "@shared/quickadd.ts";
 import type { NewTask } from "../lib/useActions";
 import { CalendarIcon, ClockIcon } from "./icons";
+import { SNAPPY } from "./motion";
+
+// Where the last line was filed from, so its docket can fly out of the input (see TodoPanel).
+export const launch: { from: DOMRect | null; at: number } = { from: null, at: 0 };
 
 type Props = { today: string; nowM: number; initial?: string; onAdd?: (t: NewTask) => Promise<boolean> };
 
@@ -10,12 +15,19 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
   const [line, setLine] = useState(initial);
   const [invalid, setInvalid] = useState(false);
   const parsed = parseQuickAdd(line, today, nowM);
+  const input = useRef<HTMLInputElement>(null);
+  // Chips pop in as they are understood; the ones there at first paint just sit there.
+  const live = useRef(false);
+  useEffect(() => {
+    live.current = true;
+  }, []);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!line.trim()) return setInvalid(true);
     if (!parsed.title.trim()) return setInvalid(true);
     const typed = line;
+    if (input.current) Object.assign(launch, { from: input.current.getBoundingClientRect(), at: Date.now() });
     setLine("");
     setInvalid(false);
     void onAdd?.({
@@ -27,6 +39,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
   return (
     <form className="quickadd" aria-label="Quick add" onSubmit={submit}>
       <input
+        ref={input}
         className="r-quickadd quickadd-input"
         name="line"
         aria-label="New to do"
@@ -44,12 +57,13 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
         {parsed.chips.map((c, i) => {
           const high = c.kind === "priority" && parsed.priority === "high";
           return (
-            <li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}`}>
+            <m.li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}`}
+              initial={live.current ? { opacity: 0, scale: 0.6, y: 4 } : false} animate={{ opacity: 1, scale: 1, y: 0 }} transition={SNAPPY}>
               {c.kind === "date" && <CalendarIcon className="chip-icon" />}
               {(c.kind === "time" || c.kind === "estimate") && <ClockIcon className="chip-icon" />}
               {c.kind === "priority" && <span className="chip-bang" aria-hidden>!</span>}
               {c.kind === "priority" ? c.text.replace(/^!/, "") || "high" : c.text}
-            </li>
+            </m.li>
           );
         })}
       </ul>

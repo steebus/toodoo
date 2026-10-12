@@ -3,7 +3,7 @@ import { addDays } from "@shared/planning.ts";
 import { NO_TAG } from "@shared/board.ts";
 import "../styles/layout.css";
 import "./pass.css";
-import type { Actions } from "../lib/useActions";
+import { isOptimistic, type Actions } from "../lib/useActions";
 import { actionFor } from "../lib/shortcuts";
 import { useStoredView } from "../lib/useStoredView";
 import { buildPass } from "./build";
@@ -11,7 +11,8 @@ import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
 import { EditSheet, type Draft } from "./EditSheet";
 import { HelpSheet } from "./HelpSheet";
-import { PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
+import { MotionRoot, useArrivals, useCelebration } from "./motion";
+import { COMPACT_AT, PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
 import { Toast } from "./Toast";
 import { TodoPanel } from "./TodoPanel";
 import { TopBar } from "./TopBar";
@@ -71,52 +72,60 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
     return () => document.removeEventListener("keydown", onKey);
   });
   const preset = PRESETS.find((p) => Math.abs(PRESET_SPLIT[p] - split[0]) < 0.5) ?? "";
+  const compact = split[0] > COMPACT_AT;
+  const arrivals = useArrivals(board.tasks.map((t) => t.id), isOptimistic);
+  const celebrate = useCelebration({ date: board.date, done: model.done, total: model.total });
   return (
-    <div className="pass">
-      <TopBar
-        date={model.dateLabel}
-        headline={model.headline}
-        done={model.done}
-        total={model.total}
-        presets={PRESETS}
-        activePreset={preset}
-        onPreset={(p) => setSplit(PRESET_SPLIT[p])}
-      />
-      <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} actions={actions}>
-      <Panes split={split}>
-        <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} />
-        <TodoPanel
-          model={model}
-          today={board.today}
-          nowM={board.nowM}
-          view={view}
-          onView={setView}
-          legend={legend}
-          quickAdd={quickAdd}
-          onSignOut={onSignOut}
-          onAdd={actions?.add}
-          onOpen={openTask}
-          onTick={actions?.tick}
-          onPlan={actions && ((id) => void actions.planTasks([id], board.date))}
-          onPlanAll={actions && (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date))}
-          dnd={!!actions}
+    <MotionRoot>
+      <div className="pass">
+        <TopBar
+          date={model.dateLabel}
+          headline={model.headline}
+          done={model.done}
+          total={model.total}
+          presets={PRESETS}
+          activePreset={preset}
+          onPreset={(p) => setSplit(PRESET_SPLIT[p])}
+          celebrate={celebrate}
         />
-      </Panes>
-      </DndProvider>
-      {actions && editTask && (
-        <EditSheet key={editTask.id} task={editTask} draft={draft}
-          onSave={(id, patch, values) => {
-            void actions.save(id, patch).then((ok) => {
-              if (ok) return;
-              setDraft(values);
-              setEditing(id);
-            });
-          }}
-          onDelete={actions.remove} onClose={() => setEditing(null)} />
-      )}
-      {help && <HelpSheet onClose={() => setHelp(false)} />}
-      {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}
-    </div>
+        <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} compact={compact} actions={actions}>
+        <Panes split={split}>
+          <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} />
+          <TodoPanel
+            model={model}
+            today={board.today}
+            nowM={board.nowM}
+            view={view}
+            onView={setView}
+            legend={legend}
+            quickAdd={quickAdd}
+            onSignOut={onSignOut}
+            onAdd={actions?.add}
+            onOpen={openTask}
+            onTick={actions?.tick}
+            onPlan={actions && ((id) => void actions.planTasks([id], board.date))}
+            onPlanAll={actions && (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date))}
+            dnd={!!actions}
+            compact={compact}
+            arrivals={arrivals}
+          />
+        </Panes>
+        </DndProvider>
+        {actions && editTask && (
+          <EditSheet key={editTask.id} task={editTask} draft={draft}
+            onSave={(id, patch, values) => {
+              void actions.save(id, patch).then((ok) => {
+                if (ok) return;
+                setDraft(values);
+                setEditing(id);
+              });
+            }}
+            onDelete={actions.remove} onClose={() => setEditing(null)} />
+        )}
+        {help && <HelpSheet onClose={() => setHelp(false)} />}
+        {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}
+      </div>
+    </MotionRoot>
   );
 }
 

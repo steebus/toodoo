@@ -1,12 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useDroppable } from "@dnd-kit/core";
+import { m } from "motion/react";
 import { layoutLanes, SNAP, toHM } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
 import { clampBlock, deltaMin, hitSlot, moveBlock, widenRange, type Placed } from "../lib/timeline";
 import { useDropHint } from "./DndProvider";
 import { clock12, hourLabel } from "./format";
-import { CheckIcon, NowMarker } from "./icons";
+import { CheckIcon, DrawnCheck, NowMarker } from "./icons";
+import { SNAPPY, useLayoutDependency } from "./motion";
 import { BLOCK_LEAD, blockHeight, blockTop, gridHeight, HOUR_PX, LINE_DROP, minToPx, NOW_LEAD } from "./plan";
 import { SlotPicker } from "./SlotPicker";
 import type { BoardData, PlanBlock, PlanData } from "./types";
@@ -44,6 +46,10 @@ export function Timeline({ plan, board, actions }: Props) {
   const hint = useDropHint();
   const [cursor, setCursor] = useState<number | null>(null);
   const [picker, setPicker] = useState<number | null>(null);
+  // Blocks, the drag ghost and the drop hint spring between 15-minute slots instead of jumping.
+  const layoutDependency = useLayoutDependency();
+  const glide = { layout: "position" as const, transition: SNAPPY };
+  const snap = { ...glide, layoutDependency }; // blocks hold still while the divider is dragged
 
   // Keyboard drafts may run past the drawn hours, so widen to fit; a pointer drag keeps the grid still under the hand.
   const { startM, endM } = useMemo(
@@ -216,7 +222,7 @@ export function Timeline({ plan, board, actions }: Props) {
   };
 
   return (
-    <div className="plan-scroll" ref={(n) => { scroller.current = n; drop.setNodeRef(n); }}>
+    <m.div className="plan-scroll" layoutScroll ref={(n: HTMLDivElement | null) => { scroller.current = n; drop.setNodeRef(n); }}>
       <div className="plan-grid" ref={grid} style={{ height: gridHeight(startM, endM) }}>
         {live && (
           <div
@@ -280,9 +286,9 @@ export function Timeline({ plan, board, actions }: Props) {
                 </span>
               </>
             );
-            if (!editable) return <li key={b.id} className={cls} style={style}>{face}</li>;
+            if (!editable) return <m.li key={b.id} className={cls} style={style} {...snap}>{face}</m.li>;
             return (
-              <li key={b.id} data-block={b.id} className={cls} style={style}>
+              <m.li key={b.id} data-block={b.id} className={cls} style={style} {...snap}>
                 <button
                   type="button"
                   className="plan-body"
@@ -302,19 +308,20 @@ export function Timeline({ plan, board, actions }: Props) {
                 <span className="plan-acts">
                   <label className="plan-tick">
                     <input type="checkbox" aria-label={`Done: ${b.title}`} checked={!!b.done} onChange={() => actions!.tick(b.id, !b.done)} />
-                    <CheckIcon size={13} className="plan-tick-mark" />
+                    <DrawnCheck on={!!b.done} size={13} className="plan-tick-mark" />
                   </label>
                   <button type="button" className="plan-x" aria-label={`Unplan ${b.title}`} onClick={() => actions!.unplace(b.id, date)}>
                     <span aria-hidden>×</span>
                   </button>
                 </span>
                 <span className="plan-resize" aria-hidden {...pointer(b, "resize")} />
-              </li>
+              </m.li>
             );
           })}
         </ol>
         {ghost && (
-          <p
+          <m.p
+            {...glide}
             className="plan-ghost"
             aria-hidden
             style={{
@@ -323,12 +330,12 @@ export function Timeline({ plan, board, actions }: Props) {
             }}
           >
             <span className="plan-ghost-time">{range(ghost.start, ghost.mins)}</span>
-          </p>
+          </m.p>
         )}
         {live && hint && (
-          <p className="plan-ghost plan-drop" aria-hidden style={{ top: slotTop(hint.start), height: blockHeight(hint.mins) }}>
+          <m.p {...glide} className="plan-ghost plan-drop" aria-hidden style={{ top: slotTop(hint.start), height: blockHeight(hint.mins) }}>
             <span className="plan-ghost-time">{range(hint.start, hint.mins)}</span>
-          </p>
+          </m.p>
         )}
         {nowM !== null && (
           <p className="nowline" style={{ top: minToPx(nowM, startM) - NOW_LEAD }} aria-label={`Now ${clock12(toHM(nowM))}`}>
@@ -356,7 +363,7 @@ export function Timeline({ plan, board, actions }: Props) {
         )}
       </div>
       {board && <DoneThatDay board={board} />}
-    </div>
+    </m.div>
   );
 }
 

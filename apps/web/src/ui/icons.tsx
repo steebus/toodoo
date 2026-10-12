@@ -1,3 +1,5 @@
+import { m, useReducedMotion } from "motion/react";
+
 // Icon-sized glyphs (one 1.6 stroke family). Dockets, rails and the biro ring are plates, never drawn here.
 type P = { size?: number; className?: string };
 
@@ -33,6 +35,22 @@ export const CheckIcon = ({ size = 18, className }: P) => (
     <path d="M3.5 10.5l4 4 9-10" />
   </svg>
 );
+
+// The same tick, drawn on when it turns on (never on first paint); under reduced motion it fades instead.
+// `draw` draws it on mount too (a docket that was just bumped into a new rail).
+export function DrawnCheck({ on, draw, size = 18, className }: P & { on: boolean; draw?: boolean }) {
+  const still = useReducedMotion();
+  return (
+    <svg {...base(size)} strokeWidth={2.4} className={className}>
+      <m.path
+        d="M3.5 10.5l4 4 9-10"
+        initial={draw ? (still ? { opacity: 0 } : { pathLength: 0 }) : false}
+        animate={still ? { opacity: on ? [0, 1] : 1 } : { pathLength: on ? [0, 1] : 1 }}
+        transition={{ duration: still ? 0.15 : 0.28, ease: [0.65, 0, 0.35, 1] }}
+      />
+    </svg>
+  );
+}
 
 export const ChevronIcon = ({ size = 22, className }: P) => (
   <svg {...base(size)} strokeWidth={1.8} className={className}>

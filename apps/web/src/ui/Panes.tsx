@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { GripIcon } from "./icons";
+import { FreezeLayout } from "./motion";
 
 const KEY = "toodoo.split";
 export const PLAN_SPLIT = 33.85; // the comp's own split
 export const PRESET_SPLIT: Record<string, number> = { Capture: 30, Plan: PLAN_SPLIT, Focus: 70 };
+export const COMPACT_AT = 55; // past this split the To do side is a narrow column (Focus)
 export const clampSplit = (v: number) => (Number.isFinite(v) ? Math.min(75, Math.max(25, v)) : PLAN_SPLIT);
 
 // Per device, in localStorage; blocked or junk storage means the comp's split.
@@ -40,11 +42,14 @@ const Ctx = createContext<{ split: Split; drag: (on: boolean) => void } | null>(
 // The two panels share one custom property, --split (the divider's % of the width); pass.css lays out from it.
 export function Panes({ split, children }: { split: Split; children: ReactNode }) {
   const [dragging, setDragging] = useState(false);
+  const frozen = useContext(FreezeLayout);
   return (
     <Ctx.Provider value={{ split, drag: setDragging }}>
-      <main className={`pass-main${dragging ? " is-dragging" : ""}`} style={{ "--split": split[0] } as CSSProperties}>
-        {children}
-      </main>
+      <FreezeLayout.Provider value={frozen || dragging}>
+        <main className={`pass-main${dragging ? " is-dragging" : ""}`} style={{ "--split": split[0] } as CSSProperties}>
+          {children}
+        </main>
+      </FreezeLayout.Provider>
     </Ctx.Provider>
   );
 }
