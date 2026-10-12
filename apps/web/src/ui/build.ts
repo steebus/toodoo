@@ -66,8 +66,10 @@ function planOf(b: BoardData, byId: Map<string, FullTask>): PlanData {
     });
   }
   blocks.sort((x, y) => x.startM - y.startM);
-  const lo = Math.min(DAY_START, ...blocks.map((x) => x.startM));
-  const hi = Math.max(DAY_END, ...blocks.map((x) => x.startM + x.mins));
+  // The now-line must always land on the grid, even at 05:30 or 22:30.
+  const nowEdge = isToday ? [b.nowM] : [];
+  const lo = Math.min(DAY_START, ...nowEdge, ...blocks.map((x) => x.startM));
+  const hi = Math.max(DAY_END, ...nowEdge, ...blocks.map((x) => x.startM + x.mins));
   const startM = Math.floor(lo / 60) * 60;
   const endM = Math.min(24 * 60, Math.ceil(hi / 60) * 60);
   return {

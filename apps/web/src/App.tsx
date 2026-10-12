@@ -2,7 +2,7 @@ import { useAuth } from "@workos-inc/authkit-react";
 import { useEffect, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { useBoard } from "./lib/useBoard";
-import { Hero } from "./ui/Hero";
+import { Hero, HeroShell } from "./ui/Hero";
 import type { BoardData, Legend } from "./ui/types";
 
 // The comp's content lives in a gitignored fixtures file; the glob is empty when it is absent (CI),
@@ -23,7 +23,7 @@ function FixtureHero() {
 function Home() {
   const board = useBoard();
   const { signOut } = useAuth();
-  return board ? <Hero board={board} onSignOut={() => signOut()} /> : null;
+  return board ? <Hero board={board} onSignOut={() => signOut()} /> : <HeroShell />;
 }
 
 function SignIn() {

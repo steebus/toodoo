@@ -185,3 +185,31 @@ it("marks only a high priority line as high in quick add", async () => {
   await userEvent.type(input, "Call plumber !high");
   expect(document.querySelector(".chip-high")).not.toBeNull();
 });
+
+it("renders the frame with both panel headings while the board loads", () => {
+  state.board = undefined;
+  render(<App />);
+  expect(screen.getByRole("heading", { name: "Day plan" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "To do" })).toBeInTheDocument();
+});
+
+it("falls back to All when the stored tag no longer exists", () => {
+  localStorage.setItem("toodoo.view", JSON.stringify({ group: "status", sort: "manual", tag: "gone" }));
+  show();
+  expect(within(rail("TODAY")).getAllByRole("article")).toHaveLength(3);
+  expect(JSON.parse(localStorage.getItem("toodoo.view")!).tag).toBe("");
+});
+
+it("shows All in the tag select after a stale tag resets", async () => {
+  localStorage.setItem("toodoo.view", JSON.stringify({ group: "status", sort: "manual", tag: "gone" }));
+  show();
+  await userEvent.click(screen.getByRole("button", { name: "View" }));
+  expect(screen.getByLabelText("Tag")).toHaveValue("");
+});
+
+it("widens the day plan to include the now-line hour", () => {
+  show(board({ nowM: 22 * 60 + 30 }));
+  const hours = within(screen.getByRole("list", { name: "Hours" })).getAllByRole("listitem").map((l) => l.textContent);
+  expect(hours.at(-1)).toBe("11pm");
+  expect(screen.getByLabelText("Now 10:30")).toBeInTheDocument();
+});

@@ -197,7 +197,7 @@
   position: absolute; left: 34.7cqw; width: 65.3cqw; top: 37.11cqh; height: 56.7cqh;
   overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
-.grp { position: relative; transition: height 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+.grp { position: relative; }
 .grp + .grp { margin-top: 0.45cqh; }
 .grp-carried { height: 23.1cqh; }
 .grp-today { height: 26.6cqh; }
@@ -221,7 +221,7 @@
 .grp-today .docket { height: 21.68cqh; }
 @keyframes dk-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) {
-  .grp, .grp-chevron svg { transition: none; }
+  .grp-chevron svg { transition: none; }
   .grp-dockets .docket { animation: none; }
 }
 
@@ -248,7 +248,7 @@
 .docket-today .dk-head { margin-top: 18px; height: 22px; display: flex; justify-content: space-between; align-items: center; font-size: 19.5px; }
 .docket-today .dk-dur { font-size: 17px; }
 .docket-today .dk-title { margin-top: 3px; display: flex; flex-direction: column; font-size: 21.5px; font-weight: 700; }
-.dk-title-line { height: 28px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 28px; }
+.dk-title-line { height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 28px; }
 .docket-today .dk-source { height: 28px; display: flex; align-items: center; font-size: 16px; }
 .docket-today .dk-dashes { height: 19px; line-height: 19px; }
 .docket-today.is-high .dk-head, .docket-today.is-high .dk-title, .docket-today.is-high .dk-source { color: var(--paper-red); }
