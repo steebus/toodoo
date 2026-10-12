@@ -42,9 +42,12 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
     document.addEventListener("pointerdown", away);
     return () => {
       document.removeEventListener("pointerdown", away);
+      // Back to the opener, unless focus already went somewhere on purpose (Tab out, a click on a control).
+      const now = document.activeElement;
+      const lost = !now || now === document.body || d.contains(now);
       if (d.open && typeof d.close === "function") d.close();
       const el = opener.current;
-      if (el instanceof HTMLElement && el.isConnected) el.focus();
+      if (lost && el instanceof HTMLElement && el.isConnected) el.focus();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- open once
 
@@ -64,6 +67,9 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
   }, [board, date, q]);
 
   const sel = Math.min(active, Math.max(0, options.length - 1));
+  useEffect(() => {
+    dialog.current?.querySelector(`[id="${optId(sel)}"]`)?.scrollIntoView?.({ block: "nearest" });
+  }, [sel, options.length]); // eslint-disable-line react-hooks/exhaustive-deps -- optId is stable per mount
   const plannedMins = (t: FullTask) =>
     board.blocks.filter((b) => b.task_id === t.id && b.date !== date).reduce((n, b) => n + b.mins, 0);
 
@@ -86,6 +92,7 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
     <dialog
       ref={dialog}
       className={`slotpick${sheet ? " is-sheet" : ""}`}
+      tabIndex={-1}
       style={sheet ? undefined : style}
       aria-label={`Plan ${clock12(toHM(at))}`}
       onCancel={(e) => {
@@ -93,6 +100,10 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
         onClose();
       }}
       onClick={(e) => e.target === dialog.current && sheet && onClose()}
+      onBlur={(e) => {
+        // The popover is not modal, so focus leaving it closes it (the sheet traps focus itself).
+        if (!sheet && !(e.relatedTarget instanceof Node && dialog.current?.contains(e.relatedTarget))) onClose();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault();
@@ -128,7 +139,10 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
           }
         }}
       />
-      <ul className="slotpick-list" id={`${id}-list`} role="listbox" aria-label="Tasks">
+      <ul
+        className="slotpick-list" id={`${id}-list`} role="listbox" aria-label="Tasks"
+        onMouseDown={(e) => e.preventDefault()} // keep focus in the search while an option is clicked
+      >
         {options.map((o, i) => (
           <li
             key={o.key}

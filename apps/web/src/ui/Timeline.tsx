@@ -51,7 +51,38 @@ export function Timeline({ plan, board, actions }: Props) {
     if (scroller.current) scroller.current.scrollTop = Math.max(0, minToPx(anchorM, startM) - 140);
   }, [date]); // eslint-disable-line react-hooks/exhaustive-deps -- open scrolled to the day's anchor, then leave the scroll alone
 
-  useEffect(() => () => clearTimeout(keyTimer.current), []);
+  // A keyboard batch waiting on its idle timer. It is saved early rather than dropped: before a batch starts on
+  // another block, when the line unmounts, and when the page is hidden.
+  const pending = useRef<{ id: string; start: number; mins: number } | null>(null);
+  const commitRef = useRef<(id: string, next: { start: number; mins: number }) => void>(() => {});
+  const flush = () => {
+    clearTimeout(keyTimer.current);
+    const p = pending.current;
+    pending.current = null;
+    if (p) commitRef.current(p.id, p);
+  };
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => {
+    const onHide = () => flushRef.current();
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      flushRef.current();
+    };
+  }, []);
+
+  // Escape abandons a pointer drag: no write, no ghost.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape" || !drag.current) return;
+      drag.current = null;
+      swallowClick.current = true;
+      if (draftRef.current?.via === "pointer") setDraft(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- refs only
 
   // A keyed block can change DOM position when it re-sorts after a save; keep focus on it.
   useLayoutEffect(() => {
@@ -84,16 +115,19 @@ export function Timeline({ plan, board, actions }: Props) {
     refocus.current = document.activeElement?.closest(`[data-block]`)?.getAttribute("data-block") === id ? id : null;
     actions.place(id, date, next.start, next.mins);
   };
+  commitRef.current = commit;
 
   const onBlockKey = (e: KeyboardEvent, b: PlanBlock) => {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     e.preventDefault();
+    if (pending.current && pending.current.id !== b.id) flush();
     const step = e.key === "ArrowUp" ? -SNAP : SNAP;
     const cur = draftRef.current?.id === b.id ? draftRef.current : { start: b.startM, mins: b.mins };
     const next = e.shiftKey ? clampBlock(cur.start, cur.mins + step) : moveBlock(cur.start + step, cur.mins);
     setDraft({ id: b.id, ...next, via: "key" });
     clearTimeout(keyTimer.current);
-    keyTimer.current = setTimeout(() => commit(b.id, next), KEY_IDLE);
+    pending.current = { id: b.id, ...next };
+    keyTimer.current = setTimeout(flush, KEY_IDLE);
   };
 
   const dragTo = (y: number) => {

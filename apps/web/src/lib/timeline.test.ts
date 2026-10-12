@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { BLOCK_LEAD, HOUR_PX, minToPx } from "../ui/plan";
-import { clampBlock, deltaMin, hitSlot, moveBlock, overlapsBusy, pxToMin, snap, widenRange } from "./timeline";
+import { clampBlock, deltaMin, hitSlot, moveBlock, pxToMin, snap, widenRange } from "./timeline";
 
 it("px and minutes are inverses of the plan's one mapping", () => {
   for (const m of [0, 360, 615, 1439]) expect(pxToMin(minToPx(m, 360), 360)).toBeCloseTo(m, 6);
@@ -55,14 +55,6 @@ it("hit-tests a y position to the 15-minute slot a block there would start in", 
   expect(hitSlot(minToPx(616, 360) - BLOCK_LEAD, 360)).toBe(615);
   expect(hitSlot(-500, 360)).toBe(0);
   expect(hitSlot(99999, 360)).toBe(1425);
-});
-
-it("tells whether a span runs into busy time", () => {
-  const busy = [{ s: 540, e: 600 }, { s: 720, e: 780 }];
-  expect(overlapsBusy({ s: 600, e: 660 }, busy)).toBe(false);
-  expect(overlapsBusy({ s: 585, e: 615 }, busy)).toBe(true);
-  expect(overlapsBusy({ s: 700, e: 800 }, busy)).toBe(true);
-  expect(overlapsBusy({ s: 480, e: 540 }, busy)).toBe(false);
 });
 
 it("widens an hour range to whole hours around new spans, never past the day", () => {

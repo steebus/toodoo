@@ -204,3 +204,80 @@ it("lists what was done that day under the line, and hides the list when empty",
   show(board({ tasks: [report] }));
   expect(screen.queryByRole("region", { name: "Done that day" })).toBeNull();
 });
+
+it("a pending keyboard move is saved before arrows start on another block", () => {
+  vi.useFakeTimers();
+  show(board({
+    blocks: [
+      { task_id: report.id, date: T, start: "09:00", mins: 60 },
+      { task_id: landlord.id, date: T, start: "11:00", mins: 30 },
+    ],
+  }));
+  block().focus();
+  fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
+  act(() => void vi.advanceTimersByTime(100));
+  screen.getByRole("button", { name: "Email landlord, 11:00–11:30" }).focus();
+  fireEvent.keyDown(document.activeElement!, { key: "ArrowUp" });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:15", mins: 60 });
+  act(() => void vi.advanceTimersByTime(500));
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: landlord.id, date: T, start: "10:45", mins: 30 });
+  expect(fn("placeBlock")).toHaveBeenCalledTimes(2);
+});
+
+it("a pending keyboard move is saved when the line unmounts", () => {
+  vi.useFakeTimers();
+  const { unmount } = show();
+  block().focus();
+  fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
+  unmount();
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:15", mins: 60 });
+});
+
+it("a pending keyboard move is saved when the page is hidden", () => {
+  vi.useFakeTimers();
+  show();
+  block().focus();
+  fireEvent.keyDown(document.activeElement!, { key: "ArrowDown", shiftKey: true });
+  act(() => void window.dispatchEvent(new Event("pagehide")));
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 75 });
+  act(() => void vi.advanceTimersByTime(500));
+  expect(fn("placeBlock")).toHaveBeenCalledTimes(1);
+});
+
+it("Escape during a pointer drag cancels it: no write, no ghost", () => {
+  show();
+  const body = block();
+  fireEvent.pointerDown(body, { clientY: 100, button: 0, pointerId: 1 });
+  fireEvent.pointerMove(body, { clientY: 160, pointerId: 1 });
+  expect(document.querySelector(".plan-ghost")).not.toBeNull();
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(document.querySelector(".plan-ghost")).toBeNull();
+  fireEvent.pointerUp(body, { clientY: 160, pointerId: 1 });
+  expect(fn("placeBlock")).not.toHaveBeenCalled();
+});
+
+it("a drag that ends drops the block at the snapped time", () => {
+  show();
+  const body = block();
+  fireEvent.pointerDown(body, { clientY: 100, button: 0, pointerId: 1 });
+  fireEvent.pointerMove(body, { clientY: 100 + 68.6, pointerId: 1 });
+  fireEvent.pointerUp(body, { clientY: 100 + 68.6, pointerId: 1 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "10:00", mins: 60 });
+});
+
+it("Tab out of the picker closes it", async () => {
+  show();
+  slots().focus();
+  await userEvent.keyboard("{Enter}");
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await userEvent.tab();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("an impossible date in the URL falls back to today and is cleaned away", () => {
+  window.history.replaceState(null, "", "/?date=2026-02-31");
+  show();
+  expect(state.args[0].date).toBeUndefined();
+  expect(window.location.search).toBe("");
+  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
+});

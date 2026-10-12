@@ -27,8 +27,6 @@ export function moveBlock(start: number, mins: number): Placed {
 export const hitSlot = (y: number, startM: number) =>
   clamp(Math.floor(pxToMin(y + BLOCK_LEAD, startM) / SNAP) * SNAP, 0, DAY - SNAP);
 
-export const overlapsBusy = (span: Span, busy: Span[]) => busy.some((b) => b.s < span.e && span.s < b.e);
-
 // Grow an hour range to whole hours so every span fits, within the day.
 export function widenRange(startM: number, endM: number, spans: Span[]) {
   const lo = Math.min(startM, ...spans.map((x) => x.s));
