@@ -3,13 +3,14 @@ import { CheckIcon } from "./icons";
 
 type Props = {
   date: string; headline: string; done: number; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
-  celebrate?: boolean;
+  celebrate?: boolean; offline?: boolean;
 };
 
-export function TopBar({ date, headline, done, total, presets, activePreset, onPreset, celebrate = false }: Props) {
+export function TopBar({ date, headline, done, total, presets, activePreset, onPreset, celebrate = false, offline = false }: Props) {
   return (
     <header className="topbar">
       <p className="r-wordmark wordmark">toodoo</p>
+      {offline && <span className="offline-stamp" role="status">offline</span>}
       <h1 className="r-date date">{date}</h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
       <p className="r-headline headline">

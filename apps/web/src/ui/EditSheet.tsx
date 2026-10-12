@@ -11,6 +11,7 @@ export type Draft = {
 type Props = {
   task: FullTask;
   draft?: Draft | null;
+  offline?: boolean;
   onSave: (id: string, patch: Record<string, unknown>, draft: Draft) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -20,7 +21,7 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, 
 
 // A native modal dialog: side sheet on desktop, bottom sheet under 820px (see pass.css).
 // The dialog traps focus; on close focus goes back to whatever opened it.
-export function EditSheet({ task, draft, onSave, onDelete, onClose }: Props) {
+export function EditSheet({ task, draft, offline = false, onSave, onDelete, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
   const restore = useRef<Element | null>(null);
@@ -154,14 +155,14 @@ export function EditSheet({ task, draft, onSave, onDelete, onClose }: Props) {
           <input value={f.tags} onChange={set("tags")} autoComplete="off" />
         </label>
         <div className="sheet-actions">
-          <button type="button" className="sheet-delete" onClick={() => {
+          <button type="button" className="sheet-delete" disabled={offline} onClick={() => {
               restore.current = document.querySelector(".quickadd-input");
               onDelete(task.id);
               onClose();
             }}>Delete</button>
           <span className="sheet-spacer" />
           <button type="button" className="sheet-cancel" onClick={onClose}>Cancel</button>
-          <button type="submit" className="sheet-save">Save</button>
+          <button type="submit" className="sheet-save" disabled={offline}>Save</button>
         </div>
       </form>
     </dialog>

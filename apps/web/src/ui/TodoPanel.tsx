@@ -2,9 +2,9 @@ import { horizontalListSortingStrategy, SortableContext, verticalListSortingStra
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { spanOf, type View } from "@shared/board.ts";
-import railCarried from "../assets/plates/rail-carried.png";
-import railComingup from "../assets/plates/rail-comingup.png";
-import railToday from "../assets/plates/rail-today.png";
+import railCarried from "../assets/plates/rail-carried.webp";
+import railComingup from "../assets/plates/rail-comingup.webp";
+import railToday from "../assets/plates/rail-today.webp";
 import { isOptimistic, type NewTask } from "../lib/useActions";
 import type { PassModel } from "./build";
 import { Docket } from "./Docket";
@@ -36,6 +36,7 @@ type Props = {
   onPlanAll?: () => void;
   dnd?: boolean; // dockets drag (to the line, and among themselves while the sort is manual)
   compact?: boolean; // Focus: the list is a narrow column of one-line stubs
+  offline?: boolean; // no writes: the add line is disabled
   arrivals?: Map<string, number>; // dockets that just arrived from elsewhere, and their place in the stagger
 };
 
@@ -97,7 +98,7 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
   return visible;
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, arrivals = NO_ARRIVALS }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const scroll = useRef<HTMLDivElement | null>(null);
 
@@ -130,7 +131,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
           {clock12(span.to)}
         </p>
       )}
-      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} />
+      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} />
       <NextUp items={model.nextUp} onPlanAll={onPlanAll} />
       {/* Changing between the rails and the Focus column crossfades the two forms. */}
       <AnimatePresence initial={false}>

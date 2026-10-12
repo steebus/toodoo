@@ -5,6 +5,7 @@ import { parseDuration, toHM } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { clock12 } from "../ui/format";
 import type { BoardData } from "../ui/types";
+import { useOnline } from "./offline";
 
 export type ToastData = { id: number; kind: "undo" | "error"; message: string; undo?: () => void };
 
@@ -19,6 +20,7 @@ export type NewTask = {
 };
 
 export type Actions = {
+  offline: boolean;
   toast: ToastData | null;
   dismiss: () => void;
   add: (t: NewTask) => Promise<boolean>;
@@ -305,5 +307,16 @@ export function useActions(board: BoardData): Actions {
     [planDay, placeBlock, removeBlock, show, fail],
   );
 
-  return { toast, dismiss, add, tick, remove, save, place, unplace, addAndPlace, reorder, planTasks };
+  // Offline, every write is a quiet no-op (the UI disables its controls; this is the backstop).
+  const online = useOnline();
+  const w = useRef(online);
+  w.current = online;
+  const gate = <A extends unknown[], R>(fn: (...a: A) => R, off: R) => (...a: A): R => (w.current ? fn(...a) : off);
+  return {
+    offline: !online, toast, dismiss,
+    add: gate(add, Promise.resolve(false)), tick: gate(tick, undefined), remove: gate(remove, undefined),
+    save: gate(save, Promise.resolve(false)), place: gate(place, undefined), unplace: gate(unplace, undefined),
+    addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined),
+    planTasks: gate(planTasks, Promise.resolve()),
+  };
 }

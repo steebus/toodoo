@@ -3,6 +3,13 @@ import { createRoot } from "react-dom/client";
 import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithAuthKit } from "./ConvexProviderWithAuthKit";
+import "@fontsource/carlito/latin-400.css";
+import "@fontsource/carlito/latin-700.css";
+import "@fontsource/iosevka-charon-mono/latin-300.css";
+import "@fontsource/iosevka-charon-mono/latin-400.css";
+import "@fontsource/iosevka-charon-mono/latin-500.css";
+import "@fontsource/iosevka-charon-mono/latin-700.css";
+import "@fontsource/rocknroll-one/latin-400.css";
 import "./index.css";
 import { App } from "./App";
 

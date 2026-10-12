@@ -6,10 +6,10 @@ import { CalendarIcon, ClockIcon } from "./icons";
 // Where the last line was filed from, so its docket can fly out of the input (see TodoPanel).
 export const launch: { from: DOMRect | null; at: number } = { from: null, at: 0 };
 
-type Props = { today: string; nowM: number; initial?: string; onAdd?: (t: NewTask) => Promise<boolean> };
+type Props = { today: string; nowM: number; initial?: string; onAdd?: (t: NewTask) => Promise<boolean>; disabled?: boolean };
 
 // Parses as you type and shows what it understood. Enter files it; a line with no title is not filed.
-export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
+export function QuickAdd({ today, nowM, initial = "", onAdd, disabled }: Props) {
   const [line, setLine] = useState(initial);
   const [invalid, setInvalid] = useState(false);
   const parsed = parseQuickAdd(line, today, nowM);
@@ -40,6 +40,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
         ref={input}
         className="r-quickadd quickadd-input"
         name="line"
+        disabled={disabled}
         aria-label="New to do"
         aria-invalid={invalid || undefined}
         autoComplete="off"
@@ -50,7 +51,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd }: Props) {
           setInvalid(false);
         }}
       />
-      <button type="submit" className="r-add-button add-button">Add</button>
+      <button type="submit" className="r-add-button add-button" disabled={disabled}>Add</button>
       <ul className="r-chips chips" aria-label="Parsed">
         {parsed.chips.map((c, i) => {
           const high = c.kind === "priority" && parsed.priority === "high";

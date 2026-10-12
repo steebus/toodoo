@@ -26,6 +26,7 @@ type Props = {
 
 // The first viewport of The Pass: top bar, Day plan (left third), To do rails (right two thirds).
 export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props) {
+  const offline = !!actions?.offline;
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const editTask = editing ? board.tasks.find((t) => t.id === editing) : undefined;
@@ -77,7 +78,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
   const celebrate = useCelebration({ date: board.date, done: model.done, total: model.total });
   return (
     <MotionRoot>
-      <div className="pass">
+      <div className="pass" data-offline={offline || undefined}>
         <TopBar
           date={model.dateLabel}
           headline={model.headline}
@@ -87,6 +88,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
           activePreset={preset}
           onPreset={(p) => setSplit(PRESET_SPLIT[p])}
           celebrate={celebrate}
+          offline={offline}
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} compact={compact} actions={actions}>
         <Panes split={split}>
@@ -103,16 +105,17 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
             onAdd={actions?.add}
             onOpen={openTask}
             onTick={actions?.tick}
-            onPlan={actions && ((id) => void actions.planTasks([id], board.date))}
-            onPlanAll={actions && (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date))}
+            onPlan={actions && !offline ? ((id) => void actions.planTasks([id], board.date)) : undefined}
+            onPlanAll={actions && !offline ? (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date)) : undefined}
             dnd={!!actions}
             compact={compact}
+            offline={offline}
             arrivals={arrivals}
           />
         </Panes>
         </DndProvider>
         {actions && editTask && (
-          <EditSheet key={editTask.id} task={editTask} draft={draft}
+          <EditSheet key={editTask.id} task={editTask} draft={draft} offline={offline}
             onSave={(id, patch, values) => {
               void actions.save(id, patch).then((ok) => {
                 if (ok) return;

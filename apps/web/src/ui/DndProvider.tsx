@@ -114,7 +114,7 @@ function Live({ board, groups, manual, compact, actions, children }: Props & { a
   const dragged = active ? dockets.get(active) : undefined;
   return (
     <DndContext
-      sensors={sensors}
+      sensors={actions.offline ? [] : sensors}
       collisionDetection={collide}
       autoScroll={false} // the pointer maths assumes nothing scrolls under the hand
       accessibility={{

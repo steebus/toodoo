@@ -14,6 +14,8 @@
     "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^26.6.5",
     "convex-test": "^0.0.61",
+    "playwright-core": "^1.64.0",
+    "sharp": "^0.35.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3",
