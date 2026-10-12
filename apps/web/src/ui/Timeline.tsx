@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import { layoutLanes, SNAP, toHM } from "@shared/planning.ts";
+import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
-import { clampBlock, deltaMin, hitSlot, moveBlock, widenRange } from "../lib/timeline";
+import { clampBlock, deltaMin, hitSlot, moveBlock, widenRange, type Placed } from "../lib/timeline";
+import { useDropHint } from "./DndProvider";
 import { clock12, hourLabel } from "./format";
 import { CheckIcon, NowMarker } from "./icons";
 import { BLOCK_LEAD, blockHeight, blockTop, gridHeight, HOUR_PX, LINE_DROP, minToPx, NOW_LEAD } from "./plan";
@@ -38,6 +41,7 @@ export function Timeline({ plan, board, actions }: Props) {
   const keyTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const refocus = useRef<string | null>(null);
   const swallowClick = useRef(false);
+  const hint = useDropHint();
   const [cursor, setCursor] = useState<number | null>(null);
   const [picker, setPicker] = useState<number | null>(null);
 
@@ -47,19 +51,28 @@ export function Timeline({ plan, board, actions }: Props) {
     [plan, draft],
   );
 
+  // The visible line is the drop target; the grid inside it says where minutes are.
+  const drop = useDroppable({
+    id: TIMELINE,
+    disabled: !live,
+    data: { gridTop: () => grid.current?.getBoundingClientRect().top ?? 0, startM, endM },
+  });
+
   useEffect(() => {
     if (scroller.current) scroller.current.scrollTop = Math.max(0, minToPx(anchorM, startM) - 140);
   }, [date]); // eslint-disable-line react-hooks/exhaustive-deps -- open scrolled to the day's anchor, then leave the scroll alone
 
   // A keyboard batch waiting on its idle timer. It is saved early rather than dropped: before a batch starts on
   // another block, when the line unmounts, and when the page is hidden.
-  const pending = useRef<{ id: string; start: number; mins: number } | null>(null);
-  const commitRef = useRef<(id: string, next: { start: number; mins: number }) => void>(() => {});
+  // It remembers the day and block it started on: navigating away within the pause must not move the write.
+  type Pending = { id: string; date: string; was: { start: number; mins: number }; start: number; mins: number };
+  const pending = useRef<Pending | null>(null);
+  const commitRef = useRef<(id: string, next: { start: number; mins: number }, at?: { date: string; was: Placed }) => void>(() => {});
   const flush = () => {
     clearTimeout(keyTimer.current);
     const p = pending.current;
     pending.current = null;
-    if (p) commitRef.current(p.id, p);
+    if (p) commitRef.current(p.id, p, { date: p.date, was: p.was });
   };
   const flushRef = useRef(flush);
   flushRef.current = flush;
@@ -108,25 +121,26 @@ export function Timeline({ plan, board, actions }: Props) {
     return blocks.map((b) => byId.get(b.id)!); // stable DOM order, so a moving block keeps focus
   }, [blocks, draft]); // eslint-disable-line react-hooks/exhaustive-deps -- `at` reads draft
 
-  const commit = (id: string, next: { start: number; mins: number }) => {
+  const commit = (id: string, next: { start: number; mins: number }, at?: { date: string; was: Placed }) => {
     setDraft(null);
-    const orig = blocks.find((b) => b.id === id);
-    if (!orig || !actions || (orig.startM === next.start && orig.mins === next.mins)) return;
+    const b = blocks.find((x) => x.id === id);
+    const was = at?.was ?? (b && { start: b.startM, mins: b.mins });
+    if (!was || !actions || (was.start === next.start && was.mins === next.mins)) return;
     refocus.current = document.activeElement?.closest(`[data-block]`)?.getAttribute("data-block") === id ? id : null;
-    actions.place(id, date, next.start, next.mins);
+    actions.place(id, at?.date ?? date, next.start, next.mins);
   };
   commitRef.current = commit;
 
   const onBlockKey = (e: KeyboardEvent, b: PlanBlock) => {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     e.preventDefault();
-    if (pending.current && pending.current.id !== b.id) flush();
+    if (pending.current && (pending.current.id !== b.id || pending.current.date !== date)) flush();
     const step = e.key === "ArrowUp" ? -SNAP : SNAP;
     const cur = draftRef.current?.id === b.id ? draftRef.current : { start: b.startM, mins: b.mins };
     const next = e.shiftKey ? clampBlock(cur.start, cur.mins + step) : moveBlock(cur.start + step, cur.mins);
     setDraft({ id: b.id, ...next, via: "key" });
     clearTimeout(keyTimer.current);
-    pending.current = { id: b.id, ...next };
+    pending.current = { id: b.id, date, was: pending.current?.was ?? { start: b.startM, mins: b.mins }, ...next };
     keyTimer.current = setTimeout(flush, KEY_IDLE);
   };
 
@@ -202,7 +216,7 @@ export function Timeline({ plan, board, actions }: Props) {
   };
 
   return (
-    <div className="plan-scroll" ref={scroller}>
+    <div className="plan-scroll" ref={(n) => { scroller.current = n; drop.setNodeRef(n); }}>
       <div className="plan-grid" ref={grid} style={{ height: gridHeight(startM, endM) }}>
         {live && (
           <div
@@ -309,6 +323,11 @@ export function Timeline({ plan, board, actions }: Props) {
             }}
           >
             <span className="plan-ghost-time">{range(ghost.start, ghost.mins)}</span>
+          </p>
+        )}
+        {live && hint && (
+          <p className="plan-ghost plan-drop" aria-hidden style={{ top: slotTop(hint.start), height: blockHeight(hint.mins) }}>
+            <span className="plan-ghost-time">{range(hint.start, hint.mins)}</span>
           </p>
         )}
         {nowM !== null && (

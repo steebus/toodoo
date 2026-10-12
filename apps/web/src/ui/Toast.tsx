@@ -24,7 +24,7 @@ export function Toast({ toast, onDismiss }: { toast: ToastData | null; onDismiss
   }, [toast, paused, onDismiss]);
 
   return (
-    <div className="toast-slot" role="status" aria-live="polite">
+    <div className="toast-slot" role="status" aria-label="Notice" aria-live="polite">
       {toast && (
         <div key={toast.id} className={`toast toast-${toast.kind}${paused ? " is-paused" : ""}`}
           onMouseEnter={() => setPaused(true)}

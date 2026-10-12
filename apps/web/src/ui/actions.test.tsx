@@ -85,7 +85,7 @@ it("a failed add restores the text and shows an error toast", async () => {
   fn("addTasks").mockRejectedValue(new Error("offline"));
   await userEvent.type(input(), "Call plumber{Enter}");
   await waitFor(() => expect(input()).toHaveValue("Call plumber"));
-  const toast = screen.getByRole("status");
+  const toast = screen.getByRole("status", { name: "Notice" });
   expect(toast).toHaveTextContent(/couldn.t add/i);
   expect(within(toast).queryByRole("button", { name: /undo/i })).toBeNull();
 });
@@ -93,7 +93,7 @@ it("a failed add restores the text and shows an error toast", async () => {
 it("ticking updates the task, and Undo reverses it", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
   expect(fn("updateTask")).toHaveBeenCalledWith({ id: report.id, patch: { done: true } });
-  await userEvent.click(within(screen.getByRole("status")).getByRole("button", { name: /undo/i }));
+  await userEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
   expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { done: false } });
 });
 
@@ -106,7 +106,7 @@ it("x on a focused docket ticks it", async () => {
 it("a failed tick shows the error toast", async () => {
   fn("updateTask").mockRejectedValue(new Error("nope"));
   await userEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
-  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/couldn.t save/i));
+  await waitFor(() => expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent(/couldn.t save/i));
 });
 
 const openSheet = async (name = "Edit WRITE REPORT") => {
@@ -119,7 +119,7 @@ it("deleting asks for nothing more, then Undo re-adds the task and its block", a
   await userEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
   expect(fn("deleteTask")).toHaveBeenCalledWith({ id: report.id });
   fn("addTasks").mockResolvedValue({ created: [{ id: "re1", title: report.title, source: "jira", external_id: "CORE-9" }], skipped: [], errors: [] });
-  await userEvent.click(within(screen.getByRole("status")).getByRole("button", { name: /undo/i }));
+  await userEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
   expect(fn("addTasks")).toHaveBeenCalledWith({
     tasks: [{
       title: "Write report", description: null, note: "draft first", link: null, due: T, time: "09:00", priority: "high",
@@ -162,7 +162,7 @@ it("a server-side rejection restores the text and shows the first error", async 
   fn("addTasks").mockResolvedValue({ created: [], skipped: [], errors: [{ index: 0, error: "title: too long" }] });
   await userEvent.type(input(), "Call plumber{Enter}");
   await waitFor(() => expect(input()).toHaveValue("Call plumber"));
-  expect(screen.getByRole("status")).toHaveTextContent("title: too long");
+  expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent("title: too long");
 });
 
 it("an empty line marks the input invalid", async () => {
@@ -200,25 +200,25 @@ it("a rejected save reopens the sheet with the draft and shows the error", async
   await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
   await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
   expect(within(screen.getByRole("dialog")).getByLabelText("Title")).toHaveValue("Write report!");
-  expect(screen.getByRole("status")).toHaveTextContent(/couldn.t save/i);
+  expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent(/couldn.t save/i);
 });
 
 it("the undo toast shows at once, before the write resolves", () => {
   fn("updateTask").mockReturnValue(new Promise(() => {}));
   fireEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
-  expect(within(screen.getByRole("status")).getByRole("button", { name: /undo/i })).toBeInTheDocument();
+  expect(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i })).toBeInTheDocument();
 });
 
 it("focusing Undo holds the countdown", () => {
   vi.useFakeTimers();
   fireEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
-  const undo = within(screen.getByRole("status")).getByRole("button", { name: /undo/i });
+  const undo = within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i });
   act(() => undo.focus());
   act(() => void vi.advanceTimersByTime(8000));
-  expect(screen.getByRole("status")).toHaveTextContent("Done");
+  expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent("Done");
   act(() => undo.blur());
   act(() => void vi.advanceTimersByTime(5100));
-  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  expect(screen.getByRole("status", { name: "Notice" })).toBeEmptyDOMElement();
 });
 
 it("after Delete focus goes to quick add", async () => {

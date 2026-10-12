@@ -227,7 +227,7 @@
 }
 .grp-carried .grp-dockets { --dk-gap: 0.76cqw; --dk-w: 15.9cqw; top: 1.93cqh; height: 21.1cqh; padding: 1cqh 0 1cqh 1.11cqw; }
 .grp-today .grp-dockets { --dk-gap: 1.46cqw; --dk-w: 14.8cqw; top: 1.74cqh; height: 23.68cqh; padding: 1cqh 0 1cqh 1.37cqw; }
-.grp-dockets .docket { flex: 0 0 var(--dk-w); animation: dk-in 0.3s ease-out both; }
+.grp-dockets .docket { flex: 0 0 var(--dk-w); animation: dk-in 0.3s ease-out backwards; }
 .grp-carried .docket { height: 19.14cqh; }
 .grp-today .docket { height: 21.68cqh; }
 @keyframes dk-in { from { opacity: 0; transform: translateY(6px); } }
@@ -316,6 +316,7 @@
   font-family: var(--font-print); font-size: 15px; line-height: 1; color: var(--ink-3);
 }
 .plan-all:disabled { cursor: default; }
+.plan-all:not(:disabled):hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---------- docket actions: the title opens the sheet, the bump ticks ---------- */
 .dk-open {
@@ -547,3 +548,15 @@
 }
 .plan-done-tick { flex: none; color: var(--green); }
 .plan-done-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- drag and drop ---------- */
+.dk-ghost { margin: 0; padding: 0; list-style: none; width: 100%; height: 100%; pointer-events: none; }
+.dk-ghost .docket { width: 100%; height: 100%; animation: none; }
+.dk-ghost { cursor: grabbing; }
+.dk-ghost .docket { box-shadow: 0 10px 22px rgb(0 0 0 / 0.22); transform: rotate(-1.2deg); }
+.dk-morph { position: fixed; z-index: 60; margin: 0; pointer-events: none; transform-origin: 0 0; }
+.docket { touch-action: manipulation; }
+.plan-drop { border-style: dashed; opacity: 0.92; }
+@media (prefers-reduced-motion: reduce) {
+  .docket { transition: none !important; }
+}

@@ -3,6 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { parseDuration, toHM } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
+import { clock12 } from "../ui/format";
 import type { BoardData } from "../ui/types";
 
 export type ToastData = { id: number; kind: "undo" | "error"; message: string; undo?: () => void };
@@ -27,6 +28,8 @@ export type Actions = {
   place: (id: string, date: string, start: number, mins: number) => void;
   unplace: (id: string, date: string) => void;
   addAndPlace: (t: NewTask, date: string, start: number, mins: number) => Promise<boolean>;
+  reorder: (id: string, sortOrder: number) => void;
+  planTasks: (ids: string[], date: string) => Promise<void>;
 };
 
 // Patch every board query that is loaded, so the change shows at once whichever date is being viewed.
@@ -106,6 +109,8 @@ export function useActions(board: BoardData): Actions {
       ...b, blocks: b.blocks.filter((x) => !(x.task_id === a.task_id && x.date === a.date)),
     })),
   );
+
+  const planDay = useMutation(api.agent.plan);
 
   const fail = useCallback((what: string, e: unknown) => show({ kind: "error", message: failure(e, what) }), [show]);
 
@@ -251,5 +256,50 @@ export function useActions(board: BoardData): Actions {
     [addTasks, placeBlock, show, fail],
   );
 
-  return { toast, dismiss, add, tick, remove, save, place, unplace, addAndPlace };
+  // A drop in a rail: only sort_order changes. Undo puts it back where it was.
+  const reorder = useCallback(
+    (id: string, sortOrder: number) => {
+      if (isOptimistic(id)) return;
+      const t = live.current.tasks.find((x) => x.id === id);
+      if (!t) return;
+      const was = t.sort_order;
+      show({
+        kind: "undo", message: `Moved: ${t.title}`,
+        undo: () => void updateTask({ id, patch: { sort_order: was } }).catch((e) => fail("Couldn't undo", e)),
+      });
+      updateTask({ id, patch: { sort_order: sortOrder } }).catch((e) => fail("Couldn't move that", e));
+    },
+    [updateTask, show, fail],
+  );
+
+  // The server's auto-plan puts these into the first free gaps. Undo removes whatever it placed.
+  const planTasks = useCallback(
+    async (ids: string[], date: string) => {
+      const real = ids.filter((id) => !isOptimistic(id));
+      if (!real.length) return;
+      try {
+        const r = (await planDay({ date, task_ids: real, commit: true, now: Date.now() })) as {
+          proposed: { task_id: string; title: string; start: string }[];
+          unplaced: { title: string; reason: string }[];
+        };
+        if (!r.proposed.length) {
+          const u = r.unplaced[0];
+          show({ kind: "error", message: u ? `Couldn't plan ${u.title}: ${u.reason}` : "Nothing to plan" });
+          return;
+        }
+        const placed = r.proposed;
+        show({
+          kind: "undo",
+          message: placed.length === 1 ? `Planned ${placed[0].title} for ${clock12(placed[0].start)}` : `Planned ${placed.length}`,
+          undo: () =>
+            void Promise.all(placed.map((p) => removeBlock({ task_id: p.task_id, date }))).catch((e) => fail("Couldn't undo", e)),
+        });
+      } catch (e) {
+        fail("Couldn't plan that", e);
+      }
+    },
+    [planDay, removeBlock, show, fail],
+  );
+
+  return { toast, dismiss, add, tick, remove, save, place, unplace, addAndPlace, reorder, planTasks };
 }

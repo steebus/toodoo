@@ -111,13 +111,13 @@ it("gives a task the same docket paper every render", () => {
   expect(src()).toEqual(first);
 });
 
-it("lists next up with the first reason, and Plan all waits for planning", () => {
+it("lists next up with the first reason, and Plan all is ready", () => {
   show();
   const next = screen.getByRole("region", { name: "NEXT UP" });
   expect(within(next).getByText("Write report")).toBeInTheDocument();
   expect(within(next).getByText(/High priority/)).toBeInTheDocument();
   expect(within(next).queryByText(/Fixed time/)).not.toBeInTheDocument();
-  expect(within(next).getByRole("button", { name: "Plan all" })).toBeDisabled();
+  expect(within(next).getByRole("button", { name: "Plan all" })).toBeEnabled();
 });
 
 it("keeps coming up collapsed until its chevron is pressed", async () => {

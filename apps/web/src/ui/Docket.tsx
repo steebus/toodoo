@@ -1,3 +1,6 @@
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { CSSProperties, HTMLAttributes, Ref } from "react";
 import biroRing from "../assets/plates/biro-ring.png";
 import docketCarried1 from "../assets/plates/docket-carried-1.png";
 import docketCarried2 from "../assets/plates/docket-carried-2.png";
@@ -31,20 +34,32 @@ type Props = {
   topPick?: boolean;
   onOpen?: (id: string) => void;
   onTick?: (id: string, done: boolean) => void;
+  onPlan?: (id: string) => void;
+  dnd?: { manual: boolean }; // inside a DndProvider: draggable, and sortable while the sort is manual
+};
+
+type ViewProps = Props & {
+  ghost?: boolean; // the drag overlay and the morph: a picture of the docket, not a second one
+  li?: HTMLAttributes<HTMLLIElement> & { ref?: Ref<HTMLLIElement> };
+  open?: HTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> };
 };
 
 // One paper docket. The plate is chosen by a hash of the task id, so it never changes under the reader.
 // The title is the button that opens the edit sheet; its ::after stretches the hit area over the whole docket.
-export function Docket({ docket: d, topPick, onOpen, onTick }: Props) {
+function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, open: openProps }: ViewProps) {
   const busy = isOptimistic(d.id);
   const cls = `docket docket-${d.variant}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}`;
   const open = (children: React.ReactNode) => (
-    <button type="button" className="dk-open" disabled={busy} aria-label={`Edit ${d.title}`} onClick={() => onOpen?.(d.id)}>
+    <button type="button" className="dk-open" disabled={busy} aria-label={`Edit ${d.title}`} onClick={() => onOpen?.(d.id)}
+      tabIndex={ghost ? -1 : undefined} {...openProps}
+      // Space picks the docket up (dnd-kit), so it must not also click the button.
+      onKeyUp={openProps ? (e) => e.key === " " && e.preventDefault() : undefined}>
       {children}
     </button>
   );
   return (
-    <li className={cls} aria-busy={busy || undefined} data-docket={d.id} data-hm={d.hm ?? undefined}>
+    <li {...li} className={cls} aria-busy={busy || undefined} aria-hidden={ghost || undefined}
+      data-docket={ghost ? undefined : d.id} data-hm={d.hm ?? undefined}>
       <img className="plate" src={PLATES[plateIndex(d.id, PLATES.length)]} alt="" draggable={false} />
       {topPick && <img className="biro-ring" src={biroRing} alt="" draggable={false} data-testid="biro-ring" />}
       <article
@@ -54,6 +69,9 @@ export function Docket({ docket: d, topPick, onOpen, onTick }: Props) {
           if (e.key === "x" && !busy && !e.metaKey && !e.ctrlKey && !e.altKey) {
             e.preventDefault();
             onTick?.(d.id, !d.done);
+          } else if (e.key === "p" && !busy && !d.done && !e.metaKey && !e.ctrlKey && !e.altKey && onPlan) {
+            e.preventDefault();
+            onPlan(d.id);
           }
         }}
       >
@@ -96,4 +114,37 @@ export function Docket({ docket: d, topPick, onOpen, onTick }: Props) {
       </article>
     </li>
   );
+}
+
+// A docket in a rail: draggable to the line, and sortable among its group while the sort is manual.
+function SortableDocket(props: Props) {
+  const d = props.docket;
+  const busy = isOptimistic(d.id);
+  const s = useSortable({ id: d.id, disabled: { draggable: busy, droppable: busy || !props.dnd?.manual } });
+  const style: CSSProperties = {
+    transform: CSS.Translate.toString(s.transform),
+    transition: s.transition,
+    ...(s.isDragging ? { opacity: 0.35 } : null),
+  };
+  const { role: _role, tabIndex: _tab, ...a11y } = s.attributes;
+  return (
+    <DocketView
+      {...props}
+      li={{ ref: s.setNodeRef, style, ...s.listeners }}
+      open={{
+        ref: s.setActivatorNodeRef,
+        "aria-roledescription": a11y["aria-roledescription"],
+        "aria-describedby": a11y["aria-describedby"],
+      }}
+    />
+  );
+}
+
+export function Docket(props: Props) {
+  return props.dnd ? <SortableDocket {...props} /> : <DocketView {...props} />;
+}
+
+// What the drag overlay and the morph show: the docket as paper, with no handlers.
+export function DocketGhost({ docket }: { docket: DocketData }) {
+  return <ol className="dk-ghost"><DocketView docket={docket} ghost /></ol>;
 }

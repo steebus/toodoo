@@ -1,3 +1,4 @@
+import { horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { spanOf, type View } from "@shared/board.ts";
 import railCarried from "../assets/plates/rail-carried.png";
@@ -28,6 +29,9 @@ type Props = {
   onAdd?: (t: NewTask) => Promise<boolean>;
   onOpen?: (id: string) => void;
   onTick?: (id: string, done: boolean) => void;
+  onPlan?: (id: string) => void;
+  onPlanAll?: () => void;
+  dnd?: boolean; // dockets drag (to the line, and among themselves while the sort is manual)
 };
 
 // Which dockets are inside the scroll area right now. null = unknown (no IntersectionObserver): treat all as visible.
@@ -51,7 +55,7 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
   return visible;
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const scroll = useRef<HTMLDivElement>(null);
 
@@ -83,7 +87,7 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
         </p>
       )}
       <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} />
-      <NextUp items={model.nextUp} />
+      <NextUp items={model.nextUp} onPlanAll={onPlanAll} />
       <div className="todo-scroll" ref={scroll}>
         {groups.map((g) => {
           const open = shown(g);
@@ -97,7 +101,14 @@ export function TodoPanel({ model, today, nowM, view, onView, legend, quickAdd, 
               geo={geo}
               toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) } : undefined}
             >
-              {open && g.dockets.map((d) => <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} onOpen={onOpen} onTick={onTick} />)}
+              {open && (
+                <SortableContext id={g.key} items={g.dockets.map((d) => d.id)} strategy={horizontalListSortingStrategy}>
+                  {g.dockets.map((d) => (
+                    <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} onOpen={onOpen} onTick={onTick} onPlan={onPlan}
+                      dnd={dnd ? { manual: view.sort === "manual" } : undefined} />
+                  ))}
+                </SortableContext>
+              )}
             </Rail>
           );
         })}

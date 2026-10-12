@@ -91,7 +91,7 @@ it("arrow keys move a block in 15m steps and Shift resizes it, saved once after 
   act(() => void vi.advanceTimersByTime(200));
   expect(fn("placeBlock")).toHaveBeenCalledTimes(1);
   expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:30", mins: 75 });
-  expect(screen.getByRole("status")).toHaveTextContent("Moved: Write report");
+  expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent("Moved: Write report");
 });
 
 it("keyboard moves clamp at midnight", () => {
@@ -110,7 +110,7 @@ it("undo after a move puts the block back", async () => {
   block().focus();
   fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
   act(() => void vi.advanceTimersByTime(500));
-  fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: /undo/i }));
+  fireEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
   expect(fn("placeBlock")).toHaveBeenLastCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 60 });
 });
 
@@ -118,7 +118,7 @@ it("the block's x unplans it with undo", async () => {
   show();
   await userEvent.click(screen.getByRole("button", { name: "Unplan Write report" }));
   expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T });
-  await userEvent.click(within(screen.getByRole("status")).getByRole("button", { name: /undo/i }));
+  await userEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
   expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 60 });
 });
 

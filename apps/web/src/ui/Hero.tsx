@@ -5,6 +5,7 @@ import "./pass.css";
 import type { Actions } from "../lib/useActions";
 import { useStoredView } from "../lib/useStoredView";
 import { buildPass } from "./build";
+import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
 import { EditSheet, type Draft } from "./EditSheet";
 import { Toast } from "./Toast";
@@ -41,6 +42,7 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
         presets={PRESETS}
         activePreset="Plan"
       />
+      <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} actions={actions}>
       <main className="pass-main">
         <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} />
         <TodoPanel
@@ -58,8 +60,12 @@ export function Hero({ board, legend, quickAdd, onSignOut, actions, nav }: Props
             setEditing(id);
           })}
           onTick={actions?.tick}
+          onPlan={actions && ((id) => void actions.planTasks([id], board.date))}
+          onPlanAll={actions && (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date))}
+          dnd={!!actions}
         />
       </main>
+      </DndProvider>
       {actions && editTask && (
         <EditSheet key={editTask.id} task={editTask} draft={draft}
           onSave={(id, patch, values) => {
