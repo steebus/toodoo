@@ -289,14 +289,14 @@ export function useActions(board: BoardData): Actions {
             (placed.length === 1 ? `Planned ${placed[0].title} for ${clock12(placed[0].start)}` : `Planned ${placed.length}`) +
             (r.unplaced.length ? `, ${r.unplaced.length} didn't fit` : ""),
           undo: () =>
-            void Promise.all(
-              placed.map((p) => {
+            void (async () => {
+              for (const p of placed) {
                 const was = before.get(p.task_id);
-                return was
+                await (was
                   ? placeBlock({ task_id: p.task_id, date, start: was.start, mins: was.mins })
-                  : removeBlock({ task_id: p.task_id, date });
-              }),
-            ).catch((e) => fail("Couldn't undo", e)),
+                  : removeBlock({ task_id: p.task_id, date }));
+              }
+            })().catch((e) => fail("Couldn't undo", e)),
         });
       } catch (e) {
         fail("Couldn't plan that", e);

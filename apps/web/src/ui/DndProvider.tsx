@@ -8,7 +8,7 @@ import { defaultBlockMins, effortMap } from "@shared/planning.ts";
 import { minuteUnder, resolveDragEnd, TIMELINE, type DropEnv, type TimelineData } from "../lib/dnd";
 import { clampBlock } from "../lib/timeline";
 import type { Actions } from "../lib/useActions";
-import { DocketGhost } from "./Docket";
+import { DocketGhost, keyDrag } from "./Docket";
 import type { BoardData, DocketData, GroupData } from "./types";
 
 // Where a docket held over the line would land, so the Timeline can draw its drop indicator.
@@ -72,7 +72,13 @@ function Live({ board, groups, manual, actions, children }: Props & { actions: A
     onDragCancel: ({ active }) => `Cancelled. ${titleOf(active.id)} was put back.`,
   };
 
+  const byKey = useRef(false);
+  const stamp = () => {
+    if (byKey.current) keyDrag.at = Date.now();
+  };
   const onStart = (e: DragStartEvent) => {
+    byKey.current = "key" in e.activatorEvent;
+    stamp();
     setActive(String(e.active.id));
     setToLine(false);
   };
@@ -85,6 +91,7 @@ function Live({ board, groups, manual, actions, children }: Props & { actions: A
     setHint((h) => (h && h.start === p.start && h.mins === p.mins ? h : p));
   }, []);
   const onEnd = (e: DragEndEvent) => {
+    stamp();
     setActive(null);
     setHint(null);
     const r = resolveDragEnd(e, envRef.current);
@@ -100,6 +107,7 @@ function Live({ board, groups, manual, actions, children }: Props & { actions: A
     }
   };
   const onCancel = () => {
+    stamp();
     setActive(null);
     setHint(null);
   };

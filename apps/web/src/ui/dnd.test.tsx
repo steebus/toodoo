@@ -184,3 +184,13 @@ it("a keyboard drag never says it was dropped on the day plan, and a manual-sort
   expect(seen.length).toBeGreaterThan(0);
   expect(seen.join(" ")).not.toMatch(/day plan/i);
 });
+
+it("Space that picks a docket up does not also open the sheet", async () => {
+  show();
+  edit("Water plants").focus();
+  await userEvent.keyboard(" ");
+  await screen.findByText(/^water plants is over /);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await userEvent.keyboard(" ");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});

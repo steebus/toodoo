@@ -14,6 +14,11 @@ import { CheckIcon } from "./icons";
 import type { DocketData, MetaRow } from "./types";
 
 const PLATES = [docketCarried1, docketCarried2, docketToday1, docketToday2, docketToday3, docketToday4];
+// A keyboard drag starts and ends on Space, and a button also clicks on Space keyup: the DndProvider stamps
+// this when a keyboard drag begins, ends or is cancelled, and the click that follows it is ignored.
+export const keyDrag = { at: 0 };
+const afterKeyDrag = (e: React.MouseEvent) => e.detail === 0 && Date.now() - keyDrag.at < 400;
+
 const DASHES = "-".repeat(26);
 
 function Rows({ rows }: { rows: MetaRow[] }) {
@@ -50,8 +55,9 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
   const busy = isOptimistic(d.id);
   const cls = `docket docket-${d.variant}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}`;
   const open = (children: React.ReactNode) => (
-    <button type="button" className="dk-open" disabled={busy} aria-label={`Edit ${d.title}`} onClick={() => onOpen?.(d.id)}
-      tabIndex={ghost ? -1 : undefined} {...openProps}>
+    <button type="button" className="dk-open" disabled={busy} aria-label={`Edit ${d.title}`} onClick={(e) => !afterKeyDrag(e) && onOpen?.(d.id)}
+      tabIndex={ghost ? -1 : undefined} {...openProps}
+      onKeyDown={(e) => e.key !== " " && (keyDrag.at = 0)}>
       {children}
     </button>
   );
