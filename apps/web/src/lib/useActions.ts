@@ -256,20 +256,13 @@ export function useActions(board: BoardData): Actions {
     [addTasks, placeBlock, show, fail],
   );
 
-  // A drop in a rail: only sort_order changes. Undo puts it back where it was.
+  // A drop in a rail: only sort_order changes.
   const reorder = useCallback(
     (id: string, sortOrder: number) => {
       if (isOptimistic(id)) return;
-      const t = live.current.tasks.find((x) => x.id === id);
-      if (!t) return;
-      const was = t.sort_order;
-      show({
-        kind: "undo", message: `Moved: ${t.title}`,
-        undo: () => void updateTask({ id, patch: { sort_order: was } }).catch((e) => fail("Couldn't undo", e)),
-      });
       updateTask({ id, patch: { sort_order: sortOrder } }).catch((e) => fail("Couldn't move that", e));
     },
-    [updateTask, show, fail],
+    [updateTask, fail],
   );
 
   // The server's auto-plan puts these into the first free gaps. Undo removes whatever it placed.
@@ -277,6 +270,8 @@ export function useActions(board: BoardData): Actions {
     async (ids: string[], date: string) => {
       const real = ids.filter((id) => !isOptimistic(id));
       if (!real.length) return;
+      // What was on the line before: Undo puts moved blocks back and removes only the new ones.
+      const before = new Map(live.current.blocks.filter((x) => x.date === date).map((x) => [x.task_id, x]));
       try {
         const r = (await planDay({ date, task_ids: real, commit: true, now: Date.now() })) as {
           proposed: { task_id: string; title: string; start: string }[];
@@ -290,15 +285,24 @@ export function useActions(board: BoardData): Actions {
         const placed = r.proposed;
         show({
           kind: "undo",
-          message: placed.length === 1 ? `Planned ${placed[0].title} for ${clock12(placed[0].start)}` : `Planned ${placed.length}`,
+          message:
+            (placed.length === 1 ? `Planned ${placed[0].title} for ${clock12(placed[0].start)}` : `Planned ${placed.length}`) +
+            (r.unplaced.length ? `, ${r.unplaced.length} didn't fit` : ""),
           undo: () =>
-            void Promise.all(placed.map((p) => removeBlock({ task_id: p.task_id, date }))).catch((e) => fail("Couldn't undo", e)),
+            void Promise.all(
+              placed.map((p) => {
+                const was = before.get(p.task_id);
+                return was
+                  ? placeBlock({ task_id: p.task_id, date, start: was.start, mins: was.mins })
+                  : removeBlock({ task_id: p.task_id, date });
+              }),
+            ).catch((e) => fail("Couldn't undo", e)),
         });
       } catch (e) {
         fail("Couldn't plan that", e);
       }
     },
-    [planDay, removeBlock, show, fail],
+    [planDay, placeBlock, removeBlock, show, fail],
   );
 
   return { toast, dismiss, add, tick, remove, save, place, unplace, addAndPlace, reorder, planTasks };

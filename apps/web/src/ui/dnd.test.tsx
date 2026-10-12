@@ -137,3 +137,50 @@ it("a keyboard block move made on one day is saved to that day even after naviga
   expect(fn("placeBlock")).toHaveBeenCalledTimes(1);
   expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:15", mins: 60 });
 });
+
+it("Enter on a docket title opens the sheet instead of starting a drag", async () => {
+  show();
+  edit("Water plants").focus();
+  await userEvent.keyboard("{Enter}");
+  expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  expect(screen.queryByText(/^Picked up/)).not.toBeInTheDocument();
+});
+
+it("Undo after p on an already planned docket puts the old block back and removes nothing", async () => {
+  show();
+  fn("plan").mockResolvedValue({
+    date: T, committed: true, unplaced: [], proposed: [{ task_id: report.id, title: "Write report", start: "13:00", mins: 90 }],
+  });
+  edit("Write report").focus();
+  await userEvent.keyboard("p");
+  await within(toast()).findByText("Planned Write report for 1:00");
+  await userEvent.click(within(toast()).getByRole("button", { name: /undo/i }));
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 60 });
+  expect(fn("removeBlock")).not.toHaveBeenCalled();
+});
+
+it("Plan all says how many did not fit", async () => {
+  show();
+  const p = (task_id: string, start: string) => ({ task_id, title: "x", start, mins: 30 });
+  fn("plan").mockResolvedValue({
+    date: T, committed: true, proposed: [p("a", "11:00"), p("b", "11:30"), p("c", "12:00")],
+    unplaced: [{ task_id: "d", title: "d", reason: "no room" }, { task_id: "e", title: "e", reason: "no room" }],
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Plan all" }));
+  expect(await within(toast()).findByText("Planned 3, 2 didn't fit")).toBeInTheDocument();
+});
+
+it("a keyboard drag never says it was dropped on the day plan, and a manual-sort docket is announced as sortable", async () => {
+  show();
+  expect(edit("Water plants")).toHaveAttribute("aria-roledescription", "sortable");
+  edit("Water plants").focus();
+  const seen: string[] = [];
+  const region = () => document.querySelector("[id^=DndLiveRegion]")!;
+  new MutationObserver(() => seen.push(region().textContent ?? "")).observe(region(), { childList: true, characterData: true, subtree: true });
+  await userEvent.keyboard(" ");
+  await userEvent.keyboard("{ArrowRight}");
+  await userEvent.keyboard(" ");
+  await new Promise((r) => setTimeout(r, 50));
+  expect(seen.length).toBeGreaterThan(0);
+  expect(seen.join(" ")).not.toMatch(/day plan/i);
+});

@@ -51,9 +51,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
   const cls = `docket docket-${d.variant}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}`;
   const open = (children: React.ReactNode) => (
     <button type="button" className="dk-open" disabled={busy} aria-label={`Edit ${d.title}`} onClick={() => onOpen?.(d.id)}
-      tabIndex={ghost ? -1 : undefined} {...openProps}
-      // Space picks the docket up (dnd-kit), so it must not also click the button.
-      onKeyUp={openProps ? (e) => e.key === " " && e.preventDefault() : undefined}>
+      tabIndex={ghost ? -1 : undefined} {...openProps}>
       {children}
     </button>
   );
@@ -120,7 +118,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
 function SortableDocket(props: Props) {
   const d = props.docket;
   const busy = isOptimistic(d.id);
-  const s = useSortable({ id: d.id, disabled: { draggable: busy, droppable: busy || !props.dnd?.manual } });
+  const s = useSortable({ id: d.id, disabled: { draggable: busy || d.done, droppable: busy || d.done || !props.dnd?.manual } });
   const style: CSSProperties = {
     transform: CSS.Translate.toString(s.transform),
     transition: s.transition,
@@ -133,7 +131,8 @@ function SortableDocket(props: Props) {
       li={{ ref: s.setNodeRef, style, ...s.listeners }}
       open={{
         ref: s.setActivatorNodeRef,
-        "aria-roledescription": a11y["aria-roledescription"],
+        // Announced as a plain button unless it can actually be sorted.
+        ...(props.dnd?.manual && !d.done ? { "aria-roledescription": a11y["aria-roledescription"] } : null),
         "aria-describedby": a11y["aria-describedby"],
       }}
     />

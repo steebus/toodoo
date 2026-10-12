@@ -20,6 +20,7 @@ const MORPH_MS = 320;
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // The pointer wins over the line when it is on it; otherwise the nearest docket in the rails.
+// A keyboard drag has no pointer, so it never sees the line: it only reorders.
 const collide: CollisionDetection = (args) => {
   const onLine = pointerWithin(args).find((c) => c.id === TIMELINE);
   if (onLine) return [onLine];
@@ -44,7 +45,8 @@ function Live({ board, groups, manual, actions, children }: Props & { actions: A
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), // a click still opens the sheet
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }), // long-press; Task 12 owns the rest
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    // Enter stays the docket's own: it opens the sheet. Only Space picks up and drops.
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates, keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } }),
   );
 
   const dockets = useMemo(() => new Map(groups.flatMap((g) => g.dockets).map((d) => [d.id, d])), [groups]);
@@ -64,9 +66,9 @@ function Live({ board, groups, manual, actions, children }: Props & { actions: A
   const announcements: Announcements = {
     onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}.`,
     onDragOver: ({ active, over }) =>
-      over ? (over.id === TIMELINE ? `${titleOf(active.id)} is over the day plan.` : `${titleOf(active.id)} is over ${titleOf(over.id)}.`) : `${titleOf(active.id)} is not over anything.`,
+      over && over.id !== TIMELINE ? `${titleOf(active.id)} is over ${titleOf(over.id)}.` : `${titleOf(active.id)} is not over a row.`,
     onDragEnd: ({ active, over }) =>
-      over ? (over.id === TIMELINE ? `Dropped ${titleOf(active.id)} on the day plan.` : `Dropped ${titleOf(active.id)}.`) : `${titleOf(active.id)} was put back.`,
+      over ? (over.id === TIMELINE ? `Dropped ${titleOf(active.id)}. Press p to plan it.` : `Dropped ${titleOf(active.id)}.`) : `${titleOf(active.id)} was put back.`,
     onDragCancel: ({ active }) => `Cancelled. ${titleOf(active.id)} was put back.`,
   };
 
@@ -107,10 +109,11 @@ function Live({ board, groups, manual, actions, children }: Props & { actions: A
     <DndContext
       sensors={sensors}
       collisionDetection={collide}
+      autoScroll={false} // the pointer maths assumes nothing scrolls under the hand
       accessibility={{
         announcements,
         screenReaderInstructions: {
-          draggable: "Press space to pick up. Use the arrow keys to move within the row. Press space to drop, or escape to cancel.",
+          draggable: "Press space to pick up. Use the arrow keys to move within the row. Press space to drop, or escape to cancel. Press p on a docket to plan it.",
         },
       }}
       onDragStart={onStart}
@@ -119,7 +122,7 @@ function Live({ board, groups, manual, actions, children }: Props & { actions: A
       onDragCancel={onCancel}
     >
       <HintContext.Provider value={hint}>{children}</HintContext.Provider>
-      <DragOverlay dropAnimation={toLine ? null : undefined}>
+      <DragOverlay dropAnimation={toLine || reduced() ? null : undefined}>
         {dragged && <DocketGhost docket={dragged} />}
       </DragOverlay>
       {morph && <MorphToBlock key={morph.docket.id} morph={morph} onDone={() => setMorph(null)} />}
