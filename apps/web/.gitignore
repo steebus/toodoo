@@ -4,3 +4,6 @@
 .impeccable/prompts/
 .impeccable/decision-payload.json
 src/ui/fixtures.ts
+.impeccable/build/*
+!.impeccable/build/state.json
+.impeccable/review/
