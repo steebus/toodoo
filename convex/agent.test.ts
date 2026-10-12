@@ -92,3 +92,31 @@ it("getSnapshot honours a caller-supplied now over the clock", async () => {
   const s = await setup().query(api.agent.getSnapshot, { now: Date.parse("2026-10-13T02:00:00Z") });
   expect(s.today).toBe("2026-10-13");
 });
+
+it("board returns full tasks, blocks and suggestions for the day", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Board me", priority: "high", description: "why" }] });
+  await t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-12", start: "13:07", mins: 50 });
+  const b = await t.query(api.agent.board, {});
+  expect(b.today).toBe("2026-10-12");
+  expect(b.tasks.find((x) => x.id === created[0].id)).toMatchObject({ title: "Board me", description: "why", priority: "high" });
+  expect(b.blocks).toEqual([{ task_id: created[0].id, date: "2026-10-12", start: "13:00", mins: 45 }]);
+});
+
+it("placeBlock clamps to the day and snaps", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Late" }] });
+  await t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-12", start: "23:55", mins: 120 });
+  const b = await t.query(api.agent.board, {});
+  expect(b.blocks[0]).toMatchObject({ start: "23:45", mins: 15 });
+  await expect(t.mutation(api.agent.placeBlock, { task_id: "nope", date: "2026-10-12", start: "10:00", mins: 30 }))
+    .rejects.toThrow(/task not found/);
+});
+
+it("removeBlock removes only that task's block on that date", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "A" }, { title: "B" }] });
+  for (const c of created) await t.mutation(api.agent.placeBlock, { task_id: c.id, date: "2026-10-12", start: "10:00", mins: 30 });
+  await t.mutation(api.agent.removeBlock, { task_id: created[0].id, date: "2026-10-12" });
+  expect((await t.query(api.agent.board, {})).blocks.map((x) => x.task_id)).toEqual([created[1].id]);
+});

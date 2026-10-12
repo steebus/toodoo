@@ -177,3 +177,46 @@ export async function listBySource(db: R, userId: string, source: string | null)
     priority: d.priority, done: d.done, done_on: d.done_on, tags: d.tags, link: d.link,
   }));
 }
+
+export async function board(db: R, userId: string, a: { date?: string }, now = new Date()) {
+  checkDate(a.date);
+  const { t, nowM } = clock(now);
+  const date = a.date ?? t;
+  const s = await loadState(db, userId, t, date);
+  const planned = new Set(s.blocks.filter((b) => b.date === date).map((b) => b.task_id));
+  const have = new Set(s.tasks.map((x) => x.id));
+  const extra: FullTask[] = [];
+  for (const id of planned) {
+    if (have.has(id)) continue;
+    const d = await db.get(id as Id<"tasks">);
+    if (d && d.user_id === userId) extra.push(toTask(d));
+  }
+  return {
+    today: t, date, nowM, app_url: process.env.APP_URL ?? null,
+    day: s.days.find((d) => d.date === date) ?? null,
+    tasks: [...s.tasks, ...extra],
+    blocks: s.blocks.filter((b) => b.date >= addDays(date, -1) && b.date <= addDays(date, 1)),
+    suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks })
+      .map((x) => ({ id: x.task.id, title: x.task.title, reasons: x.reasons })),
+  };
+}
+
+const snap = (m: number) => Math.round(m / 15) * 15;
+
+export async function placeBlock(db: W, userId: string, a: { task_id: string; date: string; start: string; mins: number }) {
+  checkDate(a.date);
+  const task = await ownedTask(db, userId, a.task_id);
+  if (!task) throw new InputError("task not found");
+  const s = Math.min(24 * 60 - 15, Math.max(0, snap(toMin(a.start) ?? 0)));
+  const mins = Math.max(15, Math.min(1440, snap(a.mins), 24 * 60 - s));
+  const existing = (await db.query("plan_blocks").withIndex("by_task", (q) => q.eq("task_id", task._id)).collect())
+    .find((b) => b.date === a.date);
+  const row = { start: toHM(s), mins };
+  if (existing) await db.patch(existing._id, row);
+  else await db.insert("plan_blocks", { user_id: userId, date: a.date, task_id: task._id, ...row });
+  return { task_id: task._id, date: a.date, ...row };
+}
+
+export async function removeBlock(db: W, userId: string, a: { task_id: string; date: string }) {
+  return unplan(db, userId, a.date, [a.task_id]);
+}

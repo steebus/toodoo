@@ -43,3 +43,15 @@ export const unplan = mutation({
   args: { date: v.string(), task_ids: ids },
   handler: async (ctx, a) => m.unplan(ctx.db, await requireUser(ctx), a.date, a.task_ids),
 });
+export const board = query({
+  args: { date, now },
+  handler: async (ctx, { now, ...a }) => m.board(ctx.db, await requireUser(ctx), a, at(now)),
+});
+export const placeBlock = mutation({
+  args: { task_id: v.string(), date: v.string(), start: v.string(), mins: v.number() },
+  handler: async (ctx, a) => m.placeBlock(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),
+});
+export const removeBlock = mutation({
+  args: { task_id: v.string(), date: v.string() },
+  handler: async (ctx, a) => m.removeBlock(ctx.db, await requireUser(ctx), a),
+});
