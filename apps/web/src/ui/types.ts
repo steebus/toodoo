@@ -13,6 +13,7 @@ export type BoardData = {
   tasks: FullTask[];
   blocks: Block[];
   epics?: Epic[]; // missing on a board kept from before epics
+  effort?: Record<string, { planned: number; actual: number }>; // open tasks with an estimate
   suggestions: { id: string; title: string; reasons: string[] }[];
 };
 
@@ -26,6 +27,7 @@ export type PlanBlock = {
   duration?: string;
   current?: boolean;
   done?: boolean;
+  colour?: string | null; // its epic's
 };
 
 export type PlanData = {
@@ -55,6 +57,9 @@ export type DocketData = {
   tag: string;
   rows: MetaRow[];
   footer: MetaRow | null;
+  colour?: string | null; // its epic's
+  fit: 0 | 1 | 2; // how hard the title is squeezed to fit the paper: 0 as printed, 2 smallest
+  progress?: { spent: number; est: number } | null; // minutes spent (planned blocks gone by) against the estimate
 };
 
 export type GroupData = { key: string; label: string; count: number; dockets: DocketData[] };

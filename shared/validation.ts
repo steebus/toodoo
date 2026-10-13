@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EPIC_STATUSES, TASK_STATUSES, type TaskStatus } from "./epics.ts";
+import { EPIC_COLOURS, EPIC_STATUSES, TASK_STATUSES, type TaskStatus } from "./epics.ts";
 import { parseDuration, type Priority } from "./planning.ts";
 
 // Client-input failure: safe to show the caller. Anything else is an internal error.
@@ -157,6 +157,7 @@ export const EpicInput = z.object({
   description: text(2000),
   priority: strictPriority.optional(),
   status: z.enum(EPIC_STATUSES).optional(),
+  colour: z.enum(EPIC_COLOURS).nullish(),
 });
 export const EpicPatch = EpicInput.partial().extend({ sort_order: z.number().optional() });
 
@@ -164,7 +165,10 @@ export function parseEpic(input: unknown) {
   const r = EpicInput.safeParse(input);
   if (!r.success) throw new InputError(issuesText(r.error));
   const v = r.data;
-  return { title: v.title, description: v.description ?? null, priority: v.priority ?? null, status: v.status ?? "planned" as const };
+  return {
+    title: v.title, description: v.description ?? null, priority: v.priority ?? null, status: v.status ?? "planned" as const,
+    colour: v.colour,
+  };
 }
 
 export function parseEpicPatch(patch: unknown) {

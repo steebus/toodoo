@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { EPIC_STATUSES, EPIC_STATUS_LABEL, type Epic } from "@shared/epics.ts";
+import { EPIC_COLOURS, EPIC_STATUSES, EPIC_STATUS_LABEL, type Epic, type EpicColour } from "@shared/epics.ts";
 import type { EpicFields } from "../lib/useWork";
 
 type Props = {
   epic?: Epic; // none: a new epic
+  colour?: EpicColour; // a new epic's, to start with
   offline?: boolean;
   onSave: (fields: EpicFields) => void;
   onDelete?: () => void;
@@ -11,11 +12,12 @@ type Props = {
 };
 
 // The edit sheet's twin for an epic: a native modal dialog, side sheet on desktop, bottom sheet on the phone.
-export function EpicSheet({ epic, offline = false, onSave, onDelete, onClose }: Props) {
+export function EpicSheet({ epic, colour, offline = false, onSave, onDelete, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
   const [f, setF] = useState({
     title: epic?.title ?? "", description: epic?.description ?? "", priority: epic?.priority ?? "", status: epic?.status ?? "active",
+    colour: epic?.colour ?? colour ?? "",
   });
   const [invalid, setInvalid] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => {
@@ -41,6 +43,7 @@ export function EpicSheet({ epic, offline = false, onSave, onDelete, onClose }: 
     onSave({
       title, description: f.description.trim() || null,
       priority: (f.priority || null) as Epic["priority"], status: f.status as Epic["status"],
+      colour: (f.colour || null) as Epic["colour"],
     });
     onClose();
   };
@@ -85,6 +88,15 @@ export function EpicSheet({ epic, offline = false, onSave, onDelete, onClose }: 
             </select>
           </label>
         </div>
+        <fieldset className="epic-swatches">
+          <legend>Colour</legend>
+          {EPIC_COLOURS.map((c) => (
+            <label key={c} className="epic-swatch" style={{ ["--epic" as string]: `var(--epic-${c})` }}>
+              <input type="radio" name="colour" value={c} checked={f.colour === c} onChange={set("colour")} aria-label={c} />
+              <span aria-hidden />
+            </label>
+          ))}
+        </fieldset>
         <div className="sheet-actions">
           {epic && onDelete && (
             <button type="button" className="sheet-delete" disabled={offline} onClick={() => { onDelete(); onClose(); }}>Delete</button>

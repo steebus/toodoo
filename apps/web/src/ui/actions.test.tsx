@@ -100,7 +100,7 @@ it("ticking updates the task, and Undo reverses it", async () => {
 });
 
 it("x on a focused docket ticks it", async () => {
-  screen.getByRole("button", { name: "Edit WRITE REPORT" }).focus();
+  screen.getByRole("button", { name: "Open WRITE REPORT" }).focus();
   await userEvent.keyboard("x");
   expect(fn("updateTask")).toHaveBeenCalledWith({ id: report.id, patch: { done: true } });
 });
@@ -111,8 +111,10 @@ it("a failed tick shows the error toast", async () => {
   await waitFor(() => expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent(/couldn.t save/i));
 });
 
-const openSheet = async (name = "Edit WRITE REPORT") => {
+// A docket opens its ticket; the ticket's Edit opens the edit sheet.
+const openSheet = async (name = "Open WRITE REPORT") => {
   await userEvent.click(screen.getByRole("button", { name }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }));
   return screen.getByRole("dialog");
 };
 
@@ -170,7 +172,7 @@ it("saving with no changes just closes", async () => {
 });
 
 it("Escape closes the sheet without saving and focus returns to the docket", async () => {
-  const opener = screen.getByRole("button", { name: "Edit WRITE REPORT" });
+  const opener = screen.getByRole("button", { name: "Open WRITE REPORT" });
   const sheet = await openSheet();
   await userEvent.type(within(sheet).getByLabelText("Title"), "!!");
   await userEvent.keyboard("{Escape}");
@@ -198,7 +200,7 @@ it("a docket still waiting for its real id is inert", async () => {
   render(<App />);
   const bump = screen.getByRole("button", { name: "Mark done: FRESH ONE" });
   expect(bump).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Edit FRESH ONE" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Open FRESH ONE" })).toBeDisabled();
   expect(screen.getByRole("article", { name: "FRESH ONE" }).closest("li")).toHaveAttribute("aria-busy", "true");
   fireEvent.click(bump);
   expect(fn("updateTask")).not.toHaveBeenCalled();

@@ -42,10 +42,3 @@ export function wrapTitle(title: string, max = 15, lines = 2): string[] {
   }
   return out;
 }
-
-// Deterministic: the same task always gets the same paper.
-export function plateIndex(id: string, count: number): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return h % count;
-}

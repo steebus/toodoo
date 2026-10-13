@@ -65,6 +65,10 @@ it("the Board's ] key moves a card to the next column and Enter opens it", async
   await userEvent.keyboard("]");
   expect(a.move).toHaveBeenCalledWith("a", { status: "doing", sort_order: expect.any(Number) }, "Doing: Write it");
   await userEvent.keyboard("{Enter}");
+  const ticket = screen.getByRole("dialog", { name: "WRITE IT" });
+  await userEvent.click(within(ticket).getByRole("button", { name: "Blocked" }));
+  expect(a.move).toHaveBeenLastCalledWith("a", { status: "blocked" }, "Blocked: Write it");
+  await userEvent.click(within(ticket).getByRole("button", { name: "Edit" }));
   expect(screen.getByRole("dialog", { name: "Edit" })).toBeTruthy();
 });
 
@@ -88,5 +92,5 @@ it("makes a new epic from its sheet", async () => {
   await userEvent.click(screen.getByRole("button", { name: /New epic/ }));
   await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Launch");
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(a.createEpic).toHaveBeenCalledWith({ title: "Launch", description: null, priority: null, status: "active" });
+  expect(a.createEpic).toHaveBeenCalledWith({ title: "Launch", description: null, priority: null, status: "active", colour: "blue" });
 });

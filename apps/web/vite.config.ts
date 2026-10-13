@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["apple-touch-icon.png"],
+      includeAssets: ["apple-touch-icon.png", "favicon.svg"],
       manifest: {
         name: "toodoo", short_name: "toodoo", display: "standalone", start_url: "/", scope: "/",
         theme_color: "#fcfcfc", background_color: "#fcfcfc", // --ground in styles/tokens.css
@@ -19,6 +19,8 @@ export default defineConfig({
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        // Installed from Chrome on Android, toodoo shows in every app's share sheet (see lib/share.ts).
+        share_target: { action: "/share", method: "GET", params: { title: "title", text: "text", url: "url" } },
       },
       workbox: { globPatterns: ["**/*.{js,css,html,woff2,webp,png}"], navigateFallback: "/index.html" },
     }),

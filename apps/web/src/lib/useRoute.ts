@@ -1,16 +1,19 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 // Three rooms on three paths. Anything else (including AuthKit's /callback) is the day.
-export type Room = "day" | "board" | "epics";
+export type Room = "day" | "board" | "epics" | "share";
 export const ROOMS: { room: Room; path: string; label: string }[] = [
   { room: "day", path: "/", label: "Day" },
   { room: "board", path: "/board", label: "Board" },
   { room: "epics", path: "/epics", label: "Epics" },
 ];
 
+// Share is a room off the nav: where the share sheet and the bookmarklet land.
+const PATHS: { room: Room; path: string }[] = [...ROOMS, { room: "share", path: "/share" }];
+
 export const roomOf = (pathname: string): Room =>
-  ROOMS.find((r) => r.path !== "/" && (pathname === r.path || pathname.startsWith(r.path + "/")))?.room ?? "day";
-export const pathOf = (room: Room) => ROOMS.find((r) => r.room === room)!.path;
+  PATHS.find((r) => r.path !== "/" && (pathname === r.path || pathname.startsWith(r.path + "/")))?.room ?? "day";
+export const pathOf = (room: Room) => PATHS.find((r) => r.room === room)!.path;
 
 const subscribe = (cb: () => void) => {
   window.addEventListener("popstate", cb);

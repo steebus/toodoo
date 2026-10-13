@@ -1,8 +1,8 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { addDays, autoPlan, busySpans, firstFree, nowMin, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
-import { byEpicRank, type Epic } from "../shared/epics.ts";
+import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
+import { byEpicRank, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
 import { buildSnapshot, type FullTask, type State } from "../shared/snapshot.ts";
 import {
   type AddResult, InputError, parseDay, parseEpic, parseEpicPatch, preparePatch, prepareTasks,
@@ -38,6 +38,7 @@ const toTask = (d: Doc<"tasks">): FullTask => ({
 
 const toEpic = (d: Doc<"epics">): Epic => ({
   id: d._id, title: d.title, description: d.description, priority: d.priority, status: d.status, sort_order: d.sort_order,
+  colour: (d.colour ?? null) as EpicColour | null,
 });
 
 async function ownedEpic(db: R, userId: string, id: string) {
@@ -234,6 +235,10 @@ export async function board(db: R, userId: string, a: { date?: string }, now: Da
     tasks: [...s.tasks, ...extra],
     blocks: s.blocks.filter((b) => b.date >= addDays(date, -1) && b.date <= addDays(date, 1)),
     epics: s.epics ?? [],
+    // Time planned and spent so far on each open task with an estimate, from every block kept (not just these days).
+    effort: Object.fromEntries([...effortMap(s.blocks, t, nowM)]
+      .filter(([id]) => s.tasks.some((x) => x.id === id && x.estimate_mins && !x.done))
+      .map(([id, e]) => [id, { planned: e.planned, actual: e.actual }])),
     suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics })
       .map((x) => ({ id: x.task.id, title: x.task.title, reasons: x.reasons })),
   };
@@ -266,8 +271,9 @@ export async function removeBlock(db: W, userId: string, a: { task_id: string; d
 export async function createEpic(db: W, userId: string, input: unknown) {
   const e = parseEpic(input);
   const now = Date.now();
+  const colour = e.colour ?? nextColour(await listEpics(db, userId));
   const id = await db.insert("epics", {
-    ...e, user_id: userId, sort_order: now / 1000, created_at: new Date(now).toISOString(), updated_at: now,
+    ...e, colour, user_id: userId, sort_order: now / 1000, created_at: new Date(now).toISOString(), updated_at: now,
   });
   return toEpic((await db.get(id))!);
 }

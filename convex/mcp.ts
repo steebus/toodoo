@@ -26,6 +26,7 @@ export const TOOL_DEFS = [
     inputSchema: obj({
       id: { type: "string" }, title: { type: "string", maxLength: 120 }, description: { type: "string", maxLength: 2000 },
       priority: { type: ["string", "null"] }, status: { type: "string", enum: ["planned", "active", "on_hold", "done"] },
+      colour: { type: "string", enum: ["blue", "violet", "amber", "teal", "plum", "slate", "ochre", "sky"] },
     }) },
   { name: "suggest", annotations: { readOnlyHint: true },
     description: "What to do next: ranked open tasks with reasons, plus next_free (today only).",

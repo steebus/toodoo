@@ -74,7 +74,7 @@ afterEach(() => {
   cleanup();
 });
 
-const edit = (title: string) => screen.getByRole("button", { name: new RegExp(`^Edit ${title}$`, "i") });
+const edit = (title: string) => screen.getByRole("button", { name: new RegExp(`^Open ${title}$`, "i") });
 
 it("p plans the focused docket into the first free slot, and Undo removes the block", async () => {
   show();

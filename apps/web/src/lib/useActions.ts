@@ -20,6 +20,7 @@ export type NewTask = {
   tags: string[];
   estimate_mins: number | null;
   source: "you";
+  epic_id?: string | null;
 };
 
 export type Actions = {

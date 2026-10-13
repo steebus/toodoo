@@ -43,6 +43,7 @@ An agent-fed planner. Claude reads, suggests and plans through the same data and
   - effort tracks planned and actual time against the estimate;
   - day navigation.
 - **Epics:** title, description, priority and status (planned, active, on hold, done). A task has at most one epic and keeps its own priority; the epic counts for half of it (a high epic lifts a plain task to medium; on hold sinks it). Managed on the Epics screen: full create/edit/delete, tasks dragged between epics, reordered, or taken out.
+- **Sharing in:** Android's share sheet (the installed PWA's share target) and a Chrome bookmarklet open `/share`, which reads what came in (Jira keys and summaries, Gmail subjects, page titles, selected words) for a title, due date, time, priority, estimate and epic, and asks before adding. It survives a sign-in on the way.
 - **Board:** a Kanban of To do, Doing, Blocked and Done (the last fortnight), filterable by epic. Doing lifts a task in suggestions; Blocked sinks it.
 - **Suggestions:** a scored "next up" list with reasons (overdue, due today, priority, carried from the last plan, estimate already planned, planned elsewhere, fixed time).
 - **Stack:** Vite + React + TypeScript + Tailwind v4 web app, Convex backend (live queries), WorkOS AuthKit sign-in, deployed on Vercel, installable as a PWA.

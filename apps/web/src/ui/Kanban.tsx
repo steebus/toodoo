@@ -1,13 +1,14 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { NO_EPIC, sortTasks } from "@shared/board.ts";
 import { epicMap, TASK_STATUS_LABEL, TASK_STATUSES, type TaskStatus } from "@shared/epics.ts";
-import { byOrder } from "@shared/planning.ts";
+import { addDays, byOrder } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { laneStep, orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
 import { EditSheet } from "./EditSheet";
 import { LaneDnd, LaneList } from "./LaneDnd";
 import { LaneAdd, SlipGhost, SortableSlip } from "./Slip";
+import { TaskView } from "./TaskView";
 import { Toast } from "./Toast";
 
 type Column = TaskStatus | "done";
@@ -63,7 +64,9 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   const byId = useMemo(() => new Map(work.tasks.map((t) => [t.id, t])), [work.tasks]);
   const lanes: Lane[] = COLUMNS.map((c) => ({ id: c, ids: cols[c].map((t) => t.id) }));
   const [editing, setEditing] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
   const editTask = editing ? byId.get(editing) : undefined;
+  const viewTask = viewing ? byId.get(viewing) : undefined;
   const manual = view.sort === "manual";
   const off = actions.offline;
 
@@ -131,19 +134,29 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
                 <span className="count-chip">{cols[c].length}</span>
               </h2>
               {c === "todo" && (
-                <LaneAdd today={work.today} label="Add a task" disabled={off} onAdd={actions.add}
+                <LaneAdd today={work.today} label="Add a task" disabled={off} onAdd={actions.add} epics={work.epics}
                   extra={{ status: "todo", epic_id: filterEpic }} />
               )}
               <LaneList id={c} ids={lanes.find((l) => l.id === c)!.ids} className="lane" label={label(c)}>
                 {cols[c].map((t) => (
                   <SortableSlip key={t.id} lane={c} task={t} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today}
-                    showEpic={!filterEpic} onOpen={setEditing} onKey={onKey} disabled={off} />
+                    showEpic={!filterEpic} onOpen={setViewing} onKey={onKey} disabled={off} />
                 ))}
               </LaneList>
             </section>
           ))}
         </div>
       </LaneDnd>
+      {viewTask && (
+        <TaskView key={viewTask.id} task={viewTask} today={work.today} offline={off}
+          epic={viewTask.epic_id ? epics.get(viewTask.epic_id) : undefined}
+          onClose={() => setViewing(null)}
+          onTick={(done) => actions.move(viewTask.id, { done }, `${done ? "Done" : "Reopened"}: ${viewTask.title}`)}
+          onStatus={(s) => actions.move(viewTask.id, { status: s }, `${TASK_STATUS_LABEL[s]}: ${viewTask.title}`)}
+          onTomorrow={() => void actions.save(viewTask.id, { due: addDays(work.today, 1) })}
+          onEdit={() => { setViewing(null); setEditing(viewTask.id); }}
+          onDelete={() => actions.remove(viewTask.id)} />
+      )}
       {editTask && (
         <EditSheet key={editTask.id} task={editTask} epics={work.epics} offline={off}
           onSave={(id, patch) => void actions.save(id, patch)} onDelete={actions.remove} onClose={() => setEditing(null)} />

@@ -16,7 +16,7 @@ export function useWorkspace(): w.WorkData | undefined {
   return useQuery(api.epics.workspace, { now });
 }
 
-export type EpicFields = Pick<Epic, "title" | "description" | "priority" | "status">;
+export type EpicFields = Pick<Epic, "title" | "description" | "priority" | "status" | "colour">;
 export type WorkTask = Omit<NewTask, "source"> & { epic_id?: string | null; status?: FullTask["status"]; sort_order?: number };
 
 export type WorkActions = {
@@ -130,7 +130,7 @@ export function useWorkActions(work: w.WorkData | undefined): WorkActions {
     show({
       kind: "undo", message: `Deleted epic: ${e.title}`,
       undo: () => void (async () => {
-        const made = await create({ epic: { title: e.title, description: e.description, priority: e.priority, status: e.status } });
+        const made = await create({ epic: { title: e.title, description: e.description, priority: e.priority, status: e.status, colour: e.colour } });
         await update({ id: made.id, patch: { sort_order: e.sort_order } });
         for (const t of filed) await updateTask({ id: t, patch: { epic_id: made.id } });
       })().catch((err) => fail("Couldn't undo", err)),

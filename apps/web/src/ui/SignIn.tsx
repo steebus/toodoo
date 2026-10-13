@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { fmtTime, today, toHM, nowMin } from "@shared/planning.ts";
-import docketPlate from "../assets/plates/docket-today-1.webp";
-import railPlate from "../assets/plates/rail-today.webp";
 import { shortDate } from "./format";
 import "./pass.css";
 import "./rooms.css";
@@ -25,7 +23,7 @@ export function SignIn({ onSignIn }: { onSignIn: () => void }) {
       <h1 className="wordmark signin-wordmark">toodoo</h1>
       <div className="signin-pass" aria-hidden>
         <div className="signin-docket">
-          <img className="plate" src={docketPlate} alt="" draggable={false} />
+          <div className="dk-paper" />
           <div className="signin-print">
             <p className="signin-head">
               <span>{shortDate(today(now))}</span>
@@ -37,7 +35,7 @@ export function SignIn({ onSignIn }: { onSignIn: () => void }) {
             <p className="signin-foot">ORDER UP</p>
           </div>
         </div>
-        <img className="plate signin-rail" src={railPlate} alt="" draggable={false} />
+        <span className="rail-bar signin-rail" />
       </div>
       <button type="button" className="signin-button" disabled={going} onClick={() => { setGoing(true); onSignIn(); }}>
         {going ? "Signing in…" : "Sign in"}

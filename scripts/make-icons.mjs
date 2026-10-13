@@ -1,19 +1,16 @@
-// Generated icons: the app's wordmark (Carlito 700, --ink on --ground, see TopBar/pass.css) rendered with Playwright.
-import { chromium } from "playwright-core";
+// Generated icons: the thermal-paper slip the app's tasks are printed on (apps/web/public/favicon.svg),
+// on the rails' ink for the installed app, rendered with sharp. Run from the repo root.
+import sharp from "sharp";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-const font = createRequire(import.meta.url).resolve("@fontsource/carlito/files/carlito-latin-700-normal.woff2", { paths: ["apps/web"] });
-const out = new URL("../apps/web/public/", import.meta.url);
-const html = (size, scale) => `<style>@font-face{font-family:C;src:url(data:font/woff2;base64,${readFileSync(font).toString("base64")})}
-html,body{margin:0}body{width:${size}px;height:${size}px;background:#fcfcfc;display:grid;place-items:center}
-p{margin:0;font:700 ${Math.round(size * scale)}px/1 C;color:#111;letter-spacing:-0.01em}</style><p>toodoo</p>`;
-const jobs = [["icon-192.png", 192, 0.25], ["icon-512.png", 512, 0.25], ["icon-maskable-512.png", 512, 0.19], ["apple-touch-icon.png", 180, 0.25]];
-const browser = await chromium.launch({ channel: "chrome" });
-for (const [name, size, scale] of jobs) {
-  const page = await browser.newPage({ viewport: { width: size, height: size } });
-  await page.setContent(html(size, scale));
-  await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({ path: new URL(name, out).pathname.replace(/^\/(\w:)/, "$1") });
-  await page.close();
+
+const out = (name) => new URL(`../apps/web/public/${name}`, import.meta.url);
+const slip = readFileSync(out("favicon.svg"), "utf8").replace(/^<svg[^>]*>|<\/svg>\s*$/g, "");
+// scale: how much of the square the slip's 64 units take (maskable keeps to the middle 80%).
+const square = (size, scale, round) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="${round ? 14 : 0}" fill="#2b2d31"/>
+  <g transform="translate(${32 - 32 * scale} ${32 - 32 * scale}) scale(${scale})">${slip}</g>
+</svg>`;
+const jobs = [["icon-192.png", 192, 0.92, false], ["icon-512.png", 512, 0.92, false], ["icon-maskable-512.png", 512, 0.72, false], ["apple-touch-icon.png", 180, 0.86, false]];
+for (const [name, size, scale, round] of jobs) {
+  await sharp(Buffer.from(square(size, scale, round))).png().toFile(out(name).pathname.replace(/^\/(\w:)/, "$1"));
 }
-await browser.close();

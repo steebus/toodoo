@@ -174,10 +174,10 @@ it("e on a focused block opens its task's edit sheet", () => {
   expect(within(screen.getByRole("dialog")).getByDisplayValue("Write report")).toBeInTheDocument();
 });
 
-it("a next up title opens its task's edit sheet", async () => {
+it("a next up title opens its task's ticket", async () => {
   show();
   await userEvent.click(within(screen.getByRole("region", { name: "NEXT UP" })).getByRole("button", { name: "Water plants" }));
-  expect(within(screen.getByRole("dialog")).getByDisplayValue("Water plants")).toBeInTheDocument();
+  expect(within(screen.getByRole("dialog")).getByRole("heading", { name: "WATER PLANTS" })).toBeInTheDocument();
 });
 
 it("Enter on the focused grid opens the picker at the slot cursor; Esc closes it and focus returns", async () => {

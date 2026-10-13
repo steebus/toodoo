@@ -1,9 +1,9 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
 import { effectivePriority, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { dayWord, formatDuration } from "@shared/planning.ts";
-import { parseQuickAdd } from "@shared/quickadd.ts";
+import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { waitingDays } from "@shared/board.ts";
 import type { WorkTask } from "../lib/useWork";
@@ -14,6 +14,10 @@ type Variant = "card" | "strip";
 type Props = {
   task: FullTask; epic?: Epic; today: string; variant?: Variant; showEpic?: boolean; showStatus?: boolean;
 };
+
+// An epic's colour, for the band down a task's left edge (rooms.css, pass.css).
+export const epicStyle = (e?: { colour?: string | null } | null) =>
+  e?.colour ? ({ ["--epic" as string]: `var(--epic-${e.colour})` } as CSSProperties) : undefined;
 
 // When, as a docket prints it: carried tasks count their days in red, near ones say the day.
 function when(t: FullTask, today: string) {
@@ -37,7 +41,7 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
   if (variant === "strip") {
     return (
       <>
-        <span className="slip-title">{t.title.toUpperCase()}</span>
+        <span className="slip-title"><span className="slip-title-text">{t.title.toUpperCase()}</span></span>
         <span className="slip-meta">
           {status}
           {flag}
@@ -52,7 +56,7 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
         <span className={w.late ? "slip-late" : undefined}>{w.text}</span>
         {t.estimate_mins ? <span>~{formatDuration(t.estimate_mins)}</span> : null}
       </span>
-      <span className="slip-title">{t.title.toUpperCase()}</span>
+      <span className="slip-title"><span className="slip-title-text">{t.title.toUpperCase()}</span></span>
       {(flag || (showEpic && epic) || t.tags.length > 0) && (
         <span className="slip-foot">
           {flag}
@@ -80,8 +84,8 @@ export function SortableSlip({ lane, onOpen, onKey, disabled, ...p }: SortablePr
   return (
     <li
       ref={setNodeRef}
-      className={`slip slip-${v}${p.task.done ? " is-done" : ""}${isDragging ? " is-lifted" : ""}`}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`slip slip-${v}${p.task.done ? " is-done" : ""}${isDragging ? " is-lifted" : ""}${p.epic?.colour ? " has-epic" : ""}`}
+      style={{ transform: CSS.Translate.toString(transform), transition, ...epicStyle(p.epic) }}
       data-slip={p.task.id}
       {...attributes}
       {...listeners}
@@ -103,30 +107,32 @@ export function SortableSlip({ lane, onOpen, onKey, disabled, ...p }: SortablePr
 // The slip under the pointer while it is dragged.
 export function SlipGhost(p: Props) {
   return (
-    <div className={`slip slip-${p.variant ?? "card"} is-ghost`}>
+    <div className={`slip slip-${p.variant ?? "card"} is-ghost${p.epic?.colour ? " has-epic" : ""}`} style={epicStyle(p.epic)}>
       <SlipPrint {...p} />
     </div>
   );
 }
 
 // One line at the head or foot of a lane: the quick add's grammar ("tomorrow 3pm high #work 45m").
-export function LaneAdd({ today, label, extra, onAdd, disabled }: {
+export function LaneAdd({ today, label, extra, onAdd, disabled, epics }: {
   today: string; label: string; extra: Partial<WorkTask>; onAdd: (t: WorkTask) => Promise<boolean>; disabled?: boolean;
+  epics?: Epic[]; // given, +epic files the task (the lane's own epic otherwise)
 }) {
   const [line, setLine] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const p = parseQuickAdd(line, today, 0);
+    const p = parseQuickAdd(line, today, 0, epics);
     if (!p.title.trim()) return;
     const typed = line;
     setLine("");
     void onAdd({
       title: p.title, due: p.due ?? today, time: p.time, priority: p.priority, tags: p.tags, estimate_mins: p.estimate_mins, ...extra,
+      ...(p.epic_id ? { epic_id: p.epic_id } : null),
     }).then((ok) => ok || setLine((cur) => cur || typed));
   };
   return (
     <form className="lane-add" onSubmit={submit}>
-      <input value={line} onChange={(e) => setLine(e.target.value)} placeholder="+ Add" aria-label={label} disabled={disabled} autoComplete="off" />
+      <input value={line} onChange={(e) => setLine(e.target.value)} placeholder={epics ? QUICKADD_HINT : QUICKADD_HINT.replace(/ \+epic$/, "")} aria-label={label} disabled={disabled} autoComplete="off" />
     </form>
   );
 }

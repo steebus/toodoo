@@ -15,7 +15,7 @@ export type PassModel = {
   groups: GroupData[];
   topPickId: string | null;
   tags: string[];
-  epics: { id: string; title: string }[];
+  epics: Epic[];
 };
 
 const est = (t: FullTask) => (t.estimate_mins ? `~${formatDuration(t.estimate_mins)}` : "");
@@ -24,17 +24,23 @@ const estClock = (m: number | null) => (!m ? "" : m >= 60 ? `~${Math.floor(m / 6
 
 function sourceLabel(t: FullTask): string {
   if (t.source === "you") return "";
-  if (t.source === "jira") return `JIRA  ${t.external_id ?? ""}`.trim();
+  if (t.source === "jira") return `JIRA  ${(t.external_id ?? "").replace(/^jira:/, "")}`.trim();
   return t.source.toUpperCase();
 }
 
-function docket(t: FullTask, hm: string | null, today: string, epic?: Epic): DocketData {
+// Long titles print smaller and on more lines rather than being cut off.
+export const fitOf = (title: string): 0 | 1 | 2 => (title.length <= 24 ? 0 : title.length <= 48 ? 1 : 2);
+
+function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spent?: number): DocketData {
   const carried = !t.done && t.due < today;
   const high = effectivePriority(t, epic) === "high";
   const epicRow: MetaRow[] = epic ? [{ label: "EPIC", value: epic.title.toUpperCase() }] : [];
   const tags = t.tags.slice(0, 3);
   const tagRow: MetaRow[] = tags.length ? [{ label: "TAGS", value: tags.join(" ").toUpperCase() }] : [];
-  const common = { id: t.id, done: t.done, high, hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title) };
+  const common = {
+    id: t.id, done: t.done, high, hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title), colour: epic?.colour ?? null,
+    fit: fitOf(t.title), progress: t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null,
+  };
   if (carried) {
     const n = waitingDays(t.due, today);
     return {
@@ -58,7 +64,7 @@ function docket(t: FullTask, hm: string | null, today: string, epic?: Epic): Doc
   };
 }
 
-function planOf(b: BoardData, byId: Map<string, FullTask>): PlanData {
+function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTask) => string | null): PlanData {
   const isToday = b.date === b.today;
   const blocks: PlanBlock[] = [];
   timedEvents(b.day?.events ?? []).forEach((e, i) => {
@@ -71,7 +77,7 @@ function planOf(b: BoardData, byId: Map<string, FullTask>): PlanData {
     blocks.push({
       id: t.id, kind: "task", startM: s, mins: pb.mins, time: clock12(pb.start), title: t.title,
       // The heavy rule marks the top pick (the docket with the biro ring), as the comp does.
-      duration: formatDuration(pb.mins), current: t.id === b.suggestions[0]?.id, done: t.done,
+      duration: formatDuration(pb.mins), current: t.id === b.suggestions[0]?.id, done: t.done, colour: colourOf(t),
     });
   }
   blocks.sort((x, y) => x.startM - y.startM);
@@ -113,7 +119,7 @@ export function buildPass(b: BoardData, view: View): PassModel {
     headline: b.day?.headline ?? "",
     done,
     total: count("carried") + count("today") + done,
-    plan: planOf(b, byId),
+    plan: planOf(b, byId, (t) => epicOf(t)?.colour ?? null),
     nextUp: b.suggestions.slice(0, 3).flatMap((s) => {
       const t = byId.get(s.id);
       return t ? [{ id: t.id, title: s.title, when: whenOf(t, b), why: s.reasons[0] ?? "" }] : [];
@@ -122,7 +128,7 @@ export function buildPass(b: BoardData, view: View): PassModel {
       key: g.key,
       label: g.label,
       count: g.tasks.length,
-      dockets: g.tasks.map((t) => docket(t, hmOf(t), b.today, epicOf(t))),
+      dockets: g.tasks.map((t) => docket(t, hmOf(t), b.today, epicOf(t), b.effort?.[t.id]?.actual)),
     })),
     topPickId: b.suggestions[0]?.id ?? null,
     tags: [...new Set(b.tasks.flatMap((t) => t.tags))].sort(),

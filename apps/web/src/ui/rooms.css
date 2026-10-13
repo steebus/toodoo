@@ -24,17 +24,19 @@
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 .room ::selection { background: var(--red-soft); color: var(--ink); }
+/* The same bar as the Pass's: its height, and its print scaled by the same unit (--u). */
 .roombar {
-  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 34px;
-  height: 66px; padding: 0 22px; background: var(--ground); border-bottom: 1px solid var(--rule);
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: calc(34 * var(--u));
+  height: max(7.42dvh, 48px); padding: 0 1.43vw; background: var(--ground); border-bottom: 1px solid var(--rule);
 }
-.roombar .wordmark { margin: 0; padding-left: 0; font-size: 37px; }
-.roombar .rooms { font-size: 20px; }
+.roombar .wordmark { margin: 0; padding-left: 0; font-size: calc(37 * var(--u)); }
+.roombar .rooms { font-size: calc(20 * var(--u)); }
+.roombar-end { margin-left: auto; display: flex; align-items: center; gap: calc(22 * var(--u)); }
 .room-offline {
   font-family: var(--font-print); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ink-3); border: 1px dashed var(--rule); border-radius: var(--radius); padding: 4px 7px;
 }
-.room .roombar-out { margin-left: auto; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
+.room .roombar-out { font-family: var(--font-print); font-size: calc(16 * var(--u)); color: var(--ink-3); }
 .room .roombar-out:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 .room-main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 22px 22px 96px; }
@@ -77,7 +79,7 @@
   font-family: var(--font-print); font-size: 15px; color: var(--ink); caret-color: var(--red);
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
-.lane-add input::placeholder { color: var(--ink-3); }
+.lane-add input::placeholder { color: var(--ink-3); font-size: 14px; }
 .lane-add input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 /* ---------- slips: a task on thermal paper, perforated along the top. Paper never inverts. ---------- */
@@ -98,7 +100,11 @@
 .slip.is-lifted { opacity: 0.35; }
 .slip.is-ghost { cursor: grabbing; transform: rotate(1.2deg); filter: drop-shadow(0 10px 11px rgb(0 0 0 / 0.22)); }
 .slip.is-done { color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
-.slip.is-done .slip-title { text-decoration: line-through; }
+.slip.is-done .slip-title-text {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4.6C6 3.2 12 5.6 20 4.2S33 3.1 40 4.7' fill='none' stroke='%232c4fa3' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E")
+    0 55% / 2.4em 0.42em repeat-x;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
 .slip-line { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; letter-spacing: 0.02em; }
 .slip-title {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
@@ -118,19 +124,28 @@
 .kanban-col.is-done .lane { background: transparent; border-style: solid; }
 
 /* ---------- Epics: a stack of headed lists ---------- */
-.epic-list { display: flex; flex-direction: column; gap: 14px; max-width: 980px; }
-.epic { background: var(--surface); border: 1px solid var(--rule-soft); border-radius: 5px; }
+/* Epics are cards in a grid, each with its colour along the top. */
+.epic-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; align-items: start; }
+.epic {
+  position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--rule-soft); border-radius: 6px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); padding-top: 5px;
+}
+/* The colour runs along the top as a band inside the card, clipped to its corners (not a thick border). */
+.epic::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: var(--epic, var(--rule-soft)); }
 .epic-head {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-height: 58px; padding: 8px 14px 8px 8px;
+  display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 10px 12px 10px 8px;
   border: 1px solid transparent; border-radius: 5px;
 }
-.room .epic-toggle { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 260px; padding: 6px; border-radius: var(--radius); text-align: left; }
+.room .epic-toggle { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 0; padding: 4px 6px; border-radius: var(--radius); text-align: left; }
+.epic-meta { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; padding-left: 32px; }
+.epic-progress { margin-right: auto; }
 .epic-chevron { flex: none; color: var(--ink-2); transform: rotate(-90deg); transition: transform 0.22s ease; }
 .epic-toggle[aria-expanded="true"] .epic-chevron { transform: none; }
 .epic-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: 22px; line-height: 1.1; }
 .epic.is-high .epic-title::before { content: "!"; margin-right: 0.4em; color: var(--red); }
 .epic.is-on_hold .epic-title, .epic.is-done .epic-title { color: var(--ink-3); }
-.epic.is-none { background: transparent; border-style: dashed; }
+.epic.is-none { background: transparent; border-style: dashed; box-shadow: none; padding-top: 0; }
+.epic.is-none::before { display: none; }
 .epic-progress { display: inline-flex; flex-direction: column; gap: 5px; width: 64px; font-family: var(--font-print); font-size: 14px; color: var(--ink-2); }
 .epic-track { position: relative; height: 2px; background: var(--rule-soft); overflow: hidden; border-radius: 1px; }
 .epic-fill { position: absolute; inset: 0; background: var(--green); transform-origin: left; transition: transform 0.6s var(--spring); }
@@ -138,7 +153,7 @@
 .room .epic-priority.is-high { color: var(--red-ink); border-color: var(--red-soft); }
 .room .epic-edit { font-family: var(--font-print); font-size: 14px; color: var(--ink-3); padding: 6px 4px; }
 .room .epic-edit:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-.epic-body { padding: 0 14px 14px 42px; animation: fade-in 0.2s ease-out both; }
+.epic-body { padding: 0 12px 14px; animation: fade-in 0.2s ease-out both; }
 .epic-desc { margin: 0 0 12px; max-width: 70ch; font-size: 16px; line-height: 1.4; color: var(--ink-2); white-space: pre-line; }
 .epic-empty { margin: 4px 0 6px; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
 .epic-body .lane-add input { margin: 12px 0 0; }
@@ -160,7 +175,7 @@
 .signin-wordmark { margin: 0 0 34px; padding: 0; font-size: 56px; }
 .signin-pass { position: relative; width: 236px; height: 318px; }
 .signin-docket { position: absolute; left: 0; right: 0; top: 0; height: 300px; animation: signin-feed 0.9s var(--spring) 0.15s backwards; }
-.signin-docket .plate { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.signin-docket .dk-paper { --u: 1px; }
 .signin-print {
   position: absolute; inset: 34px 22px 52px 22px; display: flex; flex-direction: column; gap: 10px;
   font-family: var(--font-print); color: var(--paper-ink); line-height: 1;
@@ -170,7 +185,7 @@
 .signin-dashes { overflow: hidden; white-space: nowrap; font-size: 15px; letter-spacing: -0.02em; }
 .signin-order { margin: 6px 0 !important; font-weight: 700; font-size: 22px; letter-spacing: 0.01em; }
 .signin-foot { margin-top: auto !important; font-size: 15px; letter-spacing: 0.12em; color: var(--paper-red); }
-.signin-rail { position: absolute; left: -64px; bottom: 0; width: calc(100% + 128px); max-width: none; height: 34px; object-fit: fill; }
+.room .signin-rail { --u: 1.4px; position: absolute; left: -64px; right: -64px; bottom: 0; height: 22px; margin: 0; }
 .room .signin-button {
   margin-top: 34px; min-width: 236px; height: 48px; padding: 0 22px;
   font-family: var(--font-print); font-size: 18px; letter-spacing: 0.02em;
@@ -195,6 +210,7 @@
 }
 @media (max-width: 819px) {
   .roombar { flex-wrap: wrap; height: auto; gap: 8px 18px; padding: 12px 16px 14px; }
+  .room .roombar-out { font-size: 15px; }
   .roombar .wordmark { font-size: 28px; }
   .roombar .rooms { order: 3; flex-basis: 100%; font-size: 17px; }
   .room-main { padding: 18px 16px 96px; }
@@ -209,9 +225,117 @@
   .room .epic-toggle { flex-basis: 100%; }
   .epic-title { font-size: 19px; }
   .epic-body { padding: 0 10px 12px; }
+  .epic-list { grid-template-columns: 1fr; }
   .slip-strip .slip-meta { display: none; }
   .signin-wordmark { font-size: 44px; }
   /* the Pass's top bar on the phone: the rooms take their own row under the day's line */
   .pass .rooms { position: static; grid-column: 1 / -1; width: auto; height: auto; margin-top: 12px; font-size: 16px; }
   .pass .room-link[aria-current="page"]::after { bottom: -5px; }
+}
+
+/* ---------- epic colour: a quiet band down the left edge (slips), a hairline down an epic's ---------- */
+.slip.has-epic { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--epic) 70%, transparent); }
+.epic.is-done.has-epic::before, .epic.is-on_hold.has-epic::before { background: color-mix(in srgb, var(--epic) 40%, var(--surface)); }
+.epic-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
+.epic-swatches legend { margin-bottom: 6px; padding: 0; font-size: calc(14 * var(--u)); color: var(--ink-3); }
+.epic-swatch { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
+.epic-swatch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.epic-swatch span { width: 20px; height: 20px; border-radius: 50%; background: var(--epic); }
+.epic-swatch:has(input:checked) { box-shadow: 0 0 0 2px var(--ink); }
+.epic-swatch:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+:root[data-dragging] .kanban-cols { scroll-snap-type: none; }
+:root[data-dragging] .slip { touch-action: none; }
+
+/* ---------- share: what toodoo made of something shared, to check and add ---------- */
+.share { align-items: center; }
+.share-form { width: 100%; max-width: 560px; padding: 0; font-family: var(--font-print); }
+.share-form .room-title, .share-way { font-family: var(--font-ui); }
+.share .sheet-form { --u: 1px; }
+.share-found { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.share-found li {
+  padding: 4px 9px; font-family: var(--font-print); font-size: 14px; color: var(--ink-2);
+  background: var(--well); border: 1px solid var(--rule-soft); border-radius: var(--radius);
+}
+.share-way { margin: 14px 0 0; max-width: 60ch; font-size: 16px; line-height: 1.45; color: var(--ink-2); }
+.share-way b { display: block; color: var(--ink); }
+.room .share-bookmarklet { margin-top: 16px; cursor: grab; text-decoration: none; }
+.share-done { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 12vh; text-align: center; }
+.share-done-head { margin: 0; font-family: var(--font-print); font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); }
+.share-done-title { margin: 0; max-width: 32ch; font-family: var(--font-print); font-weight: 700; font-size: 20px; line-height: 1.25; }
+
+/* ---------- theme: light · dark · auto ---------- */
+.theme-switch { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--rule-soft); border-radius: calc(var(--radius) + 2px); }
+:is(.pass, .room) .theme-opt { display: grid; place-items: center; width: 26px; height: 24px; color: var(--ink-3); border-radius: var(--radius); }
+:is(.pass, .room) .theme-opt:hover { color: var(--ink); }
+:is(.pass, .room) .theme-opt[aria-pressed="true"] { color: var(--ink); background: var(--well-strong); }
+.viewmenu-field .theme-switch { justify-self: start; }
+
+/* ---------- a task, read: a long slip of thermal paper with a perforated edge ---------- */
+.sheet.sheet-ticket {
+  --u: 1px; width: min(440px, 100vw); overflow: visible; background: var(--paper); color: var(--paper-ink); border-left: 0;
+  box-shadow: -14px 0 30px rgb(0 0 0 / 0.18);
+}
+/* the torn-off edge: paper teeth down the left side, nothing between them */
+.sheet-ticket::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -6px; width: 6px; pointer-events: none;
+  background: conic-gradient(from 45deg at 0 50%, var(--paper) 90deg, transparent 0) 0 0 / 6px 12px repeat-y;
+}
+.ticket {
+  position: relative; height: 100%; box-sizing: border-box; overflow-y: auto; padding: 26px 26px 28px 28px;
+  display: flex; flex-direction: column; gap: 12px; font-family: var(--font-print); font-size: 15px; line-height: 1.35;
+}
+.ticket.is-done > :not(.tk-actions, .tk-close, .tk-title-row, .tk-status) { opacity: 0.65; }
+.room .tk-close, .pass .tk-close {
+  position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 32px; height: 32px;
+  color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); border-radius: 2px;
+}
+:is(.pass, .room) .tk-close:hover { color: var(--paper-ink); background: color-mix(in srgb, var(--paper-ink) 7%, var(--paper)); }
+.ticket p { margin: 0; }
+.tk-head { display: flex; justify-content: space-between; gap: 14px; padding-right: 40px; font-size: 16px; letter-spacing: 0.03em; }
+.tk-late { color: var(--paper-red); }
+.tk-dashes { overflow: hidden; white-space: nowrap; line-height: 1; letter-spacing: -0.02em; color: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }
+.tk-title-row { display: flex; align-items: flex-start; gap: 10px; }
+.tk-title { flex: 1; margin: 0; font-size: 25px; line-height: 1.18; font-weight: 700; letter-spacing: 0.005em; overflow-wrap: anywhere; }
+.ticket.is-high .tk-title { color: var(--paper-red); }
+.ticket.is-done .tk-title-text {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4.6C6 3.2 12 5.6 20 4.2S33 3.1 40 4.7' fill='none' stroke='%232c4fa3' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E")
+    0 55% / 2.4em 0.42em repeat-x;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.tk-tick { flex: none; width: 46px; height: 46px; color: var(--biro); margin-top: -6px; }
+.tk-flags { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; letter-spacing: 0.05em; }
+.tk-flags:empty { display: none; }
+.tk-high { color: var(--paper-red); font-weight: 700; }
+.tk-epic { display: flex; align-items: center; gap: 8px; font-size: 14px; letter-spacing: 0.04em; }
+.tk-epic-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--epic, color-mix(in srgb, var(--paper-ink) 40%, var(--paper))); }
+.tk-epic-status { color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
+.tk-progress { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; font-size: 13px; }
+.tk-progress .pen-progress { height: 7px; }
+.tk-body { white-space: pre-line; overflow-wrap: anywhere; }
+.tk-note { font-style: italic; }
+.tk-link a { color: var(--biro); overflow-wrap: anywhere; }
+.tk-tags { font-size: 14px; color: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }
+.tk-status { display: flex; gap: 6px; flex-wrap: wrap; }
+:is(.pass, .room) .tk-chip {
+  padding: 6px 10px; font-family: var(--font-print); font-size: 14px; color: var(--paper-ink);
+  border: 1px dashed color-mix(in srgb, var(--paper-ink) 40%, var(--paper)); border-radius: 2px;
+}
+:is(.pass, .room) .tk-chip[aria-pressed="true"] { border-style: solid; border-color: var(--paper-ink); font-weight: 700; }
+.tk-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+:is(.pass, .room) .tk-act {
+  min-height: 40px; padding: 0 14px; font-family: var(--font-print); font-size: 15px; letter-spacing: 0.02em; color: var(--paper-ink);
+  border: 1.5px solid var(--paper-ink); border-radius: 2px; box-shadow: 0 2px 0 color-mix(in srgb, var(--paper-ink) 25%, transparent);
+}
+:is(.pass, .room) .tk-act:hover { background: color-mix(in srgb, var(--paper-ink) 6%, var(--paper)); }
+:is(.pass, .room) .tk-act:active { transform: translateY(1px); box-shadow: none; }
+:is(.pass, .room) .tk-primary { background: var(--paper-ink); color: var(--paper); }
+:is(.pass, .room) .tk-primary:hover { background: color-mix(in srgb, var(--paper-ink) 85%, var(--paper)); }
+:is(.pass, .room) .tk-delete { color: var(--paper-red); border-color: color-mix(in srgb, var(--paper-red) 55%, var(--paper)); box-shadow: none; }
+.ticket :focus-visible { outline: 2px solid var(--paper-ink); outline-offset: 2px; }
+@media (max-width: 819px) {
+  .sheet.sheet-ticket { width: 100vw; max-height: 88dvh; box-shadow: 0 -12px 30px rgb(0 0 0 / 0.2); }
+  .sheet-ticket::before { left: 0; right: 0; top: -6px; bottom: auto; width: auto; height: 6px;
+    background: conic-gradient(from 135deg at 50% 0, var(--paper) 90deg, transparent 0) 0 0 / 12px 6px repeat-x; }
+  .ticket { max-height: 88dvh; padding: 20px 18px calc(22px + env(safe-area-inset-bottom)); }
+  .tk-title { font-size: 21px; }
 }

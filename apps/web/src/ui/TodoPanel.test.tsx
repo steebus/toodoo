@@ -103,14 +103,14 @@ it("puts the biro ring on the top suggestion only", () => {
   expect(screen.getByRole("article", { name: "WRITE REPORT" }).closest("li")).toContainElement(rings[0]);
 });
 
-it("gives a task the same docket paper every render", () => {
-  const b = board();
-  const { unmount } = show(b);
-  const src = () => screen.getAllByRole("article").map((a) => a.closest("li")!.querySelector("img.plate")!.getAttribute("src"));
-  const first = src();
-  unmount();
-  show(b);
-  expect(src()).toEqual(first);
+it("opens a docket as a ticket, with its actions on it", async () => {
+  show();
+  await userEvent.click(screen.getByRole("button", { name: "Open WRITE REPORT" }));
+  const ticket = screen.getByRole("dialog", { name: "WRITE REPORT" });
+  expect(within(ticket).getByText("! HIGH")).toBeInTheDocument();
+  for (const name of ["Done", "Plan it", "Edit", "Delete"]) expect(within(ticket).getByRole("button", { name })).toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 it("lists next up with the first reason, and Plan all is ready", () => {
@@ -215,4 +215,17 @@ it("widens the day plan to include the now-line hour", () => {
   const hours = within(screen.getByRole("list", { name: "Hours" })).getAllByRole("listitem").map((l) => l.textContent);
   expect(hours.at(-1)).toBe("11pm");
   expect(screen.getByLabelText("Now 10:30")).toBeInTheDocument();
+});
+
+it("folds done today away, and remembers it folded", async () => {
+  const done = task({ title: "Pay rent", done: true, done_on: T });
+  const b = board({ tasks: [...board().tasks, done] });
+  show(b);
+  expect(screen.getByRole("article", { name: "PAY RENT" })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Hide done today" }));
+  expect(screen.queryByRole("article", { name: "PAY RENT" })).not.toBeInTheDocument();
+  cleanup();
+  show(b);
+  expect(screen.getByRole("button", { name: "Show done today" })).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("article", { name: "PAY RENT" })).not.toBeInTheDocument();
 });

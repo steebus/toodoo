@@ -10,6 +10,10 @@ export const TASK_STATUSES = ["todo", "doing", "blocked"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = { todo: "To do", doing: "Doing", blocked: "Blocked" };
 
+// Categorical, never signals: no reds or greens (those mean high/carried and done). Hues live in tokens.css.
+export const EPIC_COLOURS = ["blue", "violet", "amber", "teal", "plum", "slate", "ochre", "sky"] as const;
+export type EpicColour = (typeof EPIC_COLOURS)[number];
+
 export interface Epic {
   id: string;
   title: string;
@@ -17,7 +21,19 @@ export interface Epic {
   priority: Priority | null;
   status: EpicStatus;
   sort_order: number;
+  colour?: EpicColour | null; // missing on epics made before colours
 }
+
+// A new epic takes the first colour no open epic is using, then goes round again.
+export function nextColour(epics: Pick<Epic, "colour" | "status">[]): EpicColour {
+  const used = new Set(epics.filter((e) => e.status !== "done").map((e) => e.colour));
+  return EPIC_COLOURS.find((c) => !used.has(c)) ?? EPIC_COLOURS[epics.length % EPIC_COLOURS.length];
+}
+
+// The words that pick an epic: its title's, lower case, short and common ones left out.
+const STOP = new Set(["the", "and", "for", "with", "from", "into", "our", "new", "your", "this", "that"]);
+export const epicWords = (s: string) =>
+  s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3 && !STOP.has(w));
 
 type P = Priority | "none";
 // A task's own priority leads; its epic's counts for half, so a high epic lifts a plain task to medium

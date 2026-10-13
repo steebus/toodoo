@@ -69,7 +69,7 @@ export const createEpic = (store: WorkStore, a: { epic: unknown }) => {
   const e = a.epic as Partial<Epic>;
   editEpics(store, (list) => [...list, {
     id: `optimistic-e${++n}`, title: e.title ?? "", description: e.description ?? null, priority: e.priority ?? null,
-    status: e.status ?? "planned", sort_order: 1e12,
+    status: e.status ?? "planned", sort_order: 1e12, colour: e.colour ?? null,
   }]);
 };
 

@@ -19,7 +19,10 @@ it("creates, lists in rank order, updates and validates epics", async () => {
   const t = setup();
   const a = await t.mutation(api.epics.create, { epic: { title: "Tax", priority: "low" } });
   const b = await t.mutation(api.epics.create, { epic: { title: "Launch", priority: "high", status: "active" } });
-  expect(a).toMatchObject({ title: "Tax", priority: "low", status: "planned", description: null });
+  expect(a).toMatchObject({ title: "Tax", priority: "low", status: "planned", description: null, colour: "blue" });
+  expect(b.colour).toBe("violet");
+  expect((await t.mutation(api.epics.update, { id: b.id, patch: { colour: "amber" } })).colour).toBe("amber");
+  await expect(t.mutation(api.epics.update, { id: b.id, patch: { colour: "red" } })).rejects.toThrow(/colour/);
   expect((await t.query(api.epics.list, {})).map((e) => e.title)).toEqual(["Launch", "Tax"]);
   const up = await t.mutation(api.epics.update, { id: a.id, patch: { status: "active", priority: "high", description: "BAS" } });
   expect(up).toMatchObject({ status: "active", priority: "high", description: "BAS" });

@@ -1,6 +1,6 @@
 ---
 name: toodoo
-description: A day planner drawn as a kitchen expo pass; tasks are thermal-paper dockets on a steel ticket rail beside a timeline.
+description: A day planner drawn as a kitchen expo pass; tasks are thermal-paper dockets on flat 2D ticket rails beside a timeline, marked up in biro.
 colors:
   ground: "#fcfcfc"
   surface: "#ffffff"
@@ -131,15 +131,16 @@ components:
 
 **Creative North Star: "The Pass"**
 
-The day is a working kitchen pass. Tasks are paper dockets that come up on a steel ticket rail, get fired onto the line (the timeline) at a time, and are bumped when done. The ground is white and near-white, the ink is near-black, and the only colours are the signals a kitchen would use: docket red for what is high priority or carried over, bump green for done. Everything that is a time, a duration or a count is set in a tabular monospace, as if printed by a ticket machine.
+The day is a working kitchen pass. Tasks are paper dockets that come up on a ticket rail, get fired onto the line (the timeline) at a time, and are bumped when done. The ground is white and near-white, the ink is near-black, and the only colours are the signals a kitchen would use: docket red for what is high priority or carried over, bump green for done. Everything that is a time, a duration or a count is set in a tabular monospace, as if printed by a ticket machine.
 
-The system is a measured reproduction of one approved comp: type sizes, positions and the steel and paper plates all come from it. The whole frame is one scaled stage. Sizes are written as comp pixels multiplied by one unit (`--u`, at most 1px, shrinking with windows narrower than 1536 or shorter than 900), so a small window is the comp in miniature, never a reflow. Under 820px the same pieces re-lay as one room at a time (Today or Plan) with bottom tabs.
+The system is a measured reproduction of one approved comp: type sizes and positions come from it (the rails and paper, once raster plates, are now drawn in CSS). The whole frame is one scaled stage. Sizes are written as comp pixels multiplied by one unit (`--u`, at most 1px, shrinking with windows narrower than 1536 or shorter than 900), so a small window is the comp in miniature, never a reflow. Under 820px the same pieces re-lay as one room at a time (Today or Plan) with bottom tabs.
 
 Density is calm: a thin chrome of hairlines and dashed hour lines, with the colourful and tactile material reserved for dockets and rails.
 
 **Key Characteristics:**
 - Near-monochrome ground; red and green are signals, never decoration.
-- Dockets are illustrated paper (raster plates) with live type printed on top.
+- Dockets are thermal paper drawn in CSS (a perforated top, a flat offset shadow) with live type printed on top; rails are flat 2D bars, outlined, with a highlight, a shade and bolts, like a game's.
+- The hand is biro (`--biro`): the top pick's ring, the bump's loop and tick, the strike through done work and the progress line are all pen marks on the paper.
 - Mono for every time, duration, count and print line; a humanist sans for chrome labels.
 - Hairline rules and dashed hour lines; soft, small shadows only.
 - Motion is a first-class feature, built on one shared spring and always paired with a reduced-motion fallback.
@@ -153,7 +154,8 @@ Strategy: restrained neutral with two functional signals. Light is the default; 
 - **Docket Red Soft** (`docket-red-soft`): text selection, the high chip border, the warm flush on newly arrived dockets.
 
 ### Secondary
-- **Bump Green** (`bump-green`): the bump (done) control on dockets, plan-block ticks, the progress fill, done ticks.
+- **Bump Green** (`bump-green`): plan-block ticks, the day's progress fill, the swipe-to-bump under a phone stub.
+- **Biro** (`--biro`, #2c4fa3): the hand, not a signal. Pen marks on paper only: the top pick's ring, a docket's bump loop and scrawled tick, the wavy strike through done titles, and the time-spent line (which turns Docket Red Ink past the estimate). Like the paper, it never inverts.
 
 ### Neutral
 - **Ground** (`ground`) and **Surface** (`surface`): the page and raised controls (inputs, task blocks, sheets).
@@ -194,25 +196,28 @@ Strategy: restrained neutral with two functional signals. Light is the default; 
 
 One full-viewport frame (`100dvh`, no page scroll) with a top bar and two panes: Day plan on the left (about 34%) and To do on the right (the rest). The split is a single custom property (`--split`, default 33.85) driven by a draggable, keyboard-focusable divider grip and animated on release; everything on the To do side scales from what is left. The top bar carries the wordmark, the date and headline centred, the "n of m done" count with a green progress hairline, and the three presets Capture, Plan, Focus (Focus narrows the list to a column of one-line docket stubs).
 
-Day plan is a 7am to 6pm timeline of dashed hour lines with mono labels, event and task blocks in lanes, and a red now-line. The To do pane stacks: quick add and parsed chips, Next up strip of three, then rails (Carried over, Today, Coming up collapsed), each docket row horizontal on its steel rail. Spacing steps are 4, 8, 12, 20, 28px in the token set; most spacing in the build is measured comp px rather than that scale, so new work should use the scale for gaps and the unit (`--u`) for anything sized.
+Day plan is a 7am to 6pm timeline of dashed hour lines with mono labels, event and task blocks in lanes, and a red now-line. Next up (three lines and Plan all) heads the Day plan, above the line. The To do pane stacks: quick add and parsed chips, then rails (Carried over, Today, Done today and Coming up, the last two folding), each group's dockets wrapping onto rails stacked downward. Spacing steps are 4, 8, 12, 20, 28px in the token set; most spacing in the build is measured comp px rather than that scale, so new work should use the scale for gaps and the unit (`--u`) for anything sized.
 
-Breakpoint: below 820px the unit is a fixed 1px, the header regroups, Plan and Today become two rooms that slide past each other under bottom tabs (spring, 0.6s), Next up becomes a scroll-snapped strip, rails become a thin steel bar with compact stub dockets that swipe (bump on the left, Plan / Tomorrow on the right), and a round add button floats at the thumb corner.
+Breakpoint: below 820px the unit is a fixed 1px, the header regroups, Plan and Today become two rooms that slide past each other under bottom tabs (spring, 0.6s), Next up sits at the head of the Plan room, rails become a thin 2D bar with compact stub dockets that swipe (bump on the left, Plan / Tomorrow on the right), and a round add button floats at the thumb corner.
 
 ## Elevation & Depth
 
-Flat with a tonal step: white controls on a near-white ground, recessed wells for secondary areas, and hairlines for edges. The two real material layers are the steel rails and the paper dockets, both raster plates. Shadows are soft and small, and appear for things that are lifted: controls and blocks at rest (`0 1px 2px rgb(0 0 0 / 0.05)`), popovers (`0 8px 24px / 0.14`), sheets (a 30px spread at 0.14), toasts (`0 8px 24px / 0.22`), a pressed or keyed plan block (`0 6px 16px / 0.16`), and a dragged docket (`0 10px 22px / 0.22` plus a 1.2 degree tilt).
+Flat with a tonal step: white controls on a near-white ground, recessed wells for secondary areas, and hairlines for edges. The two material layers are the rails and the paper dockets, both drawn in CSS: rails as flat outlined bars (tokens `--rail-*`, re-toned for dark), paper with teeth that leave the ground showing between them, so both sit right in either theme. Shadows are soft and small, and appear for things that are lifted: controls and blocks at rest (`0 1px 2px rgb(0 0 0 / 0.05)`), popovers (`0 8px 24px / 0.14`), sheets (a 30px spread at 0.14), toasts (`0 8px 24px / 0.22`), a pressed or keyed plan block (`0 6px 16px / 0.16`), and a dragged docket (`0 10px 22px / 0.22` plus a 1.2 degree tilt).
 
 ### Named Rules
 **The Lifted-Only Rule.** Beyond the 1px resting hint on controls, a shadow means the thing is above the surface right now (open, held, dragged, or arriving).
 
 ## Shapes
 
-Small, square-ish radii: 4px on controls, blocks, chips and inputs; 5px on the Next up box; 2px on dockets and the paper print; full circles for bump and tick controls and the add button on phone. Edges are 1px hairlines in Rule or Rule Soft. Dockets have a sawtooth perforated top and a lip on the steel; the top pick carries one hand-drawn blue biro ring wider than its docket. Dashed borders mean provisional (the drop target, the slot cursor, the drag ghost).
+Small, square-ish radii: 4px on controls, blocks, chips and inputs; 5px on the Next up box; 2px on dockets and the paper print; full circles for bump and tick controls and the add button on phone. Edges are 1px hairlines in Rule or Rule Soft. Dockets have a sawtooth perforated top and stand on their rail; the top pick carries one hand-drawn blue biro ring wider than its docket. Dashed borders mean provisional (the drop target, the slot cursor, the drag ghost).
 
 ## Components
 
 ### Docket
-The signature piece. Paper plate with live mono print on it. Today dockets show time and duration, a bold capitalised title (up to two lines), source, a dashed rule, then START / DURATION / TAGS rows. Carried dockets lead with "n DAYS" in red, then title, then DUE / TAGS / DURATION. High priority prints in Docket Red Ink. The top pick has the biro ring. A bump control (green circle) appears on hover or focus, always visible on touch; done dockets print at 55% with a struck title. The title opens the edit sheet.
+The signature piece. CSS paper with live mono print on it, standing on a rail; a group's dockets wrap onto as many rails as they need, stacked down the To do side (a repeating background draws one rail per row), never scrolling sideways. Today dockets show time and duration, a bold capitalised title, source, a dashed rule, then START / DURATION / EPIC / TAGS rows. Carried dockets lead with "n DAYS" in red, then title, then DUE / EPIC / DURATION. The title takes the paper's spare room and a long one prints smaller on more lines (`fit-1`, `fit-2`) rather than being cut off. High priority (the task's own, as its epic lifts or sinks it) prints in Docket Red Ink. The top pick has the biro ring. The bump is a pen loop in the corner (on hover or focus, always on touch) that ticking scrawls a biro tick through; done dockets go quiet with a wavy biro strike. A task with an estimate and time spent carries a pen line along its foot. The title opens the task's ticket.
+
+### Ticket
+A task, read: a side sheet (bottom sheet on the phone) of the same paper with a perforated edge, printing when, time and estimate, the title, flags, epic, time spent, description, note, link and tags, with the actions along the foot (Done, Plan it, Tomorrow, the Board's columns, Edit, Delete) as inked paper buttons. Edit opens the edit sheet.
 
 ### Plan blocks
 Mono, 4px, hairline border. Tasks are white; events are Well Strong. The current block takes a 3px ink left edge. Tick and unplan appear over the block's right end on hover (tap on touch). Blocks drag, resize from the bottom edge, and take keys. Empty time shows a dashed cursor and opens the slot picker.
@@ -224,7 +229,7 @@ One line of mono in a white 4px input, with parsed chips (date, time, priority, 
 Quiet: white, 1px Rule border, 4px, border darkens to Ink 3 on hover. The one filled button is Save (Ink on Surface). Delete is red text on a red-soft border. Presets are plain text, the active one bold with a 2.5px ink underline.
 
 ### Rooms and slips
-Beyond the day, the Board and Epics are rooms: pages that flow and scroll in plain px, under a top bar of the wordmark, the room nav (Day · Board · Epics, set like the presets) and Sign out. The room nav also sits in the Pass's top bar, in the open run between the wordmark and the headline. Tasks there are slips: CSS paper (`--paper`, never inverted) with a sawtooth top, mono print and capitalised titles, sitting in recessed wells. A card is a slip with when/estimate, title and an epic/tag foot; a strip is one printed line with a grip and a cross. A well taking a drop goes dashed. The sign-in screen is one docket plate fed down onto a rail plate, printed with the date and time, over a single ink button.
+Beyond the day, the Board and Epics are rooms: pages that flow and scroll in plain px, under a top bar of the wordmark, the room nav (Day · Board · Epics, set like the presets) and Sign out. The room nav also sits in the Pass's top bar, in the open run between the wordmark and the headline. Tasks there are slips: CSS paper (`--paper`, never inverted) with a sawtooth top, mono print and capitalised titles, sitting in recessed wells. A card is a slip with when/estimate, title and an epic/tag foot; a strip is one printed line with a grip and a cross. A well taking a drop goes dashed. An epic's colour (eight muted hues, `--epic-*`, none red or green) is a 3px band down the left of its tasks' dockets, plan blocks and slips: a category at a glance, never a signal. The sign-in screen is one CSS docket fed down onto a 2D rail, printed with the date and time, over a single ink button. Epics are cards in a grid, each with its colour along the top edge. A Light · Dark · Auto switch sits in the View menu and the rooms' top bar.
 
 ### Sheets, popovers, toast
 Edit sheet is a native dialog, a side sheet from the right (440px) on desktop and a bottom sheet on phone, with a blurred scrim. The view menu and slot picker are springy popovers. Toast is a dark slip at bottom centre with an undo and a draining ring; an error toast is a white slip with a red hairline.
@@ -238,7 +243,7 @@ One spring (`--spring`, about 320ms visual, 600ms wall) is shared by CSS and the
 - **Do** size anything on the stage in comp px times `--u`, and take colours from the custom properties.
 - **Do** set times, durations and counts in the print mono with tabular figures.
 - **Do** keep red and green to their signal meanings.
-- **Do** keep dockets as paper with live print on top; update the print, not the plate.
+- **Do** keep dockets as paper with live print on top, and mark them by hand (biro) rather than with UI ticks.
 - **Do** give every new animation the shared spring and a reduced-motion fallback.
 - **Do** keep a visible focus ring (2px ink, 2px offset) on every control.
 

@@ -2,8 +2,8 @@ import { useDroppable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useState, type ReactNode } from "react";
-import { byEpicRank, EPIC_STATUSES, EPIC_STATUS_LABEL, epicMap, type Epic } from "@shared/epics.ts";
-import { byOrder } from "@shared/planning.ts";
+import { byEpicRank, EPIC_STATUSES, EPIC_STATUS_LABEL, epicMap, nextColour, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
+import { addDays, byOrder } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
@@ -11,7 +11,8 @@ import { EditSheet } from "./EditSheet";
 import { EpicSheet } from "./EpicSheet";
 import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "./icons";
 import { justDropped, LaneDnd, LaneList } from "./LaneDnd";
-import { LaneAdd, SlipGhost, SlipPrint } from "./Slip";
+import { epicStyle, LaneAdd, SlipGhost, SlipPrint } from "./Slip";
+import { TaskView } from "./TaskView";
 import { Toast } from "./Toast";
 
 const NONE = "__none"; // the lane of tasks with no epic
@@ -38,6 +39,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
   };
   const [sheet, setSheet] = useState<string | "new" | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
   const off = actions.offline;
 
   const ranked = useMemo(() => [...work.epics].sort(byEpicRank), [work.epics]);
@@ -73,9 +75,10 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
 
   const editEpic = sheet && sheet !== "new" ? epics.get(sheet) : undefined;
   const editTask = editing ? byId.get(editing) : undefined;
+  const viewTask = viewing ? byId.get(viewing) : undefined;
   const strip = (t: FullTask, lane: string) => (
     <EpicStrip key={t.id} task={t} lane={lane} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today}
-      disabled={off} onOpen={setEditing} onUnfile={lane === NONE ? undefined : () => unfile(t)} />
+      disabled={off} onOpen={setViewing} onUnfile={lane === NONE ? undefined : () => unfile(t)} />
   );
 
   return (
@@ -106,12 +109,15 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
             const done = work.done_counts[e.id] ?? 0;
             const total = open.length + done;
             return (
-              <section key={e.id} className={`epic is-${e.status}${e.priority === "high" ? " is-high" : ""}`} aria-labelledby={`epic-${e.id}`}>
+              <section key={e.id} className={`epic is-${e.status}${e.priority === "high" ? " is-high" : ""}${e.colour ? " has-epic" : ""}`}
+                style={epicStyle(e)} aria-labelledby={`epic-${e.id}`}>
                 <EpicHead lane={e.id} droppable={!isOpen(e.id)}>
                   <button type="button" className="epic-toggle" aria-expanded={isOpen(e.id)} aria-controls={`epic-body-${e.id}`} onClick={() => toggle(e.id)}>
                     <ChevronIcon size={18} className="epic-chevron" />
                     <h2 id={`epic-${e.id}`} className="epic-title">{e.title}</h2>
                   </button>
+                  <button type="button" className="epic-edit" onClick={() => setSheet(e.id)}>Edit</button>
+                  <div className="epic-meta">
                   <span className="epic-progress" aria-label={`${done} of ${total} done`}>
                     <span>{done}/{total}</span>
                     <span className="epic-track" aria-hidden><span className="epic-fill" style={{ transform: `scaleX(${total ? done / total : 0})` }} /></span>
@@ -127,7 +133,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
                     onChange={(ev) => void actions.updateEpic(e.id, { status: ev.target.value as Epic["status"] }, `${e.title}: ${EPIC_STATUS_LABEL[ev.target.value as Epic["status"]].toLowerCase()}`)}>
                     {EPIC_STATUSES.map((s) => <option key={s} value={s}>{EPIC_STATUS_LABEL[s]}</option>)}
                   </select>
-                  <button type="button" className="epic-edit" onClick={() => setSheet(e.id)}>Edit</button>
+                  </div>
                 </EpicHead>
                 {isOpen(e.id) && (
                   <div id={`epic-body-${e.id}`} className="epic-body">
@@ -161,10 +167,20 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
         </div>
       </LaneDnd>
       {sheet && (
-        <EpicSheet key={sheet} epic={editEpic} offline={off}
+        <EpicSheet key={sheet} epic={editEpic} colour={nextColour(work.epics)} offline={off}
           onSave={(f) => void (editEpic ? actions.updateEpic(editEpic.id, f) : actions.createEpic(f))}
           onDelete={editEpic ? () => actions.removeEpic(editEpic.id) : undefined}
           onClose={() => setSheet(null)} />
+      )}
+      {viewTask && (
+        <TaskView key={viewTask.id} task={viewTask} today={work.today} offline={off}
+          epic={viewTask.epic_id ? epics.get(viewTask.epic_id) : undefined}
+          onClose={() => setViewing(null)}
+          onTick={(done) => actions.move(viewTask.id, { done }, `${done ? "Done" : "Reopened"}: ${viewTask.title}`)}
+          onStatus={(s) => actions.move(viewTask.id, { status: s }, `${TASK_STATUS_LABEL[s]}: ${viewTask.title}`)}
+          onTomorrow={() => void actions.save(viewTask.id, { due: addDays(work.today, 1) })}
+          onEdit={() => { setViewing(null); setEditing(viewTask.id); }}
+          onDelete={() => actions.remove(viewTask.id)} />
       )}
       {editTask && (
         <EditSheet key={editTask.id} task={editTask} epics={work.epics} offline={off}
@@ -192,8 +208,8 @@ function EpicStrip({ task, lane, epic, today, disabled, onOpen, onUnfile }: Stri
     id: task.id, data: { type: "task", lane }, disabled,
   });
   return (
-    <li ref={setNodeRef} className={`slip slip-strip${isDragging ? " is-lifted" : ""}`} data-slip={task.id}
-      style={{ transform: CSS.Translate.toString(transform), transition }} {...listeners}>
+    <li ref={setNodeRef} className={`slip slip-strip${isDragging ? " is-lifted" : ""}${epic?.colour ? " has-epic" : ""}`} data-slip={task.id}
+      style={{ transform: CSS.Translate.toString(transform), transition, ...epicStyle(epic) }} {...listeners}>
       <button type="button" ref={setActivatorNodeRef} className="strip-grip" {...attributes} aria-roledescription="task" aria-label={`Move ${task.title}`}>
         <GripIcon size={12} />
       </button>

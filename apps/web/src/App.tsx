@@ -6,12 +6,14 @@ import { useActions } from "./lib/useActions";
 import { useBoard } from "./lib/useBoard";
 import { useDayChange } from "./lib/useDayChange";
 import { useViewDate } from "./lib/useViewDate";
-import { useRoute, type Room } from "./lib/useRoute";
+import { pendingShare } from "./lib/share";
+import { go, useRoute } from "./lib/useRoute";
 import { useWorkActions, useWorkspace } from "./lib/useWork";
 import { Epics } from "./ui/Epics";
 import { Hero, HeroShell } from "./ui/Hero";
 import { Kanban } from "./ui/Kanban";
 import { RoomShell } from "./ui/RoomShell";
+import { ShareRoom } from "./ui/ShareRoom";
 import { SignIn as Door } from "./ui/SignIn";
 import type { BoardData } from "./ui/types";
 
@@ -48,7 +50,13 @@ function Live({ board, date, onDate }: { board: BoardData; date: string; onDate:
 }
 
 // The Board and Epics rooms work from one live query; until it lands, the room's frame.
-function WorkRoom({ room }: { room: Exclude<Room, "day"> }) {
+function SharedRoom() {
+  const out = useSignOut();
+  const offline = useOffline();
+  return <RoomShell room="share" offline={offline} onSignOut={out}><ShareRoom offline={offline} /></RoomShell>;
+}
+
+function WorkRoom({ room }: { room: "board" | "epics" }) {
   const out = useSignOut();
   const work = useWorkspace();
   const actions = useWorkActions(work);
@@ -61,6 +69,11 @@ function WorkRoom({ room }: { room: Exclude<Room, "day"> }) {
 
 function Rooms({ cached }: { cached?: string }) {
   const [room] = useRoute();
+  // Back from signing in (AuthKit returns to /callback) with a share still waiting: take it up.
+  useEffect(() => {
+    if (room !== "share" && pendingShare()) go("share");
+  }, [room]);
+  if (room === "share") return <SharedRoom />;
   return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
 }
 

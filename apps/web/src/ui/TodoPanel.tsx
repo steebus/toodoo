@@ -1,24 +1,18 @@
-import { horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { rectSortingStrategy, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { spanOf, type View } from "@shared/board.ts";
-import railCarried from "../assets/plates/rail-carried.webp";
-import railComingup from "../assets/plates/rail-comingup.webp";
-import railToday from "../assets/plates/rail-today.webp";
 import { isOptimistic, type NewTask } from "../lib/useActions";
 import type { PassModel } from "./build";
 import { Docket } from "./Docket";
 import { Flight, type FlightPlan } from "./Flight";
 import { clock12 } from "./format";
 import { CheckIcon } from "./icons";
-import { NextUp } from "./NextUp";
 import { reducedMotion } from "./motion";
 import { launch, QuickAdd } from "./QuickAdd";
 import { Rail, type RailGeo } from "./Rail";
 import type { DocketData, GroupData } from "./types";
 import { ViewMenu } from "./ViewMenu";
-
-const PLATE: Record<Exclude<RailGeo, "compact">, string> = { carried: railCarried, today: railToday, slim: railComingup };
 
 type Props = {
   model: PassModel;
@@ -32,7 +26,6 @@ type Props = {
   onOpen?: (id: string) => void;
   onTick?: (id: string, done: boolean) => void;
   onPlan?: (id: string) => void;
-  onPlanAll?: () => void;
   dnd?: boolean; // dockets drag (to the line, and among themselves while the sort is manual)
   compact?: boolean; // Focus: the list is a narrow column of one-line stubs
   offline?: boolean; // no writes: the add line is disabled
@@ -43,6 +36,19 @@ type Props = {
 };
 
 const NO_ARRIVALS = new Map<string, number>();
+
+// Done today folds away and stays folded (per device) until it is opened again.
+const DONE_KEY = "toodoo.doneOpen";
+function useDoneOpen(): [boolean, () => void] {
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(DONE_KEY) !== "0"; } catch { return true; }
+  });
+  const toggle = () => setOpen((o) => {
+    try { localStorage.setItem(DONE_KEY, o ? "0" : "1"); } catch { /* holds for this visit */ }
+    return !o;
+  });
+  return [open, toggle];
+}
 
 // A docket added from the quick add flies out of the input to its place in the rail. Until it lands, the
 // docket there stays hidden: the optimistic one, and the saved one that replaces it mid-flight (a new id
@@ -100,15 +106,17 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
   return visible;
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, onPlanAll, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
+  const [doneOpen, toggleDone] = useDoneOpen();
   const scroll = useRef<HTMLDivElement | null>(null);
 
   const groups = useMemo(
     () => model.groups.filter((g) => g.count > 0 || g.key === "today" || g.key === "comingup"),
     [model.groups],
   );
-  const shown = (g: GroupData) => g.dockets.length > 0 && (g.key !== "comingup" || comingOpen);
+  const shown = (g: GroupData) =>
+    g.dockets.length > 0 && (g.key !== "comingup" || comingOpen) && (g.key !== "done" || doneOpen);
   const sig = (compact ? "c|" : "") + groups.map((g) => (shown(g) ? g.dockets.map((d) => d.id).join(",") : "")).join("|");
   const visible = useVisibleDockets(scroll, [sig]);
 
@@ -117,8 +125,8 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
       g.dockets.filter((d) => !visible || visible.has(d.id)).map((d) => d.hm),
     );
     return spanOf(times);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` only reads comingOpen
-  }, [groups, visible, comingOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` only reads comingOpen and doneOpen
+  }, [groups, visible, comingOpen, doneOpen]);
 
   const flight = useAddFlight(groups, scroll, compact);
 
@@ -133,8 +141,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
           {clock12(span.to)}
         </p>
       )}
-      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} />
-      <NextUp items={model.nextUp} onPlanAll={onPlanAll} onOpen={onOpen} />
+      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} epics={model.epics} />
       {/* Changing between the rails and the Focus column crossfades the two forms. */}
       <AnimatePresence initial={false}>
         <m.div
@@ -157,12 +164,12 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
                 key={g.key}
                 label={g.label}
                 count={g.count}
-                plate={PLATE[geo === "compact" ? "slim" : geo]} // a stub column hangs from a rail only on the phone
                 geo={geo}
-                toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) } : undefined}
+                toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) }
+                  : g.key === "done" && g.count > 0 ? { open: doneOpen, onToggle: toggleDone } : undefined}
               >
                 {open && (
-                  <SortableContext id={g.key} items={g.dockets.map((d) => d.id)} strategy={compact ? verticalListSortingStrategy : horizontalListSortingStrategy}>
+                  <SortableContext id={g.key} items={g.dockets.map((d) => d.id)} strategy={compact ? verticalListSortingStrategy : rectSortingStrategy}>
                     {g.dockets.map((d) => (
                       <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} onOpen={onOpen} onTick={onTick} onPlan={onPlan}
                         dnd={dnd ? { manual: view.sort === "manual" } : undefined} compact={compact} arrival={arrivals.get(d.id)} inflight={flight.hidden(d)}

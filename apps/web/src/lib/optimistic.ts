@@ -30,6 +30,7 @@ export const addTasks = (store: Store, { tasks }: { tasks: unknown[] }) =>
         priority: t.priority ?? null, estimate_mins: typeof t.estimate_mins === "number" ? t.estimate_mins : null,
         done: false, done_on: null, sort_order: 1e9 + i, source: t.source ?? "you", external_id: t.external_id ?? null,
         tags: Array.isArray(t.tags) ? t.tags : [], link: t.link ?? null, note: t.note ?? null, description: t.description ?? null,
+        epic_id: t.epic_id ?? null, status: t.status ?? "todo",
       })),
     ],
   }));

@@ -12,6 +12,7 @@ export type Draft = {
 type Props = {
   task: FullTask;
   epics?: Epic[];
+  returnTo?: Element | null; // where focus goes on close, when what opened the sheet has gone (the ticket's Edit)
   draft?: Draft | null;
   offline?: boolean;
   onSave: (id: string, patch: Record<string, unknown>, draft: Draft) => void;
@@ -23,9 +24,9 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, 
 
 // A native modal dialog: side sheet on desktop, bottom sheet under 820px (see pass.css).
 // The dialog traps focus; on close focus goes back to whatever opened it.
-export function EditSheet({ task, epics = [], draft, offline = false, onSave, onDelete, onClose }: Props) {
+export function EditSheet({ task, epics = [], returnTo, draft, offline = false, onSave, onDelete, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const opener = useRef<Element | null>(document.activeElement);
+  const opener = useRef<Element | null>(returnTo ?? document.activeElement);
   const restore = useRef<Element | null>(null);
   const [f, setF] = useState<Draft>(draft ?? {
     title: task.title,

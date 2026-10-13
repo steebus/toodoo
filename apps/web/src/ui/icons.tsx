@@ -86,3 +86,64 @@ export const PlusIcon = ({ size = 16, className }: P) => (
     <path d="M10 4v12M4 10h12" />
   </svg>
 );
+
+export const SunIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="10" cy="10" r="3.5" />
+    <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4" />
+  </svg>
+);
+
+export const MoonIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M16 12.5A6.5 6.5 0 0 1 7.5 4a6.5 6.5 0 1 0 8.5 8.5z" />
+  </svg>
+);
+
+export const AutoIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="10" cy="10" r="7" />
+    <path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor" />
+  </svg>
+);
+
+// ---------- pen marks: done by hand in biro, on the paper (so in --biro, which never inverts) ----------
+
+// A quick scrawled tick, drawn on when it turns on; under reduced motion it fades in.
+export function PenTick({ on, draw, size = 30, className }: P & { on: boolean; draw?: boolean }) {
+  const still = useReducedMotion();
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.3}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable={false} className={className}>
+      <m.path
+        d="M3.2 13.4c1.3.6 2.9 2.4 4.4 4.9.3.5.9.5 1.2 0C11.4 13 15 7.6 21.2 3.1"
+        initial={draw ? (still ? { opacity: 0 } : { pathLength: 0 }) : false}
+        animate={still ? { opacity: on ? 1 : 0 } : { pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
+        transition={{ duration: still ? 0.15 : 0.32, ease: [0.3, 0, 0.2, 1] }}
+      />
+    </svg>
+  );
+}
+
+// The loop a pen makes round a box before it is ticked: the bump's empty state.
+export const PenLoop = ({ size = 30, className }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}
+    strokeLinecap="round" aria-hidden focusable={false} className={className}>
+    <path d="M12.6 3.1c4.9-.2 8.3 3.4 8.2 8.4-.1 5.2-4 8.9-8.9 8.8-4.8-.1-8.3-3.6-8.1-8.5C4 7 7.4 3.6 11.4 3.9" />
+  </svg>
+);
+
+// Time spent against the estimate: a pencilled dotted line, inked over in biro as far as the time spent.
+// Past the estimate the ink runs the whole way, in red.
+export function PenProgress({ spent, est, className }: { spent: number; est: number; className?: string }) {
+  const over = spent > est;
+  const frac = Math.max(0.02, Math.min(1, spent / est));
+  return (
+    <svg className={`pen-progress${over ? " is-over" : ""}${className ? ` ${className}` : ""}`} viewBox="0 0 120 6" preserveAspectRatio="none"
+      role="img" aria-label={`${spent}m of ${est}m`}>
+      <path className="pen-progress-track" d="M1 3.2H119" pathLength={1} />
+      <path className="pen-progress-ink" d="M1 3.4C14 2.4 27 4.1 40 3.1S66 2.5 80 3.5 105 2.6 119 3.3" pathLength={1}
+        strokeDasharray="1 1" strokeDashoffset={1 - frac} />
+    </svg>
+  );
+}

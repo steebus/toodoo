@@ -15,7 +15,7 @@ export function TopBar({ date, headline, done, total, presets, activePreset, onP
       {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : "offline"}</span>}
       <h1 className="r-date date">{date}</h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
-      <p className="r-headline headline">
+      <p className="r-headline headline" title={headline || undefined}>
         <span key={headline} className="headline-line">{headline}</span>
       </p>
       <p className="r-progress progress">

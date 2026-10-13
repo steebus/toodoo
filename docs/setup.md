@@ -2,7 +2,7 @@
 
 ## Local (no accounts needed)
 1. `pnpm install`.
-2. `pnpm dev` starts a local Convex backend plus Vite. The first run creates an anonymous local deployment and writes `.env.local`. If you've used `pnpm dev:cloud`, run `pnpm convex deployment select local` (after `convex login`) first, or `pnpm dev` will use the cloud deployment.
+2. `pnpm dev` starts a local Convex backend plus Vite. The first run creates an anonymous local deployment and writes `.env.local`. If you've linked a cloud deployment with `pnpm convex dev`, run `pnpm convex deployment select local` (after `convex login`) first, or `pnpm dev` will use the cloud deployment.
 3. Set local env vars once, one command per line (`ALLOWED_USER_ID` can wait until step 5):
    - `pnpm convex env set WORKOS_CLIENT_ID <dev client id>`
    - `pnpm convex env set WORKOS_AUTHKIT_DOMAIN https://<your>.authkit.app`
@@ -25,7 +25,8 @@
 8. **Production is a separate identity:** the production WorkOS environment has its own users, client ID and AuthKit domain. Sign in once on the production app (or create the user in the prod WorkOS dashboard), copy that `user_...` ID, and set prod `ALLOWED_USER_ID` and prod `WORKOS_AUTHKIT_DOMAIN` from it.
 
 ## Convex
-1. `pnpm convex login`, then `pnpm dev:cloud`. This creates or links the project and your cloud dev deployment.
+1. `pnpm convex login`, then `pnpm convex dev` to create or link the project and your cloud dev deployment.
+   - `pnpm dev:cloud` is different: it runs only the local front end (Vite) against the **production** backend, as deployed, and pushes nothing. It reads `.env.cloud.local` (gitignored) with `CONVEX_URL=https://<prod>.convex.cloud`, the production `VITE_WORKOS_CLIENT_ID` and `VITE_WORKOS_REDIRECT_URI=http://localhost:5180/callback` (its own fixed port, so it never lands on another project's 5173). The production WorkOS environment must allow that redirect and `http://localhost:5180` as an origin. Writes are real; front-end code that needs functions prod hasn't got yet fails until it is deployed.
 2. The deployment's HTTP actions URL (`https://<name>.convex.site`) is in **Dashboard → Settings → URL & Deploy Key**. The Resource Indicator, the Claude connector and `.env.import` all use it.
 3. Set the same env vars on the cloud dev deployment, and on prod with `pnpm convex env set --prod ...`. Prod uses the production WorkOS client ID and `APP_URL=<vercel url>`. Set the prod vars before the first Vercel build, because `auth.config.ts` reads them on deploy.
 4. `WORKOS_AUTHKIT_DOMAIN` has no trailing slash (a trailing slash is stripped, but keep it clean). On prod, set `ALLOWED_USER_ID` and `WORKOS_AUTHKIT_DOMAIN` from the production WorkOS environment (see WorkOS step 8), not the dev values.

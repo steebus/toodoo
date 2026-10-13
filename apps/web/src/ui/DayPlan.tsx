@@ -1,19 +1,25 @@
 import { useRef } from "react";
 import { addDays, daysBetween, dayWord } from "@shared/planning.ts";
 import type { Actions } from "../lib/useActions";
+import { NextUp, nextUpHeight } from "./NextUp";
 import { Divider } from "./Panes";
 import { Timeline } from "./Timeline";
-import type { BoardData, PlanData } from "./types";
+import type { BoardData, NextUpItem, PlanData } from "./types";
 
 export type DayNavProps = { date: string; onDate: (d: string) => void };
 
-type Props = { plan: PlanData; board?: BoardData; actions?: Actions; nav?: DayNavProps; tabpanel?: boolean };
+type Props = {
+  plan: PlanData; board?: BoardData; actions?: Actions; nav?: DayNavProps; tabpanel?: boolean;
+  nextUp?: { items: NextUpItem[]; onPlanAll?: () => void; onOpen?: (id: string) => void };
+};
 
 // The Day plan panel: title, all-day chips and day navigation in the header, the line below.
-export function DayPlan({ plan, board, actions, nav, tabpanel }: Props) {
+export function DayPlan({ plan, board, actions, nav, tabpanel, nextUp }: Props) {
   const { allDay } = plan;
+  const n = nextUp?.items.length ?? 0;
   return (
-    <section id="dayplan" className="dayplan" aria-labelledby="dayplan-title" role={tabpanel ? "tabpanel" : undefined}>
+    <section id="dayplan" className="dayplan" aria-labelledby="dayplan-title" role={tabpanel ? "tabpanel" : undefined}
+      style={{ ["--nu-h" as string]: nextUpHeight(n) }}>
       <h2 id="dayplan-title" className="r-dayplan-title panel-title">Day plan</h2>
       <div className="dayplan-head">
         {allDay.length > 0 && (
@@ -25,6 +31,7 @@ export function DayPlan({ plan, board, actions, nav, tabpanel }: Props) {
         )}
         {nav && board && <DayNav {...nav} today={board.today} />}
       </div>
+      {n > 0 && <NextUp items={nextUp!.items} onPlanAll={nextUp!.onPlanAll} onOpen={nextUp!.onOpen} />}
       <Timeline plan={plan} board={board} actions={actions} />
       <div className="r-panel-divider panel-divider" aria-hidden />
       <Divider controls="dayplan todo" />
@@ -60,6 +67,11 @@ function DayNav({ date, today, onDate }: DayNavProps & { today: string }) {
   };
   return (
     <nav className="daynav" aria-label="Day">
+      {/* Away from today: how far, and the way back. Before the arrows, so they never move. */}
+      {rel && <span className="daynav-rel">{rel}</span>}
+      {date !== today && (
+        <button type="button" className="daynav-today" onClick={() => onDate(today)}>Today</button>
+      )}
       <button type="button" className="daynav-step" aria-label="Previous day" onClick={() => onDate(addDays(date, -1))}>‹</button>
       <span className="daynav-pick">
         <button type="button" className="daynav-date" aria-label={`Choose day, ${shortDay(date)}`} onClick={open}>
@@ -76,10 +88,6 @@ function DayNav({ date, today, onDate }: DayNavProps & { today: string }) {
         />
       </span>
       <button type="button" className="daynav-step" aria-label="Next day" onClick={() => onDate(addDays(date, 1))}>›</button>
-      {rel && <span className="daynav-rel">{rel}</span>}
-      {date !== today && (
-        <button type="button" className="daynav-today" onClick={() => onDate(today)}>Today</button>
-      )}
     </nav>
   );
 }

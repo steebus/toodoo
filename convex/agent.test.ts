@@ -145,3 +145,13 @@ it("board, placeBlock and removeBlock never reach another user's task", async ()
   await t.mutation(api.agent.removeBlock, { task_id: theirs, date: "2026-10-12" });
   expect(await t.run((ctx) => ctx.db.query("plan_blocks").collect())).toMatchObject([{ task_id: theirs, start: "10:00" }]);
 });
+
+it("the board says how much of each estimate has been spent, from blocks gone by", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Sized", estimate_mins: 120 }, { title: "Unsized" }] });
+  await t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-11", start: "09:00", mins: 60 });
+  await t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-12", start: "11:30", mins: 60 }); // half gone by 12:00
+  await t.mutation(api.agent.placeBlock, { task_id: created[1].id, date: "2026-10-11", start: "09:00", mins: 30 });
+  const b = await t.query(api.agent.board, { now: Date.parse("2026-10-12T02:00:00Z") });
+  expect(b.effort).toEqual({ [created[0].id]: { planned: 120, actual: 90 } });
+});

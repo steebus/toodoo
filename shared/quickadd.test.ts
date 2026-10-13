@@ -119,3 +119,20 @@ describe("pinned behaviour", () => {
     expect(r.chips.filter((c) => c.kind === "tag")).toHaveLength(1);
   });
 });
+
+describe("+epic", () => {
+  const epics = [
+    { id: "w", title: "Website relaunch", status: "active" },
+    { id: "t", title: "Tax time", status: "planned" },
+    { id: "d", title: "Taxidermy", status: "done" },
+  ];
+  it("files a task under the epic its title, or a word of it, starts with", () => {
+    expect(parseQuickAdd("Fix footer +web", "2026-10-12", 0, epics)).toMatchObject({ title: "Fix footer", epic_id: "w" });
+    expect(parseQuickAdd("Fix footer +relaunch", "2026-10-12", 0, epics).epic_id).toBe("w");
+    expect(parseQuickAdd("Receipts +tax", "2026-10-12", 0, epics).chips).toContainEqual({ kind: "epic", text: "Tax time" });
+  });
+  it("leaves a word that matches no open epic in the title", () => {
+    expect(parseQuickAdd("C +taxid", "2026-10-12", 0, epics)).toMatchObject({ title: "C +taxid", epic_id: null });
+    expect(parseQuickAdd("1 +1 = 2", "2026-10-12", 0, epics)).toMatchObject({ title: "1 +1 = 2", epic_id: null });
+  });
+});

@@ -6,6 +6,7 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { defaultBlockMins, effortMap } from "@shared/planning.ts";
 import { minuteUnder, resolveDragEnd, TIMELINE, type DropEnv, type TimelineData } from "../lib/dnd";
+import { keepOnScreen } from "../lib/keepOnScreen";
 import { clampBlock } from "../lib/timeline";
 import type { Actions } from "../lib/useActions";
 import { DocketGhost, keyDrag } from "./Docket";
@@ -132,7 +133,7 @@ function Live({ board, groups, manual, compact, actions, children }: Props & { a
       <FreezeLayout.Provider value={frozen}>
         <HintContext.Provider value={hint}>{children}</HintContext.Provider>
       </FreezeLayout.Provider>
-      <DragOverlay dropAnimation={toLine || reduced() ? null : undefined}>
+      <DragOverlay modifiers={[keepOnScreen]} dropAnimation={toLine || reduced() ? null : undefined}>
         {dragged && <DocketGhost docket={dragged} compact={compact} />}
       </DragOverlay>
       {morph && <Flight key={morph.docket.id} plan={morph} onDone={() => setMorph((m) => (m === morph ? null : m))} />}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays } from "@shared/planning.ts";
 import { NO_EPIC, NO_TAG } from "@shared/board.ts";
 import "../styles/layout.css";
@@ -17,6 +17,7 @@ import { AddButton, AddSheet, Tabs, type Tab } from "./Mobile";
 import { MotionRoot, useArrivals, useCelebration } from "./motion";
 import { COMPACT_AT, PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
 import { Toast } from "./Toast";
+import { TaskView } from "./TaskView";
 import { TodoPanel } from "./TodoPanel";
 import { TopBar } from "./TopBar";
 import type { BoardData } from "./types";
@@ -31,6 +32,7 @@ type Props = {
 export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const offline = !!actions?.offline;
   const [editing, setEditing] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null); // the task read in its ticket sheet
   const [draft, setDraft] = useState<Draft | null>(null);
   const editTask = editing ? board.tasks.find((t) => t.id === editing) : undefined;
   const [help, setHelp] = useState(false);
@@ -54,7 +56,15 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const onDate = nav?.onDate;
   const navDate = nav?.date;
   const today = board.today;
+  const viewTask = board.tasks.find((t) => t.id === viewing);
+  // Clicking a task reads it (the ticket); e, or Edit on the ticket, edits it.
+  const opener = useRef<Element | null>(null); // what opened the ticket, for focus when the sheets close
+  const showTask = actions && ((id: string) => {
+    opener.current = document.activeElement;
+    setViewing(id);
+  });
   const openTask = actions && ((id: string) => {
+    setViewing(null);
     setDraft(null);
     setEditing(id);
   });
@@ -105,7 +115,11 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} compact={compact} actions={actions}>
         <Panes split={split}>
-          <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} tabpanel={narrow} />
+          <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} tabpanel={narrow}
+            nextUp={{
+              items: model.nextUp, onOpen: showTask,
+              onPlanAll: actions && !offline ? (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date)) : undefined,
+            }} />
           <TodoPanel
             model={model}
             today={board.today}
@@ -115,10 +129,9 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
             quickAdd={quickAdd}
             onSignOut={onSignOut}
             onAdd={actions?.add}
-            onOpen={openTask}
+            onOpen={showTask}
             onTick={actions?.tick}
             onPlan={actions && !offline ? ((id) => void actions.planTasks([id], board.date)) : undefined}
-            onPlanAll={actions && !offline ? (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date)) : undefined}
             dnd={!!actions}
             compact={compact}
             offline={offline}
@@ -136,13 +149,13 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           </>
         )}
         {narrow && actions && adding !== null && (
-          <AddSheet today={board.today} nowM={board.nowM} initial={adding} onAdd={(t) => {
+          <AddSheet today={board.today} nowM={board.nowM} initial={adding} epics={board.epics} onAdd={(t) => {
             setTab("today");
             return actions.add(t);
           }} onClose={() => setAdding(null)} onFailed={setAdding} />
         )}
         {actions && editTask && (
-          <EditSheet key={editTask.id} task={editTask} epics={board.epics} draft={draft} offline={offline}
+          <EditSheet key={editTask.id} task={editTask} epics={board.epics} returnTo={opener.current} draft={draft} offline={offline}
             onSave={(id, patch, values) => {
               void actions.save(id, patch).then((ok) => {
                 if (ok) return;
@@ -151,6 +164,18 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
               });
             }}
             onDelete={actions.remove} onClose={() => setEditing(null)} />
+        )}
+        {actions && viewTask && (
+          <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline}
+            epic={viewTask.epic_id ? board.epics?.find((e) => e.id === viewTask.epic_id) : undefined}
+            progress={viewTask.estimate_mins && board.effort?.[viewTask.id]?.actual
+              ? { spent: board.effort[viewTask.id].actual, est: viewTask.estimate_mins } : null}
+            onClose={() => setViewing(null)}
+            onTick={(done) => actions.tick(viewTask.id, done)}
+            onPlan={() => void actions.planTasks([viewTask.id], board.date)}
+            onTomorrow={() => void actions.save(viewTask.id, { due: addDays(board.today, 1) })}
+            onEdit={() => openTask?.(viewTask.id)}
+            onDelete={() => actions.remove(viewTask.id)} />
         )}
         {help && <HelpSheet onClose={() => setHelp(false)} />}
         {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}

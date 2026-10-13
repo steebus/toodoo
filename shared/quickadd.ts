@@ -1,3 +1,4 @@
+import { epicWords } from "./epics.ts";
 import { addDays, parseDuration } from "./planning.ts";
 import { normTag } from "./validation.ts";
 
@@ -24,9 +25,23 @@ const dayMonth = (day: number, mon: number, year: string, today: string): string
   return pick(+year + 1);
 };
 
-type Chip = { kind: "date" | "time" | "priority" | "tag" | "estimate"; text: string };
+type Chip = { kind: "date" | "time" | "priority" | "tag" | "estimate" | "epic"; text: string };
+type EpicRef = { id: string; title: string; status?: string };
 
-export function parseQuickAdd(input: string, today: string, _nowM: number) {
+// "+launch" or "+web-re" picks the open epic whose title, or one of its words, starts that way.
+export function epicFor(word: string, epics: EpicRef[]): EpicRef | null {
+  const q = word.toLowerCase().replace(/[-_]+/g, " ").trim();
+  if (!q) return null;
+  const open = epics.filter((e) => e.status !== "done");
+  return open.find((e) => e.title.toLowerCase().startsWith(q))
+    ?? open.find((e) => epicWords(e.title).some((w) => w.startsWith(q)))
+    ?? null;
+}
+
+export const QUICKADD_HINT = "Add: tomorrow 3pm !high ~45m #tag +epic";
+
+export function parseQuickAdd(input: string, today: string, _nowM: number, epics: EpicRef[] = []) {
+  let epic_id: string | null = null;
   let due: string | null = null, time: string | null = null, priority: "high" | "med" | "low" | null = null;
   let estimate_mins: number | null = null;
   const tags: string[] = [];
@@ -81,11 +96,15 @@ export function parseQuickAdd(input: string, today: string, _nowM: number) {
       const t = normTag(w); if (t && !tags.includes(t)) { tags.push(t); chips.push({ kind: "tag", text: w }); }
       continue;
     }
+    if (!epic_id && epics.length && /^\+\S+$/.test(w)) {
+      const e = epicFor(w.slice(1), epics);
+      if (e) { epic_id = e.id; chips.push({ kind: "epic", text: e.title }); continue; }
+    }
     if (!estimate_mins && /^~\S+$/.test(w)) {
       const n = parseDuration(w.slice(1));
       if (typeof n === "number" && Number.isFinite(n) && n > 0) { estimate_mins = n; chips.push({ kind: "estimate", text: w }); continue; }
     }
     keep.push(w);
   }
-  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, chips };
+  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, epic_id, chips };
 }

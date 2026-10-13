@@ -12,6 +12,9 @@ import "@fontsource/iosevka-charon-mono/latin-700.css";
 import "@fontsource/rocknroll-one/latin-400.css";
 import "./index.css";
 import { App } from "./App";
+import { stashShare } from "./lib/share";
+
+stashShare(); // before sign-in can take the address away
 
 const convex = new ConvexReactClient(import.meta.env.CONVEX_URL);
 

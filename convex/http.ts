@@ -35,7 +35,7 @@ function callTool(ctx: ActionCtx, name: string, a: any): Promise<unknown> {
     case "unplan": return ctx.runMutation(api.agent.unplan, { date: String(a?.date ?? ""), ...pick(a, ["task_ids"]) });
     case "list_epics": return ctx.runQuery(api.epics.list, {});
     case "save_epic": {
-      const fields = pick(a, ["title", "description", "priority", "status"]);
+      const fields = pick(a, ["title", "description", "priority", "status", "colour"]);
       return a?.id
         ? ctx.runMutation(api.epics.update, { id: String(a.id), patch: fields })
         : ctx.runMutation(api.epics.create, { epic: fields });

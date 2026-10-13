@@ -41,6 +41,7 @@ export default defineSchema({
     description: str,
     priority,
     status: v.union(v.literal("planned"), v.literal("active"), v.literal("on_hold"), v.literal("done")),
+    colour: v.optional(v.union(v.string(), v.null())), // one of EPIC_COLOURS; checked on the way in
     sort_order: v.number(),
     created_at: v.string(),
     updated_at: v.number(),

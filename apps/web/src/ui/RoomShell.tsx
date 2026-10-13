@@ -3,6 +3,7 @@ import type { Room } from "../lib/useRoute";
 import "./pass.css";
 import "./rooms.css";
 import { RoomNav } from "./RoomNav";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 type Props = { room: Room; offline?: boolean; onSignOut?: () => void; children: ReactNode };
 
@@ -14,7 +15,10 @@ export function RoomShell({ room, offline, onSignOut, children }: Props) {
         <p className="wordmark">toodoo</p>
         {offline && <span className="room-offline" role="status">offline</span>}
         <RoomNav room={room} />
-        {onSignOut && <button type="button" className="roombar-out" onClick={onSignOut}>Sign out</button>}
+        <span className="roombar-end">
+          <ThemeSwitch />
+          {onSignOut && <button type="button" className="roombar-out" onClick={onSignOut}>Sign out</button>}
+        </span>
       </header>
       {children}
     </div>
