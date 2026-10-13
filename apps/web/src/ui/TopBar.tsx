@@ -1,13 +1,18 @@
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import { CheckIcon } from "./icons";
+import { useRef } from "react";
+import { useFitText } from "../lib/useFitText";
+import { CheckIcon, TimerIcon } from "./icons";
 import { RoomNav } from "./RoomNav";
 
 type Props = {
   date: string; headline: string; done: number; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
   celebrate?: boolean; offline?: boolean; unsaved?: boolean; rooms?: boolean;
+  onFocus?: () => void; // Focus on the task in hand; missing when there is nothing on the line now or next
 };
 
-export function TopBar({ date, headline, done, total, presets, activePreset, onPreset, celebrate = false, offline = false, unsaved = false, rooms = false }: Props) {
+export function TopBar({ date, headline, done, total, presets, activePreset, onPreset, onFocus, celebrate = false, offline = false, unsaved = false, rooms = false }: Props) {
+  const line = useRef<HTMLParagraphElement>(null);
+  useFitText(line, headline, 0.6);
   return (
     <header className="topbar">
       <p className="r-wordmark wordmark">toodoo</p>
@@ -15,7 +20,7 @@ export function TopBar({ date, headline, done, total, presets, activePreset, onP
       {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : "offline"}</span>}
       <h1 className="r-date date">{date}</h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
-      <p className="r-headline headline" title={headline || undefined}>
+      <p ref={line} className="r-headline headline" title={headline || undefined}>
         <span key={headline} className="headline-line">{headline}</span>
       </p>
       <p className="r-progress progress">
@@ -27,6 +32,10 @@ export function TopBar({ date, headline, done, total, presets, activePreset, onP
       <AnimatePresence>{celebrate && <AllBumped key="bumped" total={total} />}</AnimatePresence>
       <span className="topbar-sep" aria-hidden />
       <nav className="r-presets presets" aria-label="Mode">
+        <button type="button" className="preset preset-focus" disabled={!onFocus} onClick={onFocus}
+          title={onFocus ? "Focus on the task in hand (f)" : "Nothing on the line now or next"}>
+          <TimerIcon size={17} /> Focus
+        </button>
         {presets.map((p, i) => (
           <span key={p} className="preset-slot">
             {i > 0 && <span className="preset-dot" aria-hidden>·</span>}

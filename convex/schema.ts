@@ -30,6 +30,7 @@ export default defineSchema({
     // Optional so rows from before epics and Kanban still validate.
     epic_id: v.optional(v.union(v.id("epics"), v.null())),
     status: v.optional(v.union(v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
+    checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))),
   })
     .index("by_user_done", ["user_id", "done"])
     .index("by_user_epic", ["user_id", "epic_id"])

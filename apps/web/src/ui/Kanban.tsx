@@ -155,7 +155,8 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
           onStatus={(s) => actions.move(viewTask.id, { status: s }, `${TASK_STATUS_LABEL[s]}: ${viewTask.title}`)}
           onTomorrow={() => void actions.save(viewTask.id, { due: addDays(work.today, 1) })}
           onEdit={() => { setViewing(null); setEditing(viewTask.id); }}
-          onDelete={() => actions.remove(viewTask.id)} />
+          onDelete={() => actions.remove(viewTask.id)}
+          onChecklist={(checklist) => void actions.save(viewTask.id, { checklist })} />
       )}
       {editTask && (
         <EditSheet key={editTask.id} task={editTask} epics={work.epics} offline={off}

@@ -1,17 +1,18 @@
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useMemo, useState, type ReactNode } from "react";
-import { byEpicRank, EPIC_STATUSES, EPIC_STATUS_LABEL, epicMap, nextColour, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
-import { addDays, byOrder } from "@shared/planning.ts";
-import type { FullTask } from "@shared/snapshot.ts";
+import { useMemo, useState, type HTMLAttributes, type ReactNode, type Ref } from "react";
+import { byEpicRank, effectivePriority, EPIC_STATUSES, EPIC_STATUS_LABEL, epicMap, nextColour, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
+import { addDays, byOrder, formatDuration } from "@shared/planning.ts";
+import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
 import { EditSheet } from "./EditSheet";
 import { EpicSheet } from "./EpicSheet";
 import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "./icons";
 import { justDropped, LaneDnd, LaneList } from "./LaneDnd";
-import { epicStyle, LaneAdd, SlipGhost, SlipPrint } from "./Slip";
+import { epicStyle, LaneAdd, when } from "./Slip";
+import { fitOf, listLine } from "./build";
 import { TaskView } from "./TaskView";
 import { Toast } from "./Toast";
 
@@ -77,7 +78,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
   const editTask = editing ? byId.get(editing) : undefined;
   const viewTask = viewing ? byId.get(viewing) : undefined;
   const strip = (t: FullTask, lane: string) => (
-    <EpicStrip key={t.id} task={t} lane={lane} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today}
+    <EpicTicket key={t.id} task={t} lane={lane} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today}
       disabled={off} onOpen={setViewing} onUnfile={lane === NONE ? undefined : () => unfile(t)} />
   );
 
@@ -100,7 +101,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
       <LaneDnd lanes={lanes} disabled={off} titleOf={(id) => byId.get(id)?.title ?? "task"} laneName={nameOf} onDrop={drop}
         ghost={(id) => {
           const t = byId.get(id);
-          return t ? <SlipGhost task={t} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today} variant="strip" showStatus /> : null;
+          return t ? <MiniTicket task={t} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today} ghost /> : null;
         }}
       >
         <div className="epic-list">
@@ -138,7 +139,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
                 {isOpen(e.id) && (
                   <div id={`epic-body-${e.id}`} className="epic-body">
                     {e.description && <p className="epic-desc">{e.description}</p>}
-                    <LaneList id={e.id} ids={open.map((t) => t.id)} className="lane strips" label={`Tasks in ${e.title}`}>
+                    <LaneList id={e.id} ids={open.map((t) => t.id)} className="lane tickets" grid label={`Tasks in ${e.title}`}>
                       {open.map((t) => strip(t, e.id))}
                     </LaneList>
                     <LaneAdd today={work.today} label={`Add a task to ${e.title}`} disabled={off} onAdd={actions.add} extra={{ epic_id: e.id }} />
@@ -158,7 +159,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
             </EpicHead>
             {isOpen(NONE) && (
               <div id="epic-body-none" className="epic-body">
-                <LaneList id={NONE} ids={lists.get(NONE)!.map((t) => t.id)} className="lane strips" label="Tasks with no epic">
+                <LaneList id={NONE} ids={lists.get(NONE)!.map((t) => t.id)} className="lane tickets" grid label="Tasks with no epic">
                   {lists.get(NONE)!.map((t) => strip(t, NONE))}
                 </LaneList>
               </div>
@@ -180,7 +181,8 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
           onStatus={(s) => actions.move(viewTask.id, { status: s }, `${TASK_STATUS_LABEL[s]}: ${viewTask.title}`)}
           onTomorrow={() => void actions.save(viewTask.id, { due: addDays(work.today, 1) })}
           onEdit={() => { setViewing(null); setEditing(viewTask.id); }}
-          onDelete={() => actions.remove(viewTask.id)} />
+          onDelete={() => actions.remove(viewTask.id)}
+          onChecklist={(checklist) => void actions.save(viewTask.id, { checklist })} />
       )}
       {editTask && (
         <EditSheet key={editTask.id} task={editTask} epics={work.epics} offline={off}
@@ -197,30 +199,70 @@ function EpicHead({ lane, droppable, children }: { lane: string; droppable: bool
   return <header ref={droppable ? setNodeRef : undefined} className={`epic-head${isOver ? " is-over" : ""}`}>{children}</header>;
 }
 
-type StripProps = {
+type TicketProps = {
   task: FullTask; lane: string; epic?: Epic; today: string; disabled?: boolean;
-  onOpen: (id: string) => void; onUnfile?: () => void;
+  onOpen?: (id: string) => void; onUnfile?: () => void;
 };
 
-// A task in an epic: drag from anywhere (or the grip, by keyboard), the title opens it, the cross unfiles it.
-function EpicStrip({ task, lane, epic, today, disabled, onOpen, onUnfile }: StripProps) {
+// A task in an epic, as its ticket on the Day view is, only smaller: the same paper, print, fit and pen marks.
+// Drag it by the paper (or its grip, by keyboard); the title opens it; the cross takes it out of the epic.
+function EpicTicket({ task, lane, epic, today, disabled, onOpen, onUnfile }: TicketProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id, data: { type: "task", lane }, disabled,
   });
   return (
-    <li ref={setNodeRef} className={`slip slip-strip${isDragging ? " is-lifted" : ""}${epic?.colour ? " has-epic" : ""}`} data-slip={task.id}
-      style={{ transform: CSS.Translate.toString(transform), transition, ...epicStyle(epic) }} {...listeners}>
-      <button type="button" ref={setActivatorNodeRef} className="strip-grip" {...attributes} aria-roledescription="task" aria-label={`Move ${task.title}`}>
-        <GripIcon size={12} />
-      </button>
-      <button type="button" className="strip-open" onClick={() => justDropped() || onOpen(task.id)}>
-        <SlipPrint task={task} epic={epic} today={today} variant="strip" showStatus />
-      </button>
-      {onUnfile && (
-        <button type="button" className="strip-x" disabled={disabled} aria-label={`Take ${task.title} out of ${epic?.title ?? "its epic"}`} onClick={onUnfile}>
-          <CloseIcon size={14} />
-        </button>
-      )}
-    </li>
+    <MiniTicket task={task} epic={epic} today={today} disabled={disabled} onOpen={onOpen} onUnfile={onUnfile} lifted={isDragging}
+      li={{ ref: setNodeRef, style: { transform: CSS.Translate.toString(transform), transition }, ...listeners }}
+      grip={{ ref: setActivatorNodeRef, ...attributes }} />
+  );
+}
+
+type MiniProps = Omit<TicketProps, "lane"> & {
+  lifted?: boolean; ghost?: boolean;
+  li?: HTMLAttributes<HTMLLIElement> & { ref?: Ref<HTMLLIElement> };
+  grip?: HTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> };
+};
+
+export function MiniTicket({ task: t, epic, today, disabled, onOpen, onUnfile, lifted, ghost, li, grip }: MiniProps) {
+  const w = when(t, today);
+  const high = !t.done && effectivePriority(t, epic) === "high";
+  const list = checklistProgress(t.checklist);
+  const flags = [high ? "! HIGH" : "", t.status && t.status !== "todo" ? TASK_STATUS_LABEL[t.status].toUpperCase() : "",
+    t.source !== "you" ? t.source.toUpperCase() : ""].filter(Boolean).join(" · ");
+  const Tag = ghost ? "div" : "li";
+  return (
+    <Tag {...(li as HTMLAttributes<HTMLElement>)} data-slip={ghost ? undefined : t.id}
+      className={`docket docket-today mini-ticket fit-${fitOf(t.title)}${high ? " is-high" : ""}${lifted ? " is-lifted" : ""}${ghost ? " is-ghost" : ""}`}>
+      <div className="dk-paper">
+        <article className="dk-print" aria-label={t.title}>
+          <p className="dk-head">
+            <span className={w.late ? "mt-late" : undefined}>{w.text}</span>
+            <span className="dk-dur">{t.estimate_mins ? `~${formatDuration(t.estimate_mins)}` : ""}</span>
+          </p>
+          <h4 className="dk-title">
+            <button type="button" className="dk-open" tabIndex={ghost ? -1 : undefined} onClick={() => justDropped() || onOpen?.(t.id)}>
+              <span className="dk-title-text">{t.title.toUpperCase()}</span>
+            </button>
+          </h4>
+          {flags && <p className="dk-source">{flags}</p>}
+          <p className="dk-dashes" aria-hidden>{"-".repeat(60)}</p>
+          {list && (
+            <dl className="dk-rows">
+              <div className="dk-row"><dt>LIST</dt><dd>{listLine(list)}</dd></div>
+            </dl>
+          )}
+          {!ghost && (
+            <button type="button" className="mt-grip" {...grip} aria-roledescription="task" aria-label={`Move ${t.title}`}>
+              <GripIcon size={11} />
+            </button>
+          )}
+          {!ghost && onUnfile && (
+            <button type="button" className="mt-x" disabled={disabled} aria-label={`Take ${t.title} out of ${epic?.title ?? "its epic"}`} onClick={onUnfile}>
+              <CloseIcon size={13} />
+            </button>
+          )}
+        </article>
+      </div>
+    </Tag>
   );
 }

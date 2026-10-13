@@ -54,3 +54,17 @@ it("a drop past midnight stays inside the day, and a keyboard drag has no pointe
   expect(resolveDragEnd(onLine("a", 23 * 60 + 50), env())).toMatchObject({ start: 24 * 60 - 15, mins: 15 });
   expect(resolveDragEnd({ ...onLine("a", 600), activatorEvent: { key: "Space" } as never }, env())).toBeNull();
 });
+
+it("moves a docket to another status rail, in before the docket it lands on or at the rail's end", () => {
+  const e = env({ moves: true, groups: [{ id: "today", ids: ["a", "b", "c"] }, { id: "done", ids: ["d", "e"] }, { id: "comingup", ids: [] }] });
+  expect(resolveDragEnd(END("a", "e"), e)).toEqual({ kind: "move", id: "a", to: "done", sortOrder: 9.5 });
+  expect(resolveDragEnd(END("a", "rail:comingup"), e)).toEqual({ kind: "move", id: "a", to: "comingup", sortOrder: expect.any(Number) });
+  expect(resolveDragEnd(END("d", "rail:today"), e)).toEqual({ kind: "move", id: "d", to: "today", sortOrder: 5 });
+  expect(resolveDragEnd(END("a", "rail:today"), e)).toBeNull(); // its own rail: nothing to do
+});
+it("won't drag a docket into Carried over, and only moves when the rails are the status groups", () => {
+  const e = env({ moves: true, groups: [{ id: "carried", ids: ["d"] }, { id: "today", ids: ["a"] }] });
+  expect(resolveDragEnd(END("a", "d"), e)).toBeNull();
+  expect(resolveDragEnd(END("a", "rail:carried"), e)).toBeNull();
+  expect(resolveDragEnd(END("a", "d"), env())).toBeNull();
+});

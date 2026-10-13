@@ -58,6 +58,7 @@ export type DocketData = {
   rows: MetaRow[];
   footer: MetaRow | null;
   colour?: string | null; // its epic's
+  list?: { done: number; total: number } | null; // its checklist, when it has one
   fit: 0 | 1 | 2; // how hard the title is squeezed to fit the paper: 0 as printed, 2 smallest
   progress?: { spent: number; est: number } | null; // minutes spent (planned blocks gone by) against the estimate
 };

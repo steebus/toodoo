@@ -8,7 +8,13 @@ export interface FullTask extends Task {
   link: string | null;
   note: string | null;
   description: string | null;
+  checklist?: ChecklistItem[];
 }
+export interface ChecklistItem { text: string; done: boolean }
+
+// "2/5" for a checklist with items; null without.
+export const checklistProgress = (c?: ChecklistItem[] | null) =>
+  c?.length ? { done: c.filter((x) => x.done).length, total: c.length } : null;
 export interface DayRow { date: string; headline: string | null; events: DayEvent[] }
 export interface State { tasks: FullTask[]; days: DayRow[]; blocks: Block[]; epics?: Epic[] }
 
@@ -17,6 +23,7 @@ const compact = (epics: Map<string, Epic>) => (t: FullTask) =>
     Object.entries({
       id: t.id, title: t.title, due: t.due, time: t.time, priority: t.priority, estimate_mins: t.estimate_mins,
       epic: t.epic_id ? epics.get(t.epic_id)?.title : null, status: t.status && t.status !== "todo" ? t.status : null,
+      checklist: t.checklist?.length ? t.checklist : null,
       tags: t.tags.length ? t.tags : null, source: t.source === "you" ? null : t.source, external_id: t.external_id,
       link: t.link, note: t.note,
     }).filter(([, v]) => v != null),

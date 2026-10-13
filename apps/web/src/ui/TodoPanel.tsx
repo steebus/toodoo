@@ -165,6 +165,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
                 label={g.label}
                 count={g.count}
                 geo={geo}
+                drop={dnd && view.group === "status" && (g.key === "today" || g.key === "done" || g.key === "comingup") ? g.key : undefined}
                 toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) }
                   : g.key === "done" && g.count > 0 ? { open: doneOpen, onToggle: toggleDone } : undefined}
               >
@@ -172,7 +173,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
                   <SortableContext id={g.key} items={g.dockets.map((d) => d.id)} strategy={compact ? verticalListSortingStrategy : rectSortingStrategy}>
                     {g.dockets.map((d) => (
                       <Docket key={d.id} docket={d} topPick={d.id === model.topPickId} onOpen={onOpen} onTick={onTick} onPlan={onPlan}
-                        dnd={dnd ? { manual: view.sort === "manual" } : undefined} compact={compact} arrival={arrivals.get(d.id)} inflight={flight.hidden(d)}
+                        dnd={dnd ? { manual: view.sort === "manual", moves: view.group === "status" } : undefined} compact={compact} arrival={arrivals.get(d.id)} inflight={flight.hidden(d)}
                         swipe={swipe ? { onTomorrow } : undefined} />
                     ))}
                   </SortableContext>

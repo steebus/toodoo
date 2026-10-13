@@ -1,10 +1,10 @@
 export type Action =
   | "add" | "down" | "up" | "tick" | "edit" | "plan" | "prevDay" | "nextDay" | "today"
-  | "presetCapture" | "presetPlan" | "presetFocus" | "help";
+  | "presetPlan" | "presetCapture" | "focus" | "help";
 
 const KEYS: Record<string, Action> = {
   n: "add", j: "down", k: "up", x: "tick", e: "edit", p: "plan", "[": "prevDay", "]": "nextDay", t: "today",
-  "1": "presetCapture", "2": "presetPlan", "3": "presetFocus", "?": "help",
+  "1": "presetPlan", "2": "presetCapture", f: "focus", "?": "help",
 };
 
 type Keyed = Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey"> & { target: EventTarget | null };

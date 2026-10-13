@@ -1,7 +1,7 @@
 import { groupTasks, waitingDays, type View } from "@shared/board.ts";
 import { effectivePriority, epicMap, type Epic } from "@shared/epics.ts";
 import { DAY_END, DAY_START, dayWord, formatDuration, timedEvents, toHM, toMin } from "@shared/planning.ts";
-import type { FullTask } from "@shared/snapshot.ts";
+import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { clock12, longDate, shortDate, wrapTitle } from "./format";
 import type { BoardData, DocketData, GroupData, MetaRow, NextUpItem, PlanBlock, PlanData } from "./types";
 
@@ -28,6 +28,10 @@ function sourceLabel(t: FullTask): string {
   return t.source.toUpperCase();
 }
 
+// A checklist as the ticket printer would put it: a box a step (up to eight), then the count.
+export const listLine = (p: { done: number; total: number }) =>
+  `${p.total <= 8 ? "■".repeat(p.done) + "□".repeat(p.total - p.done) + " " : ""}${p.done}/${p.total}`;
+
 // Long titles print smaller and on more lines rather than being cut off.
 export const fitOf = (title: string): 0 | 1 | 2 => (title.length <= 24 ? 0 : title.length <= 48 ? 1 : 2);
 
@@ -35,11 +39,13 @@ function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spen
   const carried = !t.done && t.due < today;
   const high = effectivePriority(t, epic) === "high";
   const epicRow: MetaRow[] = epic ? [{ label: "EPIC", value: epic.title.toUpperCase() }] : [];
+  const list = checklistProgress(t.checklist);
+  const listRow: MetaRow[] = list ? [{ label: "LIST", value: listLine(list) }] : [];
   const tags = t.tags.slice(0, 3);
   const tagRow: MetaRow[] = tags.length ? [{ label: "TAGS", value: tags.join(" ").toUpperCase() }] : [];
   const common = {
     id: t.id, done: t.done, high, hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title), colour: epic?.colour ?? null,
-    fit: fitOf(t.title), progress: t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null,
+    fit: fitOf(t.title), progress: t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list,
   };
   if (carried) {
     const n = waitingDays(t.due, today);
@@ -47,12 +53,13 @@ function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spen
       // The red slot over the title is the data itself (how long it has waited), not a kicker.
       ...common, variant: "carried", time: "", duration: "", source: sourceLabel(t), tag: `${n} ${n === 1 ? "DAY" : "DAYS"}`,
       lines: [t.title.toUpperCase()],
-      rows: [{ label: "DUE", value: shortDate(t.due) }, ...(epicRow.length ? epicRow : tagRow)],
+      rows: [{ label: "DUE", value: shortDate(t.due) }, ...listRow, ...(epicRow.length ? epicRow : tagRow)].slice(0, 2),
       footer: { label: "DURATION", value: est(t) || "--" },
     };
   }
   const rows: MetaRow[] = [
     ...(hm ? [{ label: "START", value: hm }] : []),
+    ...listRow,
     ...(t.estimate_mins ? [{ label: "DURATION", value: estClock(t.estimate_mins) }] : []),
     ...(t.due !== today ? [{ label: "DUE", value: shortDate(t.due) }] : []),
     ...epicRow,

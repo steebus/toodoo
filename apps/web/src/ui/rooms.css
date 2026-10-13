@@ -125,13 +125,17 @@
 
 /* ---------- Epics: a stack of headed lists ---------- */
 /* Epics are cards in a grid, each with its colour along the top. */
-.epic-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; align-items: start; }
+.epic-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(660px, 100%), 1fr)); gap: 22px; align-items: start; }
 .epic {
   position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--rule-soft); border-radius: 6px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); padding-top: 5px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
-/* The colour runs along the top as a band inside the card, clipped to its corners (not a thick border). */
-.epic::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: var(--epic, var(--rule-soft)); }
+/* An epic's colour is a dot by its name: the same quiet category mark its tickets carry, not a stripe. */
+.epic.has-epic .epic-toggle::before {
+  content: ""; flex: none; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--epic); box-shadow: 0 0 0 1px color-mix(in srgb, var(--epic) 60%, var(--ink));
+}
+.epic-toggle .epic-chevron { order: -1; }
 .epic-head {
   display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 10px 12px 10px 8px;
   border: 1px solid transparent; border-radius: 5px;
@@ -144,8 +148,7 @@
 .epic-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: 22px; line-height: 1.1; }
 .epic.is-high .epic-title::before { content: "!"; margin-right: 0.4em; color: var(--red); }
 .epic.is-on_hold .epic-title, .epic.is-done .epic-title { color: var(--ink-3); }
-.epic.is-none { background: transparent; border-style: dashed; box-shadow: none; padding-top: 0; }
-.epic.is-none::before { display: none; }
+.epic.is-none { background: transparent; border-style: dashed; box-shadow: none; }
 .epic-progress { display: inline-flex; flex-direction: column; gap: 5px; width: 64px; font-family: var(--font-print); font-size: 14px; color: var(--ink-2); }
 .epic-track { position: relative; height: 2px; background: var(--rule-soft); overflow: hidden; border-radius: 1px; }
 .epic-fill { position: absolute; inset: 0; background: var(--green); transform-origin: left; transition: transform 0.6s var(--spring); }
@@ -235,7 +238,7 @@
 
 /* ---------- epic colour: a quiet band down the left edge (slips), a hairline down an epic's ---------- */
 .slip.has-epic { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--epic) 70%, transparent); }
-.epic.is-done.has-epic::before, .epic.is-on_hold.has-epic::before { background: color-mix(in srgb, var(--epic) 40%, var(--surface)); }
+.epic.is-done.has-epic .epic-toggle::before, .epic.is-on_hold.has-epic .epic-toggle::before { opacity: 0.45; }
 .epic-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
 .epic-swatches legend { margin-bottom: 6px; padding: 0; font-size: calc(14 * var(--u)); color: var(--ink-3); }
 .epic-swatch { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
@@ -302,7 +305,7 @@
     0 55% / 2.4em 0.42em repeat-x;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
-.tk-tick { flex: none; width: 46px; height: 46px; color: var(--biro); margin-top: -6px; }
+.tk-tick { flex: none; width: 84px; height: auto; color: var(--biro); margin: -14px -10px 0 0; transform: rotate(-4deg); }
 .tk-flags { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; letter-spacing: 0.05em; }
 .tk-flags:empty { display: none; }
 .tk-high { color: var(--paper-red); font-weight: 700; }
@@ -338,4 +341,100 @@
     background: conic-gradient(from 135deg at 50% 0, var(--paper) 90deg, transparent 0) 0 0 / 12px 6px repeat-x; }
   .ticket { max-height: 88dvh; padding: 20px 18px calc(22px + env(safe-area-inset-bottom)); }
   .tk-title { font-size: 21px; }
+}
+
+/* ---------- Focus: the task in hand, everything else dark and blurred, a kitchen timer running ---------- */
+.pass .preset-focus { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); margin-right: calc(18 * var(--u)); color: var(--ink); font-weight: 700; }
+.pass .preset-focus:disabled { color: var(--ink-3); font-weight: 400; opacity: 0.6; }
+.sheet-ticket.is-focus::backdrop { background: rgb(8 8 8 / 0.62); backdrop-filter: blur(9px) saturate(0.8); }
+/* Placed from the sheet (the dialog is its frame): centred in the dark room to its left. */
+.kitchen-timer {
+  position: absolute; top: 50%; left: calc((min(440px, 100vw) - 100vw) / 2); transform: translate(-50%, -50%);
+  display: grid; justify-items: center; gap: 10px; color: #f4f2ec; text-align: center; pointer-events: none;
+  animation: kt-in 0.6s var(--spring) both;
+}
+.kt-dial { width: min(300px, 34vw); height: auto; filter: drop-shadow(0 14px 24px rgb(0 0 0 / 0.45)); }
+.kt-body { fill: var(--paper); stroke: #1f2023; stroke-width: 4; }
+.kt-tick { stroke: #3a3b40; stroke-width: 1.2; stroke-linecap: round; }
+.kt-tick.is-long { stroke-width: 2.6; }
+.kt-wedge { fill: var(--paper-red); opacity: 0.88; transition: d 0.9s linear; }
+.is-waiting .kt-wedge { fill: #8a8f97; }
+.kt-hand { stroke: #1f2023; stroke-width: 3; stroke-linecap: round; }
+.kt-knob { fill: #2b2d31; stroke: #111; stroke-width: 2; }
+.kt-grip { fill: #5c6068; }
+.kt-left { margin: 0; font-family: var(--font-print); font-weight: 700; font-size: clamp(34px, 5vw, 56px); line-height: 1; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.kt-label { margin: 0; font-family: var(--font-print); font-size: 15px; opacity: 0.8; }
+.is-up .kt-dial { animation: kt-ring 0.5s ease-in-out 3; }
+@keyframes kt-in { from { opacity: 0; scale: 0.92; } }
+@keyframes kt-ring { 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .kitchen-timer { animation: fade-in 0.2s linear both; }
+  .is-up .kt-dial { animation: none; }
+  .kt-wedge { transition: none; }
+}
+@media (max-width: 819px) {
+  .kitchen-timer { top: auto; bottom: calc(100% + 18px); left: 50%; transform: translateX(-50%); gap: 6px; }
+  .kt-dial { width: min(190px, 46vw); }
+  .kt-left { font-size: 34px; }
+}
+
+/* ---------- checklists: pen boxes on the ticket, editable lines in the edit sheet ---------- */
+.checklist { display: grid; gap: 4px; }
+.cl-count { margin: 0; font-family: var(--font-print); font-size: 13px; letter-spacing: 0.05em; opacity: 0.75; }
+.cl-items { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.cl-item { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+:is(.pass, .room) .cl-box {
+  position: relative; flex: none; display: grid; place-items: center; width: 20px; height: 20px; padding: 0;
+  border: 1.5px solid currentColor; border-radius: 2px; color: inherit; opacity: 0.85;
+}
+.cl-tick { position: absolute; left: -2px; top: -9px; width: 30px; color: var(--biro); overflow: visible; pointer-events: none; }
+.cl-text { flex: 1; min-width: 0; font-family: var(--font-print); font-size: 15px; overflow-wrap: anywhere; }
+.cl-item.is-done .cl-text-ink {
+  opacity: 0.7;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4.6C6 3.2 12 5.6 20 4.2S33 3.1 40 4.7' fill='none' stroke='%232c4fa3' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E")
+    0 55% / 2.4em 0.42em repeat-x;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.cl-add, .is-editing .cl-text {
+  width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; font-family: var(--font-print); font-size: 15px; color: inherit;
+  background: transparent; border: 1px dashed color-mix(in srgb, currentColor 35%, transparent); border-radius: 2px;
+}
+.is-editing .cl-text { border-style: solid; border-color: var(--rule); background: var(--surface); }
+.cl-add::placeholder { color: inherit; opacity: 0.55; }
+.cl-add:focus-visible, .is-editing .cl-text:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+:is(.pass, .room) .cl-x { flex: none; display: grid; place-items: center; width: 26px; height: 26px; color: var(--ink-3); border-radius: 2px; }
+:is(.pass, .room) .cl-x:hover { color: var(--red-ink); }
+.sheet:not(.sheet-ticket) .checklist { color: var(--ink); }
+.ticket .checklist { color: var(--paper-ink); }
+.sheet-field .checklist .cl-text, .sheet-field .checklist .cl-add { font-size: calc(16 * var(--u)); }
+
+/* a checklist's progress on tickets and cards */
+.dk-list { flex: none; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; }
+.slip-line-end { display: inline-flex; gap: 10px; }
+.slip-list { letter-spacing: 0.02em; }
+
+/* ---------- an epic's tasks: its Day view tickets, smaller, in rows ---------- */
+.lane.tickets {
+  --u: 0.8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: 172px;
+  gap: 22px 14px; padding: 14px 12px 20px; min-height: 60px;
+}
+.mini-ticket { position: relative; list-style: none; cursor: grab; touch-action: manipulation; -webkit-touch-callout: none; user-select: none; }
+.mini-ticket.is-lifted { opacity: 0.35; }
+.mini-ticket.is-ghost { width: 160px; height: 172px; --u: 0.8px; cursor: grabbing; transform: rotate(1.2deg); }
+.mini-ticket .dk-print { padding-top: calc(16 * var(--u)); }
+.mini-ticket .dk-head { padding-right: calc(30 * var(--u)); }
+.mini-ticket .dk-source { color: inherit; }
+.mt-late { color: var(--paper-red); }
+:is(.pass, .room) .mt-grip, :is(.pass, .room) .mt-x {
+  position: absolute; z-index: 2; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 2px;
+  color: color-mix(in srgb, var(--paper-ink) 50%, var(--paper));
+}
+/* For the keyboard (Space picks up): the mouse and a finger drag the whole ticket, so it shows only when focused. */
+:is(.pass, .room) .mt-grip { left: 2px; bottom: 2px; cursor: grab; opacity: 0; }
+:is(.pass, .room) .mt-grip:focus-visible { opacity: 1; background: var(--paper); }
+:is(.pass, .room) .mt-x { right: 2px; top: 2px; }
+:is(.pass, .room) .mt-x:hover { color: var(--paper-red); background: color-mix(in srgb, var(--paper-ink) 6%, var(--paper)); }
+.mini-ticket .mt-grip:focus-visible, .mini-ticket .mt-x:focus-visible { outline: 2px solid var(--paper-ink); outline-offset: -2px; }
+@media (max-width: 819px) {
+  .lane.tickets { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }

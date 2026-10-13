@@ -36,6 +36,8 @@ export type Actions = {
   unplace: (id: string, date: string) => void;
   addAndPlace: (t: NewTask, date: string, start: number, mins: number) => Promise<boolean>;
   reorder: (id: string, sortOrder: number) => void;
+  // A change dragged into being (to another rail), with Undo putting the old values back.
+  shift: (id: string, patch: Record<string, unknown>, message: string) => void;
   planTasks: (ids: string[], date: string) => Promise<void>;
 };
 
@@ -228,6 +230,19 @@ export function useActions(board: BoardData): Actions {
     [updateTask, fail],
   );
 
+  const shift = useCallback(
+    (id: string, patch: Record<string, unknown>, message: string) => {
+      if (isOptimistic(id)) return;
+      const t = live.current.tasks.find((x) => x.id === id);
+      if (!t) return;
+      const before = Object.fromEntries(Object.keys(patch).map((k) => [k, (t as unknown as Record<string, unknown>)[k] ?? null]));
+      if ("done" in patch) before.done_on = t.done_on;
+      show({ kind: "undo", message, undo: () => void updateTask({ id, patch: before }).catch((e) => fail("Couldn't undo", e)) });
+      updateTask({ id, patch }).catch((e) => fail("Couldn't move that", e));
+    },
+    [updateTask, show, fail],
+  );
+
   // The server's auto-plan puts these into the first free gaps. Undo removes whatever it placed.
   const planTasks = useCallback(
     async (ids: string[], date: string) => {
@@ -272,7 +287,7 @@ export function useActions(board: BoardData): Actions {
     offline, unsaved, toast, dismiss,
     add: gate(add, Promise.resolve(false)), tick: gate(tick, undefined), remove: gate(remove, undefined),
     save: gate(save, Promise.resolve(false)), place: gate(place, undefined), unplace: gate(unplace, undefined),
-    addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined),
+    addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined), shift: gate(shift, undefined),
     planTasks: gate(planTasks, Promise.resolve()),
   };
 }

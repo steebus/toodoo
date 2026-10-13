@@ -155,3 +155,14 @@ it("the board says how much of each estimate has been spent, from blocks gone by
   const b = await t.query(api.agent.board, { now: Date.parse("2026-10-12T02:00:00Z") });
   expect(b.effort).toEqual({ [created[0].id]: { planned: 120, actual: 90 } });
 });
+
+it("keeps a task's checklist, tidied, and reports it to the agent", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Pack", checklist: ["Passports", " ", { text: "Chargers", done: true }] }] });
+  const id = created[0].id;
+  const snap = await t.query(api.agent.getSnapshot, { now: Date.parse("2026-10-12T02:00:00Z") });
+  expect(snap.tasks.due[0]).toMatchObject({ checklist: [{ text: "Passports", done: false }, { text: "Chargers", done: true }] });
+  const up = await t.mutation(api.agent.updateTask, { id, patch: { checklist: [{ text: "Passports", done: true }] } });
+  expect(up.checklist).toEqual([{ text: "Passports", done: true }]);
+  await expect(t.mutation(api.agent.updateTask, { id, patch: { checklist: Array(51).fill("x") } })).rejects.toThrow(/checklist/);
+});

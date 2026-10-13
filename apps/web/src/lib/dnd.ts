@@ -4,6 +4,12 @@ import { clampBlock, pxToMin, snap } from "./timeline";
 import { sortOrderBetween } from "./sortOrder";
 
 export const TIMELINE = "timeline";
+// A rail takes drops too (folded, it has no dockets to drop on): its droppable id is RAIL + the group's key.
+export const RAIL = "rail:";
+// The rails a docket can be moved between by dragging (grouped by status). Carried over is where time puts
+// a task, not somewhere to drag one to.
+export const MOVABLE = ["today", "done", "comingup"] as const;
+export type Movable = (typeof MOVABLE)[number];
 
 export type DragTask = { sort_order: number; priority: Priority | null; estimate_mins: number | null };
 export type DropEnv = {
@@ -11,6 +17,7 @@ export type DropEnv = {
   manual: boolean;
   tasks: Map<string, DragTask>;
   planned: (id: string) => number; // minutes of this task already on the line
+  moves?: boolean; // the rails are the status groups, so a drop on another rail moves the task there
 };
 // The slice of dnd-kit's DragEndEvent used here. The timeline droppable carries where its grid is.
 // scale: screen px per comp px (the frame's --u); the grid's geometry is in comp px.
@@ -23,7 +30,8 @@ export type DragEndLike = {
 };
 export type DropResult =
   | { kind: "reorder"; id: string; sortOrder: number }
-  | { kind: "plan"; id: string; start: number; mins: number };
+  | { kind: "plan"; id: string; start: number; mins: number }
+  | { kind: "move"; id: string; to: Movable; sortOrder?: number };
 
 // Where the pointer is now: where the drag began plus how far it has moved. A keyboard drag has none.
 export function pointerY(e: Pick<DragEndLike, "activatorEvent" | "delta">): number | null {
@@ -49,9 +57,20 @@ export function resolveDragEnd(e: DragEndLike, env: DropEnv): DropResult | null 
     const p = clampBlock(m, defaultBlockMins(task, env.planned(id)));
     return { kind: "plan", id, ...p };
   }
-  if (!env.manual) return null;
   const overId = String(e.over.id);
   const group = env.groups.find((g) => g.ids.includes(id));
+  const target = overId.startsWith(RAIL)
+    ? env.groups.find((g) => g.id === overId.slice(RAIL.length))
+    : env.groups.find((g) => g.ids.includes(overId));
+  if (env.moves && group && target && target.id !== group.id) {
+    if (!(MOVABLE as readonly string[]).includes(target.id)) return null;
+    // Dropped on a docket: in before it (in manual order); dropped on the rail: at the end.
+    const at = target.ids.indexOf(overId);
+    const order = (i: number) => (i >= 0 && i < target.ids.length ? env.tasks.get(target.ids[i])?.sort_order : undefined);
+    const sortOrder = !env.manual ? undefined : at >= 0 ? sortOrderBetween(order(at - 1), order(at)) : sortOrderBetween(order(target.ids.length - 1), undefined);
+    return { kind: "move", id, to: target.id as Movable, ...(sortOrder !== undefined ? { sortOrder } : {}) };
+  }
+  if (!env.manual) return null;
   if (!group || id === overId || !group.ids.includes(overId)) return null;
   // The same move dnd-kit's arrayMove makes: the docket takes the target's place.
   const ids = [...group.ids];

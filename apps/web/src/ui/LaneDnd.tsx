@@ -2,7 +2,7 @@ import {
   closestCenter, DndContext, DragOverlay, KeyboardSensor, MouseSensor, pointerWithin, TouchSensor, useDroppable, useSensor, useSensors,
   type Announcements, type CollisionDetection,
 } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useEffect, useState, type ReactNode } from "react";
 import { keepOnScreen } from "../lib/keepOnScreen";
 import { dropOf, type Drop, type Lane } from "../lib/lanes";
@@ -80,10 +80,12 @@ export function LaneDnd({ lanes, titleOf, laneName, onDrop, ghost, disabled, chi
 }
 
 // A lane's list: sortable within, and a drop target even when empty.
-export function LaneList({ id, ids, className, label, children }: { id: string; ids: string[]; className?: string; label: string; children: ReactNode }) {
+export function LaneList({ id, ids, className, label, children, grid }: {
+  id: string; ids: string[]; className?: string; label: string; children: ReactNode; grid?: boolean; // grid: tickets that wrap in rows
+}) {
   const { setNodeRef, isOver } = useDroppable({ id, data: { type: "lane" } });
   return (
-    <SortableContext id={id} items={ids} strategy={verticalListSortingStrategy}>
+    <SortableContext id={id} items={ids} strategy={grid ? rectSortingStrategy : verticalListSortingStrategy}>
       <ul ref={setNodeRef} className={`${className ?? ""}${isOver ? " is-over" : ""}`} aria-label={label}>
         {children}
       </ul>

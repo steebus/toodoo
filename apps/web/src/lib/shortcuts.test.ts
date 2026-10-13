@@ -10,7 +10,9 @@ it("maps keys to actions", () => {
   expect(key("n")).toBe("add");
   expect(key("j")).toBe("down");
   expect(key("[")).toBe("prevDay");
-  expect(key("2")).toBe("presetPlan");
+  expect(key("1")).toBe("presetPlan");
+  expect(key("2")).toBe("presetCapture");
+  expect(key("f")).toBe("focus");
   expect(key("?")).toBe("help");
   expect(key("z")).toBeNull();
 });

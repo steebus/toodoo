@@ -5,7 +5,8 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { defaultBlockMins, effortMap } from "@shared/planning.ts";
-import { minuteUnder, resolveDragEnd, TIMELINE, type DropEnv, type TimelineData } from "../lib/dnd";
+import { addDays } from "@shared/planning.ts";
+import { minuteUnder, RAIL, resolveDragEnd, TIMELINE, type DropEnv, type Movable, type TimelineData } from "../lib/dnd";
 import { keepOnScreen } from "../lib/keepOnScreen";
 import { clampBlock } from "../lib/timeline";
 import type { Actions } from "../lib/useActions";
@@ -20,22 +21,28 @@ const HintContext = createContext<DropHint>(null);
 export const useDropHint = () => useContext(HintContext);
 
 
-// The pointer wins over the line when it is on it; otherwise the nearest docket in the rails.
-// A keyboard drag has no pointer, so it never sees the line: it only reorders.
+// Under the pointer: the line first, then a docket, then a rail (another rail moves the task there, and a
+// folded rail has nothing else to land on). Otherwise the nearest docket. A keyboard drag has no pointer,
+// so it never sees the line or the rails: it only reorders.
+const isRail = (id: string | number) => String(id).startsWith(RAIL);
 const collide: CollisionDetection = (args) => {
-  const onLine = pointerWithin(args).find((c) => c.id === TIMELINE);
-  if (onLine) return [onLine];
-  return closestCenter({ ...args, droppableContainers: args.droppableContainers.filter((c) => c.id !== TIMELINE) });
+  const hits = pointerWithin(args);
+  const pick = hits.find((c) => c.id === TIMELINE) ?? hits.find((c) => !isRail(c.id)) ?? hits.find((c) => isRail(c.id));
+  if (pick) return [pick];
+  return closestCenter({ ...args, droppableContainers: args.droppableContainers.filter((c) => c.id !== TIMELINE && !isRail(c.id)) });
 };
 
-type Props = { board: BoardData; groups: GroupData[]; manual: boolean; compact?: boolean; actions?: Actions; children: ReactNode };
+type Props = {
+  board: BoardData; groups: GroupData[]; manual: boolean; compact?: boolean; actions?: Actions; children: ReactNode;
+  moves?: boolean; // the rails are the status groups: dropping on another rail moves the task there
+};
 
 // One drag-and-drop world around the whole Hero. Without actions (the fixture) there is nothing to write, so no drag.
 export function DndProvider({ actions, ...props }: Props) {
   return actions ? <Live {...props} actions={actions} /> : <>{props.children}</>;
 }
 
-function Live({ board, groups, manual, compact, actions, children }: Props & { actions: Actions }) {
+function Live({ board, groups, manual, compact, actions, children, moves }: Props & { actions: Actions }) {
   const [active, setActive] = useState<string | null>(null);
   const [hint, setHint] = useState<DropHint>(null);
   const [morph, setMorph] = useState<FlightPlan | null>(null);
@@ -56,10 +63,11 @@ function Live({ board, groups, manual, compact, actions, children }: Props & { a
     return {
       groups: groups.map((g) => ({ id: g.key, ids: g.dockets.map((d) => d.id) })),
       manual,
+      moves,
       tasks: new Map(board.tasks.map((t) => [t.id, t])),
       planned: (id) => eff.get(id)?.planned ?? 0,
     };
-  }, [board, groups, manual]);
+  }, [board, groups, manual, moves]);
   const envRef = useRef(env);
   envRef.current = env;
 
@@ -97,6 +105,7 @@ function Live({ board, groups, manual, compact, actions, children }: Props & { a
     setHint(null);
     const r = resolveDragEnd(e, envRef.current);
     if (r?.kind === "reorder") actions.reorder(r.id, r.sortOrder);
+    if (r?.kind === "move") moveTo(r.id, r.to, r.sortOrder);
     if (r?.kind === "plan") {
       const d = dockets.get(r.id);
       const from = e.active.rect.current.translated;
@@ -106,6 +115,18 @@ function Live({ board, groups, manual, compact, actions, children }: Props & { a
       }
       actions.place(r.id, board.date, r.start, r.mins);
     }
+  };
+  // Into Done today ticks it; into Today makes it today's (and reopens it); into Coming up puts it off to
+  // tomorrow (a later day stays as it is).
+  const moveTo = (id: string, to: Movable, sortOrder?: number) => {
+    const t = board.tasks.find((x) => x.id === id);
+    if (!t) return;
+    const order = sortOrder !== undefined ? { sort_order: sortOrder } : {};
+    if (to === "done") return actions.tick(id, true);
+    const reopen = t.done ? { done: false } : {};
+    if (to === "today") return actions.shift(id, { ...reopen, due: board.today, ...order }, `Today: ${t.title}`);
+    const later = t.due > board.today ? t.due : addDays(board.today, 1);
+    actions.shift(id, { ...reopen, due: later, ...order }, `Coming up: ${t.title}`);
   };
   const onCancel = () => {
     stamp();

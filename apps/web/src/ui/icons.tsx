@@ -109,17 +109,19 @@ export const AutoIcon = ({ size = 16, className }: P) => (
 
 // ---------- pen marks: done by hand in biro, on the paper (so in --biro, which never inverts) ----------
 
-// A quick scrawled tick, drawn on when it turns on; under reduced motion it fades in.
+// A big tick dashed off in a hurry: a short hooked downstroke, then one long fast flick up and away,
+// thinning as it goes. Drawn on when it turns on; under reduced motion it fades in.
 export function PenTick({ on, draw, size = 30, className }: P & { on: boolean; draw?: boolean }) {
   const still = useReducedMotion();
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.3}
+    <svg width={size} height={size * 0.8} viewBox="0 0 40 32" fill="none" stroke="currentColor"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable={false} className={className}>
       <m.path
-        d="M3.2 13.4c1.3.6 2.9 2.4 4.4 4.9.3.5.9.5 1.2 0C11.4 13 15 7.6 21.2 3.1"
+        d="M2.5 17.8c1.6-.6 3.6.4 5.3 2.6 1.3 1.7 2.4 3.9 3.3 6.4.2.6.8.6 1.1.1C17.6 16.5 25.6 7.9 38.6 1.6"
+        strokeWidth={2.6}
         initial={draw ? (still ? { opacity: 0 } : { pathLength: 0 }) : false}
         animate={still ? { opacity: on ? 1 : 0 } : { pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
-        transition={{ duration: still ? 0.15 : 0.32, ease: [0.3, 0, 0.2, 1] }}
+        transition={{ duration: still ? 0.15 : 0.24, ease: [0.5, 0, 0.1, 1] }}
       />
     </svg>
   );
@@ -147,3 +149,10 @@ export function PenProgress({ spent, est, className }: { spent: number; est: num
     </svg>
   );
 }
+
+export const TimerIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="10" cy="11" r="6.5" />
+    <path d="M10 11V7.5M8 2.5h4M15 5.5l1.2-1.2" />
+  </svg>
+);

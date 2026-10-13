@@ -46,11 +46,13 @@
   white-space: nowrap; letter-spacing: -0.01em;
 }
 /* One line in the gap between the room nav and the count: a long day is cut short, never laid over them. */
+/* The day's line: up to two lines in the gap between the room nav and the count, shrunk to fit (useFitText)
+   rather than cut off. */
+.pass .r-headline { left: 23.4%; width: 47.2%; top: 3.95%; height: 3.4%; }
 .headline {
-  display: flex; align-items: center; justify-content: center; min-width: 0;
-  font-size: calc(21 * var(--u)); line-height: 1.15; white-space: nowrap; color: var(--ink);
+  display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; text-align: center;
+  font-size: calc(21 * var(--u)); line-height: 1.12; white-space: normal; overflow-wrap: anywhere; color: var(--ink);
 }
-.headline .headline-line { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .progress {
   display: flex; align-items: center; justify-content: center;
   font-size: calc(22 * var(--u)); line-height: 1; white-space: nowrap; letter-spacing: 0.04em; word-spacing: 0.08em; padding-left: calc(9 * var(--u));
@@ -127,8 +129,9 @@
   font-family: var(--font-print); font-size: calc(16.5 * var(--u)); line-height: 1; white-space: nowrap; color: var(--ink);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
-.plan-event { background: var(--well-strong); }
-.plan-task { background: var(--surface); }
+/* Events are the day's furniture: quiet. Tasks are the work: paper, a firmer edge, a little lift. */
+.plan-event { background: var(--well); color: var(--ink-2); border-color: var(--rule-soft); box-shadow: none; }
+.plan-task { background: var(--paper); color: var(--paper-ink); border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); box-shadow: 0 2px 5px rgb(0 0 0 / 0.12); }
 .plan-block.is-current { border-left: calc(3 * var(--u)) solid var(--ink); padding-left: calc(17 * var(--u)); }
 .plan-time { width: calc(71 * var(--u)); flex: none; }
 .plan-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -226,6 +229,7 @@
 /* ---------- the To do side: rails stacked down a scroll area ---------- */
 .todo-scroll {
   position: absolute; left: calc((var(--split) + 0.85 * var(--kt, 1)) * 1cqw); width: calc(65.3cqw * var(--kt, 1)); top: 24.2cqh; height: 69.6cqh;
+  background: var(--rack); border-radius: calc(6 * var(--u)); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.06);
   overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
 .grp { position: relative; padding-right: 0.6cqw; }
@@ -238,15 +242,19 @@
 @media (prefers-reduced-motion: reduce) { .grp-chevron svg { transition: none; } }
 
 /* A rail, 2D: a flat bar with a dark outline, a highlight along the top, a shade along the foot and bolts.
-   One bar is drawn under every row of dockets (a repeating background), so a long list wraps onto as many
+   The tickets hang from it, their tops tucked under it, as on a real pass. One rail runs across the top of
+   every row (a repeating background on a layer in front of the tickets), so a long list wraps onto as many
    rails as it needs, stacked down the side, instead of running off to the right. */
 .grp-dockets {
-  --dk-w: calc(186 * var(--u)); --dk-h: calc(214 * var(--u)); --gap-x: calc(16 * var(--u)); --gap-y: calc(38 * var(--u));
-  --band: calc(22 * var(--u)); --pad-top: calc(12 * var(--u));
-  --pitch: calc(var(--dk-h) + var(--gap-y)); --rail-at: calc(var(--pad-top) + var(--dk-h) - var(--band) * 0.3);
-  position: relative; margin: 0; padding: var(--pad-top) 0.4cqw var(--band) 0.6cqw; list-style: none;
+  --dk-w: calc(186 * var(--u)); --dk-h: calc(214 * var(--u)); --gap-x: calc(16 * var(--u)); --gap-y: calc(40 * var(--u));
+  --band: calc(22 * var(--u)); --pad-top: calc(14 * var(--u));
+  --pitch: calc(var(--dk-h) + var(--gap-y)); --rail-at: calc(var(--pad-top) - var(--band) * 0.5);
+  position: relative; margin: 0; padding: var(--pad-top) 0.4cqw calc(18 * var(--u)) 0.6cqw; list-style: none;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--dk-w), 1fr)); grid-auto-rows: var(--dk-h);
-  column-gap: var(--gap-x); row-gap: var(--gap-y); min-height: calc(var(--pad-top) + var(--dk-h) + var(--band) * 0.8);
+  column-gap: var(--gap-x); row-gap: var(--gap-y); min-height: calc(var(--pad-top) + var(--band));
+}
+.grp-dockets::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
   background:
     radial-gradient(circle at 50% calc(var(--band) / 2), var(--rail-bolt) 0 calc(2.2 * var(--u)), var(--rail-ink) calc(2.4 * var(--u)) calc(3.3 * var(--u)), transparent calc(3.5 * var(--u)))
       calc(var(--dk-w) / 2) var(--rail-at) / calc(var(--dk-w) + var(--gap-x)) var(--pitch) repeat,
@@ -286,20 +294,21 @@
 /* Paper never inverts. The perforated top is a row of paper teeth with nothing (not white) between them,
    so it sits right on any ground, light or dark. A flat offset shadow, as a 2D sprite would have. */
 .dk-paper {
-  position: absolute; inset: 0; background: var(--paper); border-radius: 0 0 2px 2px;
-  box-shadow: 0 calc(3 * var(--u)) 0 rgb(0 0 0 / 0.13), 0 0 0 1px rgb(0 0 0 / 0.07);
+  position: absolute; inset: 0; background: var(--paper); border-radius: 2px 2px 0 0;
+  filter: drop-shadow(0 calc(5 * var(--u)) calc(6 * var(--u)) rgb(0 0 0 / 0.16)) drop-shadow(0 0 1px rgb(0 0 0 / 0.18));
 }
+/* The torn foot: paper teeth hanging below the ticket, nothing between them, so it sits right on any ground. */
 .dk-paper::before {
-  content: ""; position: absolute; left: 0; right: 0; top: calc(-5 * var(--u)); height: calc(5 * var(--u)); pointer-events: none;
-  background: conic-gradient(from 135deg at 50% 0, var(--paper) 90deg, transparent 0) 0 0 / calc(10 * var(--u)) calc(5 * var(--u)) repeat-x;
+  content: ""; position: absolute; left: 0; right: 0; bottom: calc(-5 * var(--u)); height: calc(5 * var(--u)); pointer-events: none;
+  background: conic-gradient(from -45deg at 50% 100%, var(--paper) 90deg, transparent 0) 0 0 / calc(10 * var(--u)) calc(5 * var(--u)) repeat-x;
 }
 /* Its picture is still flying in from the quick add. Visibility, not opacity: the paper's inline opacity
    belongs to motion's shared layout, the li's to dnd-kit. */
 .docket.is-inflight { visibility: hidden; }
 .dk-print {
   position: absolute; inset: 0; display: flex; flex-direction: column; gap: calc(4 * var(--u));
-  padding: calc(14 * var(--u)) calc(16 * var(--u)) calc(11 * var(--u)) calc(17 * var(--u));
-  font-family: var(--font-print); color: var(--paper-ink); line-height: 1; border-radius: 2px; overflow: hidden;
+  padding: calc(20 * var(--u)) calc(16 * var(--u)) calc(9 * var(--u)) calc(17 * var(--u));
+  font-family: var(--font-print); color: var(--paper-ink); line-height: 1; border-radius: 2px;
 }
 .dk-print p, .dk-print h4, .dk-print dl { margin: 0; }
 .dk-dashes { flex: none; overflow: hidden; white-space: nowrap; font-size: calc(14 * var(--u)); line-height: 1; color: var(--paper-ink); letter-spacing: -0.02em; }
@@ -382,17 +391,20 @@
 .dk-open::after { content: ""; position: absolute; inset: 0; }
 .pass .dk-open:focus-visible { outline: none; }
 .dk-print:has(.dk-open:focus-visible) { outline: 2px solid var(--ink); outline-offset: calc(-3 * var(--u)); }
-/* The bump, in pen: an empty loop waits in the paper's corner (shown on hover or focus, always on touch),
-   and ticking scrawls a biro tick through it. */
+/* The bump, in pen: an empty loop waits in the paper's corner, below the rail (shown on hover or focus, always on
+   touch), and ticking dashes a big hurried tick across the top of the ticket, running off its edge. */
 .pass .dk-bump {
-  position: absolute; z-index: 1; top: calc(8 * var(--u)); right: calc(8 * var(--u)); width: calc(34 * var(--u)); height: calc(34 * var(--u));
+  position: absolute; z-index: 1; top: calc(18 * var(--u)); right: calc(8 * var(--u)); width: calc(34 * var(--u)); height: calc(34 * var(--u));
   display: grid; place-items: center; color: var(--biro); background: none; border-radius: 50%;
 }
-.dk-bump > svg { grid-area: 1 / 1; width: 100%; height: 100%; }
-.dk-loop { opacity: 0; transform: rotate(-8deg) scale(0.9); transition: opacity 0.16s ease-out, transform 0.2s ease-out; }
+.dk-loop { grid-area: 1 / 1; width: 100%; height: 100%; opacity: 0; transform: rotate(-8deg) scale(0.9); transition: opacity 0.16s ease-out, transform 0.2s ease-out; }
 .docket:hover .dk-loop, .docket:focus-within .dk-loop { opacity: 0.45; transform: none; }
 .pass .dk-bump:hover .dk-loop { opacity: 1; }
-.dk-tick { transform: translate(calc(3 * var(--u)), calc(-3 * var(--u))) scale(1.15); }
+.dk-tick {
+  position: absolute; right: calc(-22 * var(--u)); top: calc(-16 * var(--u)); width: calc(104 * var(--u)); height: auto;
+  transform: rotate(-4deg); pointer-events: none; overflow: visible;
+}
+.docket-compact .dk-tick { right: calc(-14 * var(--u)); top: calc(-10 * var(--u)); width: calc(64 * var(--u)); }
 @media (hover: none) { .dk-loop { opacity: 0.45; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .dk-loop { transition: opacity 0.1s linear; transform: none; } }
 
@@ -709,12 +721,14 @@
 .todo.is-compact .quickadd-input { width: calc((100 - var(--split) - 1.6 - 2.35 * var(--kt)) * 1cqw); }
 .todo-scroll.is-compact { top: 23.4cqh; height: 70.4cqh; }
 .grp-compact { padding-bottom: calc(12 * var(--u)); }
+.grp-compact .grp-dockets::after { display: none; }
 .grp-compact .grp-dockets {
-  display: flex; flex-direction: column; gap: calc(11 * var(--u)); min-height: 0; margin-top: calc(-3 * var(--u));
-  padding: calc(5 * var(--u)) 1.2cqw 0 0.9cqw; background: none;
+  display: flex; flex-direction: column; gap: calc(13 * var(--u)); min-height: 0; margin-top: calc(-7 * var(--u));
+  padding: 0 1.2cqw calc(6 * var(--u)) 0.9cqw;
 }
 .grp-dockets .docket-compact { flex: none; height: calc(48 * var(--u)); }
-.docket-compact .dk-paper::before { top: calc(-4 * var(--u)); height: calc(4 * var(--u)); background-size: calc(8 * var(--u)) calc(4 * var(--u)); }
+.docket-compact .dk-paper::before { bottom: calc(-4 * var(--u)); height: calc(4 * var(--u)); background-size: calc(8 * var(--u)) calc(4 * var(--u)); }
+.grp-compact .rail-bar { position: relative; z-index: 3; }
 .docket-compact .dk-print { flex-direction: row; align-items: center; gap: calc(12 * var(--u)); padding: 0 calc(48 * var(--u)) 0 calc(14 * var(--u)); }
 .docket-compact .dk-time, .docket-compact .dk-stub-tag { flex: none; width: calc(56 * var(--u)); font-size: calc(16 * var(--u)); }
 .docket-compact .dk-stub-tag { font-size: calc(12 * var(--u)); letter-spacing: 0.02em; color: var(--paper-red); }
@@ -831,7 +845,7 @@
   .grp-compact .grp-head { height: 32px; padding-left: 2px; }
   .grp-compact .grp-label { font-size: 15px; }
   .grp-compact .rail-bar { position: relative; z-index: 1; height: 13px; margin: 0; }
-  .grp-compact .grp-dockets { gap: 12px; margin-top: -2px; padding: 6px 8px 0; }
+  .grp-compact .grp-dockets { gap: 14px; margin-top: -7px; padding: 0 8px 8px; }
   .grp-dockets .docket-compact { height: 66px; -webkit-touch-callout: none; user-select: none; }
   /* The top pick keeps its biro ring on the phone: loosely round the time and the start of the title. */
   .docket-compact .biro-ring { display: block; left: 1%; top: -16%; width: 50%; height: 134%; }
@@ -901,3 +915,6 @@
 }
 .chip-epic { width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: var(--epic); }
 .quickadd-input::placeholder { color: var(--ink-3); }
+
+/* A rail with a docket from another rail held over it: dashed, as every provisional drop target is. */
+.grp.is-over { outline: 1.5px dashed var(--ink-3); outline-offset: calc(2 * var(--u)); border-radius: calc(6 * var(--u)); }

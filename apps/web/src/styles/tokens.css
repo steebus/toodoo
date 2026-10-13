@@ -43,6 +43,7 @@
   --rail-fill: #bfc4cb;
   --rail-lo: #8f959e;
   --rail-bolt: #6f757e;
+  --rack: #eeede8; /* the tickets' side of the pass: a shade off the ground so the paper stands out */
 
   /* type */
   --font-wordmark: "Carlito", "Calibri", system-ui, sans-serif;
@@ -80,6 +81,7 @@
   --rail-fill: #676d76;
   --rail-lo: #4a4f57;
   --rail-bolt: #33373d;
+  --rack: #0d0d0d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -104,5 +106,6 @@
     --rail-fill: #676d76;
     --rail-lo: #4a4f57;
     --rail-bolt: #33373d;
+    --rack: #0d0d0d;
   }
 }

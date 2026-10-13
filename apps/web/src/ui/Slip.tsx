@@ -4,7 +4,7 @@ import { useState, type CSSProperties, type FormEvent, type KeyboardEvent } from
 import { effectivePriority, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { dayWord, formatDuration } from "@shared/planning.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
-import type { FullTask } from "@shared/snapshot.ts";
+import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { waitingDays } from "@shared/board.ts";
 import type { WorkTask } from "../lib/useWork";
 import { shortDate } from "./format";
@@ -20,7 +20,7 @@ export const epicStyle = (e?: { colour?: string | null } | null) =>
   e?.colour ? ({ ["--epic" as string]: `var(--epic-${e.colour})` } as CSSProperties) : undefined;
 
 // When, as a docket prints it: carried tasks count their days in red, near ones say the day.
-function when(t: FullTask, today: string) {
+export function when(t: FullTask, today: string) {
   if (t.done) return { text: t.done_on ? `DONE ${dayWord(t.done_on, today).toUpperCase()}` : "DONE", late: false };
   if (t.due < today) {
     const n = waitingDays(t.due, today);
@@ -35,6 +35,8 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
   const w = when(t, today);
   const high = !t.done && effectivePriority(t, epic) === "high";
   const flag = high ? <span className="slip-high">! HIGH</span> : null;
+  const list = checklistProgress(t.checklist);
+  const steps = list ? <span className="slip-list" aria-label={`Checklist ${list.done} of ${list.total}`}>☐ {list.done}/{list.total}</span> : null;
   const status = showStatus && !t.done && t.status && t.status !== "todo"
     ? <span className={`slip-status is-${t.status}`}>{TASK_STATUS_LABEL[t.status].toUpperCase()}</span>
     : null;
@@ -43,6 +45,7 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
       <>
         <span className="slip-title"><span className="slip-title-text">{t.title.toUpperCase()}</span></span>
         <span className="slip-meta">
+          {steps}
           {status}
           {flag}
           <span className={w.late ? "slip-late" : undefined}>{w.text}</span>
@@ -54,7 +57,10 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
     <>
       <span className="slip-line">
         <span className={w.late ? "slip-late" : undefined}>{w.text}</span>
-        {t.estimate_mins ? <span>~{formatDuration(t.estimate_mins)}</span> : null}
+        <span className="slip-line-end">
+          {steps}
+          {t.estimate_mins ? <span>~{formatDuration(t.estimate_mins)}</span> : null}
+        </span>
       </span>
       <span className="slip-title"><span className="slip-title-text">{t.title.toUpperCase()}</span></span>
       {(flag || (showEpic && epic) || t.tags.length > 0) && (

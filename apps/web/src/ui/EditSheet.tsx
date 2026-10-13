@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { EPIC_STATUS_LABEL, TASK_STATUSES, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { formatDuration, parseDuration } from "@shared/planning.ts";
-import type { FullTask } from "@shared/snapshot.ts";
+import type { ChecklistItem, FullTask } from "@shared/snapshot.ts";
 import { normLink } from "@shared/validation.ts";
+import { Checklist } from "./Checklist";
 
 export type Draft = {
   title: string; description: string; note: string; link: string; due: string; time: string;
-  priority: string; estimate: string; tags: string; epic: string; status: string;
+  priority: string; estimate: string; tags: string; epic: string; status: string; checklist: ChecklistItem[];
 };
 
 type Props = {
@@ -40,6 +41,7 @@ export function EditSheet({ task, epics = [], returnTo, draft, offline = false, 
     tags: task.tags.join(", "),
     epic: task.epic_id ?? "",
     status: task.status ?? "todo",
+    checklist: task.checklist ?? [],
   });
   const [invalid, setInvalid] = useState<Partial<Record<"title" | "estimate" | "link", string>>>({});
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => {
@@ -84,6 +86,8 @@ export function EditSheet({ task, epics = [], returnTo, draft, offline = false, 
     if (!same(tags, task.tags)) patch.tags = tags;
     if (f.epic !== (task.epic_id ?? "")) patch.epic_id = f.epic || null;
     if (f.status !== (task.status ?? "todo")) patch.status = f.status;
+    const steps = f.checklist.filter((x) => x.text.trim()).map((x) => ({ text: x.text.trim(), done: x.done }));
+    if (JSON.stringify(steps) !== JSON.stringify(task.checklist ?? [])) patch.checklist = steps;
     if (Object.keys(patch).length) onSave(task.id, patch, f);
     onClose();
   };
@@ -118,6 +122,10 @@ export function EditSheet({ task, epics = [], returnTo, draft, offline = false, 
           <span>Description</span>
           <textarea rows={3} value={f.description} onChange={set("description")} />
         </label>
+        <div className="sheet-field">
+          <span>Checklist</span>
+          <Checklist items={f.checklist} editing onChange={(checklist) => setF((p) => ({ ...p, checklist }))} />
+        </div>
         <label className="sheet-field">
           <span>Note</span>
           <textarea rows={2} value={f.note} onChange={set("note")} />

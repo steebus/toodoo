@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { effectivePriority, EPIC_STATUS_LABEL, TASK_STATUS_LABEL, TASK_STATUSES, type Epic, type TaskStatus } from "@shared/epics.ts";
 import { dayWord, fmtTime, formatDuration } from "@shared/planning.ts";
-import type { FullTask } from "@shared/snapshot.ts";
+import type { ChecklistItem, FullTask } from "@shared/snapshot.ts";
+import { Checklist } from "./Checklist";
 import { waitingDays } from "@shared/board.ts";
 import { shortDate } from "./format";
 import { CloseIcon, PenProgress, PenTick } from "./icons";
+import { KitchenTimer } from "./KitchenTimer";
 
 export type TaskViewActions = {
   onTick?: (done: boolean) => void;
@@ -13,6 +15,7 @@ export type TaskViewActions = {
   onStatus?: (s: TaskStatus) => void; // the Board's columns
   onEdit: () => void;
   onDelete?: () => void;
+  onChecklist?: (items: ChecklistItem[]) => void; // tick a step or add one, right on the ticket
 };
 
 type Props = TaskViewActions & {
@@ -21,6 +24,7 @@ type Props = TaskViewActions & {
   today: string;
   progress?: { spent: number; est: number } | null;
   offline?: boolean;
+  focus?: { startM: number; endM: number }; // Focus: the room goes dark and a kitchen timer runs down the block
   onClose: () => void;
 };
 
@@ -28,7 +32,7 @@ const DASH = "-".repeat(80);
 
 // A task, read: the docket blown up into a side sheet of thermal paper, with what you can do to it along the foot.
 // A native modal dialog like the edit sheet: side sheet on desktop, bottom sheet on the phone.
-export function TaskView({ task: t, epic, today, progress, offline = false, onClose, onTick, onPlan, onTomorrow, onStatus, onEdit, onDelete }: Props) {
+export function TaskView({ task: t, epic, today, progress, offline = false, focus, onClose, onTick, onPlan, onTomorrow, onStatus, onEdit, onDelete, onChecklist }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
   useEffect(() => {
@@ -54,7 +58,7 @@ export function TaskView({ task: t, epic, today, progress, offline = false, onCl
   return (
     <dialog
       ref={dialog}
-      className="sheet sheet-ticket"
+      className={`sheet sheet-ticket${focus ? " is-focus" : ""}`}
       aria-labelledby="ticket-title"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onKeyDown={(e) => {
@@ -63,6 +67,7 @@ export function TaskView({ task: t, epic, today, progress, offline = false, onCl
       }}
       onClick={(e) => e.target === dialog.current && onClose()}
     >
+      {focus && <KitchenTimer startM={focus.startM} endM={focus.endM} />}
       <article className={`ticket${t.done ? " is-done" : ""}${high ? " is-high" : ""}`}
         style={epic?.colour ? { ["--epic" as string]: `var(--epic-${epic.colour})` } : undefined}>
         <button type="button" className="tk-close" aria-label="Close" onClick={onClose}><CloseIcon size={18} /></button>
@@ -95,6 +100,7 @@ export function TaskView({ task: t, epic, today, progress, offline = false, onCl
         )}
         {(t.description || t.note || t.link || t.tags.length > 0) && <p className="tk-dashes" aria-hidden>{DASH}</p>}
         {t.description && <p className="tk-body">{t.description}</p>}
+        {onChecklist && <Checklist items={t.checklist ?? []} onChange={onChecklist} disabled={offline} />}
         {t.note && <p className="tk-note">{t.note}</p>}
         {t.link && <p className="tk-link"><a href={t.link} target="_blank" rel="noreferrer">{t.link.replace(/^https?:\/\//, "")}</a></p>}
         {t.tags.length > 0 && <p className="tk-tags">{t.tags.map((x) => `#${x}`).join("  ")}</p>}

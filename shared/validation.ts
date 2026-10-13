@@ -57,6 +57,11 @@ const Fields = z.object({
   // An epic's id, or null for none; the server checks it is this user's.
   epic_id: z.string().trim().max(64).nullish().transform((v) => v || null),
   status: z.enum(TASK_STATUSES).optional(),
+  // Steps inside a task: up to 50, each a short line, ticked or not. Blank lines are dropped.
+  checklist: z.array(z.union([
+    z.object({ text: z.string().trim().max(200), done: z.boolean().optional() }),
+    z.string().trim().max(200).transform((text) => ({ text, done: false })),
+  ])).max(50).transform((a) => a.filter((x) => x.text).map((x) => ({ text: x.text, done: !!x.done }))).optional(),
 });
 
 export const TaskInput = Fields.extend({
@@ -106,7 +111,7 @@ export interface TaskRow {
   title: string; description: string | null; note: string | null; link: string | null;
   source: string; external_id: string | null; due: string; time: string | null;
   priority: Priority | null; estimate_mins: number | null; tags: string[];
-  epic_id: string | null; status?: TaskStatus;
+  epic_id: string | null; status?: TaskStatus; checklist?: { text: string; done: boolean }[];
 }
 
 // Validates and normalises a batch; duplicates inside the batch are reported as skipped.
@@ -131,6 +136,7 @@ export function prepareTasks(inputs: unknown[], today: string) {
       source, external_id, due: v.due ?? today, time: v.time ?? null, priority: v.priority ?? null,
       estimate_mins: v.estimate_mins ?? null, tags: v.tags ?? [], epic_id: v.epic_id ?? null,
       ...(v.status ? { status: v.status } : {}),
+      ...(v.checklist?.length ? { checklist: v.checklist } : {}),
     });
   });
   return { rows, skipped, errors };

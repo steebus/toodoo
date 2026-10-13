@@ -4,7 +4,8 @@ import { FreezeLayout } from "./motion";
 
 const KEY = "toodoo.split";
 export const PLAN_SPLIT = 33.85; // the comp's own split
-export const PRESET_SPLIT: Record<string, number> = { Capture: 30, Plan: PLAN_SPLIT, Focus: 70 };
+// Plan opens the day's line wide (the To do side narrows to a column of stubs); Capture is the comp's own split.
+export const PRESET_SPLIT: Record<string, number> = { Plan: 70, Capture: PLAN_SPLIT };
 export const COMPACT_AT = 55; // past this split the To do side is a narrow column (Focus)
 export const clampSplit = (v: number) => (Number.isFinite(v) ? Math.min(75, Math.max(25, v)) : PLAN_SPLIT);
 

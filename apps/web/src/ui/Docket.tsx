@@ -56,7 +56,7 @@ type Props = {
   onOpen?: (id: string) => void;
   onTick?: (id: string, done: boolean) => void;
   onPlan?: (id: string) => void;
-  dnd?: { manual: boolean }; // inside a DndProvider: draggable, and sortable while the sort is manual
+  dnd?: { manual: boolean; moves?: boolean }; // in a DndProvider: draggable, sortable while the sort is manual, movable between status rails
   compact?: boolean; // Focus: a one-line stub in a narrow column instead of the paper docket
   arrival?: number; // just arrived from elsewhere: prints in, this many places into the stagger
   inflight?: boolean; // its picture is still flying in from the quick add: hidden until it lands
@@ -128,6 +128,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             <>
               <span className={d.variant === "carried" ? "dk-stub-tag" : "dk-time"}>{d.variant === "carried" ? d.tag : d.time}</span>
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
+              {d.list && <span className="dk-list" aria-label={`Checklist ${d.list.done} of ${d.list.total}`}>{d.list.done}/{d.list.total}</span>}
               <span className="dk-dur">{d.duration}</span>
               {d.progress && <PenProgress {...d.progress} className="dk-progress" />}
             </>
@@ -178,7 +179,8 @@ function SortableDocket(props: Props) {
   const d = props.docket;
   const busy = isOptimistic(d.id);
   const offline = useIsOffline();
-  const s = useSortable({ id: d.id, disabled: { draggable: busy || offline || d.done, droppable: busy || d.done || !props.dnd?.manual } });
+  // Done dockets drag too (back to Today, or on to Coming up); a docket takes drops to be moved in before it.
+  const s = useSortable({ id: d.id, disabled: { draggable: busy || offline, droppable: busy || (!props.dnd?.manual && !props.dnd?.moves) } });
   const style: CSSProperties = {
     transform: CSS.Translate.toString(s.transform),
     transition: s.transition,

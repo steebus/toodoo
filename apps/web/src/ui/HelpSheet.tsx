@@ -8,7 +8,8 @@ const KEYS: [string[], string][] = [
   [["p"], "Plan"],
   [["[", "]"], "Previous, next day"],
   [["t"], "Today"],
-  [["1", "2", "3"], "Capture, Plan, Focus"],
+  [["1", "2"], "Plan, Capture"],
+  [["f"], "Focus on the task in hand"],
   [["?"], "Shortcuts"],
 ];
 

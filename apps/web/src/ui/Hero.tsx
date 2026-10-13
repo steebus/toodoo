@@ -8,6 +8,7 @@ import { isOptimistic, type Actions } from "../lib/useActions";
 import { actionFor } from "../lib/shortcuts";
 import { useNarrow } from "../lib/useNarrow";
 import { useStoredView } from "../lib/useStoredView";
+import { focusBlock } from "../lib/focus";
 import { buildPass } from "./build";
 import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
@@ -22,7 +23,7 @@ import { TodoPanel } from "./TodoPanel";
 import { TopBar } from "./TopBar";
 import type { BoardData } from "./types";
 
-const PRESETS = ["Capture", "Plan", "Focus"];
+const PRESETS = ["Plan", "Capture"];
 
 type Props = {
   board: BoardData; quickAdd?: string; onSignOut?: () => void; actions?: Actions; nav?: DayNavProps;
@@ -57,6 +58,11 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const navDate = nav?.date;
   const today = board.today;
   const viewTask = board.tasks.find((t) => t.id === viewing);
+  // Focus: the task in hand (or next) in its ticket, the room dark behind it and a kitchen timer running.
+  const [focusing, setFocusing] = useState(false);
+  const block = focusBlock(board);
+  const focusNow = actions && block ? () => { opener.current = document.activeElement; setFocusing(true); setViewing(block.id); } : undefined;
+  const focused = focusing && block && viewing === block.id ? block : null;
   // Clicking a task reads it (the ticket); e, or Edit on the ticket, edits it.
   const opener = useRef<Element | null>(null); // what opened the ticket, for focus when the sheets close
   const showTask = actions && ((id: string) => {
@@ -82,9 +88,9 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
       else if (a === "edit") id && openTask?.(id);
       else if (a === "prevDay" || a === "nextDay") navDate && onDate?.(addDays(navDate, a === "nextDay" ? 1 : -1));
       else if (a === "today") onDate?.(today);
+      else if (a === "presetPlan") setSplit(PRESET_SPLIT.Plan);
       else if (a === "presetCapture") setSplit(PRESET_SPLIT.Capture);
-      else if (a === "presetPlan") setSplit(PLAN_SPLIT);
-      else if (a === "presetFocus") setSplit(PRESET_SPLIT.Focus);
+      else if (a === "focus") focusNow?.();
       else if (a === "help") setHelp(true);
       else return;
       e.preventDefault();
@@ -108,12 +114,13 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           presets={PRESETS}
           activePreset={preset}
           onPreset={(p) => setSplit(PRESET_SPLIT[p])}
+          onFocus={focusNow}
           celebrate={celebrate}
           offline={offline}
           unsaved={!!actions?.unsaved}
           rooms={!!actions}
         />
-        <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} compact={compact} actions={actions}>
+        <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} moves={view.group === "status"} compact={compact} actions={actions}>
         <Panes split={split}>
           <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} tabpanel={narrow}
             nextUp={{
@@ -170,12 +177,14 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
             epic={viewTask.epic_id ? board.epics?.find((e) => e.id === viewTask.epic_id) : undefined}
             progress={viewTask.estimate_mins && board.effort?.[viewTask.id]?.actual
               ? { spent: board.effort[viewTask.id].actual, est: viewTask.estimate_mins } : null}
-            onClose={() => setViewing(null)}
+            focus={focused ? { startM: focused.startM, endM: focused.endM } : undefined}
+            onClose={() => { setViewing(null); setFocusing(false); }}
             onTick={(done) => actions.tick(viewTask.id, done)}
             onPlan={() => void actions.planTasks([viewTask.id], board.date)}
             onTomorrow={() => void actions.save(viewTask.id, { due: addDays(board.today, 1) })}
             onEdit={() => openTask?.(viewTask.id)}
-            onDelete={() => actions.remove(viewTask.id)} />
+            onDelete={() => actions.remove(viewTask.id)}
+            onChecklist={(checklist) => void actions.save(viewTask.id, { checklist })} />
         )}
         {help && <HelpSheet onClose={() => setHelp(false)} />}
         {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}
