@@ -74,3 +74,15 @@ export const NowMarker = ({ className }: P) => (
     <path d="M0 0l12 9-12 9z" />
   </svg>
 );
+
+export const CloseIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} strokeWidth={1.8} className={className}>
+    <path d="M5 5l10 10M15 5L5 15" />
+  </svg>
+);
+
+export const PlusIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} strokeWidth={1.8} className={className}>
+    <path d="M10 4v12M4 10h12" />
+  </svg>
+);

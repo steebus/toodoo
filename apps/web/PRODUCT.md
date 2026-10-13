@@ -42,9 +42,10 @@ An agent-fed planner. Claude reads, suggests and plans through the same data and
   - overlaps are laid out in lanes;
   - effort tracks planned and actual time against the estimate;
   - day navigation.
+- **Epics:** title, description, priority and status (planned, active, on hold, done). A task has at most one epic and keeps its own priority; the epic counts for half of it (a high epic lifts a plain task to medium; on hold sinks it). Managed on the Epics screen: full create/edit/delete, tasks dragged between epics, reordered, or taken out.
+- **Board:** a Kanban of To do, Doing, Blocked and Done (the last fortnight), filterable by epic. Doing lifts a task in suggestions; Blocked sinks it.
 - **Suggestions:** a scored "next up" list with reasons (overdue, due today, priority, carried from the last plan, estimate already planned, planned elsewhere, fixed time).
 - **Stack:** Vite + React + TypeScript + Tailwind v4 web app, Convex backend (live queries), WorkOS AuthKit sign-in, deployed on Vercel, installable as a PWA.
-- **Later (spec 2):** Epics (prioritised, hideable, filterable; tasks derive priority) and a Kanban view.
 
 ## Brand Commitments
 

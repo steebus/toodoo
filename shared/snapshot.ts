@@ -1,3 +1,4 @@
+import type { Epic } from "./epics.ts";
 import { addDays, byOrder, suggestions, toHM, toMin, type Block, type DayEvent, type Task } from "./planning.ts";
 
 export interface FullTask extends Task {
@@ -9,12 +10,13 @@ export interface FullTask extends Task {
   description: string | null;
 }
 export interface DayRow { date: string; headline: string | null; events: DayEvent[] }
-export interface State { tasks: FullTask[]; days: DayRow[]; blocks: Block[] }
+export interface State { tasks: FullTask[]; days: DayRow[]; blocks: Block[]; epics?: Epic[] }
 
-const compact = (t: FullTask) =>
+const compact = (epics: Map<string, Epic>) => (t: FullTask) =>
   Object.fromEntries(
     Object.entries({
       id: t.id, title: t.title, due: t.due, time: t.time, priority: t.priority, estimate_mins: t.estimate_mins,
+      epic: t.epic_id ? epics.get(t.epic_id)?.title : null, status: t.status && t.status !== "todo" ? t.status : null,
       tags: t.tags.length ? t.tags : null, source: t.source === "you" ? null : t.source, external_id: t.external_id,
       link: t.link, note: t.note,
     }).filter(([, v]) => v != null),
@@ -29,6 +31,8 @@ export function buildSnapshot(o: { date: string; today: string; nowM: number; qu
       ? t.tags.some((x) => x.toLowerCase() === q)
       : [t.title, t.note, t.description, ...t.tags].some((x) => x?.toLowerCase().includes(q)));
   const open = o.tasks.filter((t) => !t.done && match(t)).sort(byOrder);
+  const epics = new Map((o.epics ?? []).map((e) => [e.id, e]));
+  const row = compact(epics);
   const titles = new Map(o.tasks.map((t) => [t.id, t.title]));
   const dayOf = (d: string) => o.days.find((x) => x.date === d) ?? null;
   const plan = o.blocks
@@ -41,14 +45,16 @@ export function buildSnapshot(o: { date: string; today: string; nowM: number; qu
     day: dayOf(o.date),
     next_day: dayOf(addDays(o.date, 1)),
     tasks: {
-      carried: open.filter((t) => t.due < o.today).map(compact),
-      due: open.filter((t) => t.due >= o.today && t.due <= o.date).map(compact),
-      upcoming: open.filter((t) => t.due > o.date && t.due >= o.today).map(compact),
+      carried: open.filter((t) => t.due < o.today).map(row),
+      due: open.filter((t) => t.due >= o.today && t.due <= o.date).map(row),
+      upcoming: open.filter((t) => t.due > o.date && t.due >= o.today).map(row),
       done: o.tasks.filter((t) => t.done && t.done_on === o.date && match(t)).map((t) => ({ id: t.id, title: t.title })),
     },
     plan,
     planned_mins: plan.reduce((n, b) => n + b.mins, 0),
-    suggestions: suggestions({ date: o.date, today: o.today, nowM: o.nowM, tasks: o.tasks, blocks: o.blocks })
+    // Done epics are left out; list_epics has them all.
+    epics: (o.epics ?? []).filter((e) => e.status !== "done").map((e) => ({ id: e.id, title: e.title, priority: e.priority, status: e.status })),
+    suggestions: suggestions({ date: o.date, today: o.today, nowM: o.nowM, tasks: o.tasks, blocks: o.blocks, epics: o.epics })
       .map((s) => ({ id: s.task.id, title: s.task.title, reasons: s.reasons })),
   };
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EPIC_STATUSES, TASK_STATUSES, type TaskStatus } from "./epics.ts";
 import { parseDuration, type Priority } from "./planning.ts";
 
 // Client-input failure: safe to show the caller. Anything else is an internal error.
@@ -53,21 +54,26 @@ const Fields = z.object({
     return n;
   }),
   tags: z.unknown().transform(parseTags).optional(),
+  // An epic's id, or null for none; the server checks it is this user's.
+  epic_id: z.string().trim().max(64).nullish().transform((v) => v || null),
+  status: z.enum(TASK_STATUSES).optional(),
 });
 
 export const TaskInput = Fields.extend({
   source: z.string().trim().toLowerCase().regex(/^[a-z0-9_-]{1,30}$/).optional(),
   external_id: z.string().trim().min(1).max(200).nullish(),
 });
+const strictPriority = z.unknown().transform((v, ctx) => {
+  const p = normPriority(v);
+  if (p === null && v != null && String(v).trim() !== "") {
+    ctx.addIssue({ code: "custom", message: "priority must be high, med or low" });
+    return z.NEVER;
+  }
+  return p;
+});
+
 export const TaskPatch = Fields.partial().extend({
-  priority: z.unknown().transform((v, ctx) => {
-    const p = normPriority(v);
-    if (p === null && v != null && String(v).trim() !== "") {
-      ctx.addIssue({ code: "custom", message: "priority must be high, med or low" });
-      return z.NEVER;
-    }
-    return p;
-  }).optional(),
+  priority: strictPriority.optional(),
   done: z.boolean().optional(),
   done_on: dateStr.nullish(),
   sort_order: z.number().optional(),
@@ -100,13 +106,14 @@ export interface TaskRow {
   title: string; description: string | null; note: string | null; link: string | null;
   source: string; external_id: string | null; due: string; time: string | null;
   priority: Priority | null; estimate_mins: number | null; tags: string[];
+  epic_id: string | null; status?: TaskStatus;
 }
 
 // Validates and normalises a batch; duplicates inside the batch are reported as skipped.
 export function prepareTasks(inputs: unknown[], today: string) {
   const errors: AddResult["errors"] = [];
   const skipped: AddResult["skipped"] = [];
-  const rows: TaskRow[] = [];
+  const rows: (TaskRow & { index: number })[] = [];
   const seen = new Set<string>();
   inputs.forEach((raw, index) => {
     const r = TaskInput.safeParse(raw);
@@ -120,9 +127,10 @@ export function prepareTasks(inputs: unknown[], today: string) {
       seen.add(k);
     }
     rows.push({
-      title: v.title, description: v.description ?? null, note: v.note ?? null, link: v.link ?? null,
+      index, title: v.title, description: v.description ?? null, note: v.note ?? null, link: v.link ?? null,
       source, external_id, due: v.due ?? today, time: v.time ?? null, priority: v.priority ?? null,
-      estimate_mins: v.estimate_mins ?? null, tags: v.tags ?? [],
+      estimate_mins: v.estimate_mins ?? null, tags: v.tags ?? [], epic_id: v.epic_id ?? null,
+      ...(v.status ? { status: v.status } : {}),
     });
   });
   return { rows, skipped, errors };
@@ -142,4 +150,27 @@ export function parseDay(input: unknown) {
   const r = DayInput.safeParse(input);
   if (!r.success) throw new InputError(issuesText(r.error));
   return defined(r.data) as z.infer<typeof DayInput>;
+}
+
+export const EpicInput = z.object({
+  title: z.string().trim().min(1).max(120),
+  description: text(2000),
+  priority: strictPriority.optional(),
+  status: z.enum(EPIC_STATUSES).optional(),
+});
+export const EpicPatch = EpicInput.partial().extend({ sort_order: z.number().optional() });
+
+export function parseEpic(input: unknown) {
+  const r = EpicInput.safeParse(input);
+  if (!r.success) throw new InputError(issuesText(r.error));
+  const v = r.data;
+  return { title: v.title, description: v.description ?? null, priority: v.priority ?? null, status: v.status ?? "planned" as const };
+}
+
+export function parseEpicPatch(patch: unknown) {
+  const r = EpicPatch.safeParse(patch);
+  if (!r.success) throw new InputError(issuesText(r.error));
+  const p = defined(r.data);
+  if (!Object.keys(p).length) throw new InputError("nothing to update");
+  return p;
 }

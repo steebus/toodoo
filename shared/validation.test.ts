@@ -44,7 +44,7 @@ describe("prepareTasks", () => {
       { title: "" },
     ], "2026-10-12");
     expect(r.rows).toEqual([{
-      title: "Reply to Sam", description: null, note: null, link: "https://mail.google.com/mail/u/0/#inbox/abc",
+      index: 0, epic_id: null, title: "Reply to Sam", description: null, note: null, link: "https://mail.google.com/mail/u/0/#inbox/abc",
       source: "you", external_id: null, due: "2026-10-12", time: null, priority: "med", estimate_mins: 90, tags: ["work"],
     }]);
     expect(r.errors.map((e) => e.index)).toEqual([1, 2]);

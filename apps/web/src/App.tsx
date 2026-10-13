@@ -6,7 +6,13 @@ import { useActions } from "./lib/useActions";
 import { useBoard } from "./lib/useBoard";
 import { useDayChange } from "./lib/useDayChange";
 import { useViewDate } from "./lib/useViewDate";
+import { useRoute, type Room } from "./lib/useRoute";
+import { useWorkActions, useWorkspace } from "./lib/useWork";
+import { Epics } from "./ui/Epics";
 import { Hero, HeroShell } from "./ui/Hero";
+import { Kanban } from "./ui/Kanban";
+import { RoomShell } from "./ui/RoomShell";
+import { SignIn as Door } from "./ui/SignIn";
 import type { BoardData } from "./ui/types";
 
 // The comp's content lives in a gitignored fixtures file; the glob is empty when it is absent (CI),
@@ -39,6 +45,23 @@ function Live({ board, date, onDate }: { board: BoardData; date: string; onDate:
   const out = useSignOut();
   const actions = useActions(board);
   return <Hero board={board} onSignOut={out} actions={actions} nav={{ date, onDate }} />;
+}
+
+// The Board and Epics rooms work from one live query; until it lands, the room's frame.
+function WorkRoom({ room }: { room: Exclude<Room, "day"> }) {
+  const out = useSignOut();
+  const work = useWorkspace();
+  const actions = useWorkActions(work);
+  return (
+    <RoomShell room={room} offline={actions.offline} onSignOut={out}>
+      {work ? (room === "board" ? <Kanban work={work} actions={actions} /> : <Epics work={work} actions={actions} />) : <main className="room-main" aria-busy />}
+    </RoomShell>
+  );
+}
+
+function Rooms({ cached }: { cached?: string }) {
+  const [room] = useRoute();
+  return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
 }
 
 function Home({ cached }: { cached?: string }) {
@@ -91,17 +114,12 @@ class Guard extends Component<{ cached?: string; children: ReactNode }, { failed
 function ColdStart({ children }: { children: ReactNode }) {
   const offline = useOffline();
   const last = lastUser();
-  return offline && last && hasCachedBoard(last) ? <Guard cached={last}><Home cached={last} /></Guard> : <>{children}</>;
+  return offline && last && hasCachedBoard(last) ? <Guard cached={last}><Rooms cached={last} /></Guard> : <>{children}</>;
 }
 
 function SignIn() {
   const { signIn } = useAuth();
-  return (
-    <main className="mx-auto mt-24 max-w-sm p-6">
-      <h1 className="mb-6 text-2xl font-semibold">toodoo</h1>
-      <button onClick={() => signIn()} className="rounded bg-black px-3 py-2 text-white">Sign in</button>
-    </main>
-  );
+  return <Door onSignIn={() => void signIn()} />;
 }
 
 export function App() {
@@ -110,7 +128,7 @@ export function App() {
     <>
       <AuthLoading><ColdStart>{null}</ColdStart></AuthLoading>
       <Unauthenticated><ColdStart><SignIn /></ColdStart></Unauthenticated>
-      <Authenticated><Guard><Home /></Guard></Authenticated>
+      <Authenticated><Guard><Rooms /></Guard></Authenticated>
     </>
   );
 }

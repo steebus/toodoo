@@ -1,0 +1,217 @@
+/* The rooms beyond the day (Board, Epics) and the door (sign in): the Pass's tokens, type and paper on pages
+   that flow and scroll. Sizes are plain px here: these pages reflow, they are not the scaled comp. */
+
+/* ---------- room nav: Day · Board · Epics, in the Pass's top bar and the rooms' ---------- */
+.rooms { display: flex; align-items: center; font-family: var(--font-ui); line-height: 1; white-space: nowrap; color: var(--ink-2); }
+.room-slot { display: inline-flex; align-items: center; }
+.room-dot { margin: 0 0.7em; }
+.room-link { position: relative; padding: 6px 0; color: inherit; text-decoration: none; }
+.room-link:hover { color: var(--ink); }
+.room-link[aria-current="page"] { color: var(--ink); font-weight: 700; }
+.room-link[aria-current="page"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2.5px; background: var(--ink); border-radius: 1px;
+}
+.room-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+/* On the Pass it sits in the comp's open run of top bar between the wordmark and the headline. */
+.pass .rooms { position: absolute; left: 10.2%; top: 2.54%; height: 3.52%; font-size: calc(20 * var(--u)); margin-top: calc(-3 * var(--u)); }
+.pass .room-link[aria-current="page"]::after { bottom: calc(-10 * var(--u)); }
+
+/* ---------- a room: the page ---------- */
+.room {
+  min-height: 100dvh; display: flex; flex-direction: column;
+  background: var(--ground); color: var(--ink); font-family: var(--font-ui); font-size: 16px;
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.room ::selection { background: var(--red-soft); color: var(--ink); }
+.roombar {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 34px;
+  height: 66px; padding: 0 22px; background: var(--ground); border-bottom: 1px solid var(--rule);
+}
+.roombar .wordmark { margin: 0; padding-left: 0; font-size: 37px; }
+.roombar .rooms { font-size: 20px; }
+.room-offline {
+  font-family: var(--font-print); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); border: 1px dashed var(--rule); border-radius: var(--radius); padding: 4px 7px;
+}
+.room .roombar-out { margin-left: auto; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
+.room .roombar-out:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+.room-main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 22px 22px 96px; }
+.room-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.room-title { margin: 0; font-family: var(--font-ui); font-weight: 700; font-size: 27px; line-height: 1; letter-spacing: -0.005em; }
+.room .count-chip {
+  display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px;
+  background: var(--well-strong); border-radius: 3px; font-family: var(--font-print); font-weight: 400; font-size: 15px; color: var(--ink);
+}
+.room-head-gap { flex: 1; }
+.room-pick { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
+.room-pick select, .room .epic-pick {
+  max-width: 220px; padding: 6px 8px; font-family: var(--font-print); font-size: 15px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
+}
+.room-pick select:hover, .room .epic-pick:hover { border-color: var(--ink-3); }
+.room .room-button, .room .room-toggle {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px;
+  font-family: var(--font-print); font-size: 15px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+.room .room-button:hover, .room .room-toggle:hover { border-color: var(--ink-3); }
+.room .room-toggle { color: var(--ink-2); box-shadow: none; }
+.room .room-toggle[aria-pressed="true"] { color: var(--ink); border-color: var(--ink-3); }
+
+/* ---------- lanes: recessed wells the slips sit in ---------- */
+.lane-label {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 12px 2px;
+  font-family: var(--font-ui); font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: 0.01em; text-transform: uppercase;
+}
+.lane {
+  margin: 0; padding: 14px 12px 12px; list-style: none; display: flex; flex-direction: column; gap: 14px;
+  background: var(--well); border: 1px solid var(--rule-soft); border-radius: 5px;
+  transition: border-color 0.16s ease-out, background-color 0.16s ease-out;
+}
+/* Something held over the lane: its edge goes provisional (dashed), as the line's drop target does. */
+.lane.is-over, .epic-head.is-over { border: 1px dashed var(--ink-3); }
+.lane-add input {
+  width: 100%; height: 38px; margin-bottom: 12px; padding: 0 12px; box-sizing: border-box;
+  font-family: var(--font-print); font-size: 15px; color: var(--ink); caret-color: var(--red);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+.lane-add input::placeholder { color: var(--ink-3); }
+.lane-add input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+/* ---------- slips: a task on thermal paper, perforated along the top. Paper never inverts. ---------- */
+.slip {
+  position: relative; display: flex; flex-direction: column; gap: 9px; padding: 12px 14px 13px;
+  background: var(--paper); color: var(--paper-ink); border-radius: 0 0 2px 2px;
+  font-family: var(--font-print); font-size: 14px; line-height: 1.2;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.12));
+  cursor: grab; touch-action: manipulation; -webkit-touch-callout: none; user-select: none;
+}
+/* the sawtooth: a row of paper teeth standing on the slip's top edge */
+.slip::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 5px;
+  background: conic-gradient(from 135deg at 50% 0, var(--paper) 90deg, transparent 0) 0 0 / 10px 5px repeat-x;
+}
+.slip:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.slip:hover { filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.16)); }
+.slip.is-lifted { opacity: 0.35; }
+.slip.is-ghost { cursor: grabbing; transform: rotate(1.2deg); filter: drop-shadow(0 10px 11px rgb(0 0 0 / 0.22)); }
+.slip.is-done { color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
+.slip.is-done .slip-title { text-decoration: line-through; }
+.slip-line { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; letter-spacing: 0.02em; }
+.slip-title {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  font-weight: 700; font-size: 16.5px; line-height: 1.22; letter-spacing: 0.01em; overflow-wrap: anywhere;
+}
+.slip-foot { display: flex; flex-wrap: wrap; gap: 4px 12px; padding-top: 8px; border-top: 1px dashed color-mix(in srgb, var(--paper-ink) 35%, transparent); font-size: 13px; }
+.slip-epic { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.03em; }
+.slip-tag { color: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }
+.slip-high, .slip-late { color: var(--paper-red); font-weight: 700; letter-spacing: 0.03em; }
+.slip-status { letter-spacing: 0.06em; }
+.slip-status.is-blocked { color: var(--paper-red); }
+
+/* ---------- the Board: four lanes across ---------- */
+.kanban-cols { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 18px; align-items: start; }
+.kanban-col { display: flex; flex-direction: column; min-width: 0; }
+.kanban-col .lane { min-height: 140px; }
+.kanban-col.is-done .lane { background: transparent; border-style: solid; }
+
+/* ---------- Epics: a stack of headed lists ---------- */
+.epic-list { display: flex; flex-direction: column; gap: 14px; max-width: 980px; }
+.epic { background: var(--surface); border: 1px solid var(--rule-soft); border-radius: 5px; }
+.epic-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-height: 58px; padding: 8px 14px 8px 8px;
+  border: 1px solid transparent; border-radius: 5px;
+}
+.room .epic-toggle { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 260px; padding: 6px; border-radius: var(--radius); text-align: left; }
+.epic-chevron { flex: none; color: var(--ink-2); transform: rotate(-90deg); transition: transform 0.22s ease; }
+.epic-toggle[aria-expanded="true"] .epic-chevron { transform: none; }
+.epic-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: 22px; line-height: 1.1; }
+.epic.is-high .epic-title::before { content: "!"; margin-right: 0.4em; color: var(--red); }
+.epic.is-on_hold .epic-title, .epic.is-done .epic-title { color: var(--ink-3); }
+.epic.is-none { background: transparent; border-style: dashed; }
+.epic-progress { display: inline-flex; flex-direction: column; gap: 5px; width: 64px; font-family: var(--font-print); font-size: 14px; color: var(--ink-2); }
+.epic-track { position: relative; height: 2px; background: var(--rule-soft); overflow: hidden; border-radius: 1px; }
+.epic-fill { position: absolute; inset: 0; background: var(--green); transform-origin: left; transition: transform 0.6s var(--spring); }
+.room .epic-pick { padding: 5px 6px; font-size: 14px; }
+.room .epic-priority.is-high { color: var(--red-ink); border-color: var(--red-soft); }
+.room .epic-edit { font-family: var(--font-print); font-size: 14px; color: var(--ink-3); padding: 6px 4px; }
+.room .epic-edit:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.epic-body { padding: 0 14px 14px 42px; animation: fade-in 0.2s ease-out both; }
+.epic-desc { margin: 0 0 12px; max-width: 70ch; font-size: 16px; line-height: 1.4; color: var(--ink-2); white-space: pre-line; }
+.epic-empty { margin: 4px 0 6px; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
+.epic-body .lane-add input { margin: 12px 0 0; }
+.lane.strips { gap: 11px; padding: 12px 10px 10px; min-height: 44px; }
+
+/* a strip: one printed line, the grip at its left and the cross at its right */
+.slip-strip { flex-direction: row; align-items: center; gap: 6px; padding: 0 6px 0 2px; min-height: 42px; }
+.room .strip-grip { display: grid; place-items: center; width: 24px; height: 32px; color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); cursor: grab; border-radius: 2px; }
+.room .strip-open { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; height: 42px; text-align: left; cursor: pointer; }
+.slip-strip .slip-title { display: block; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.slip-strip .slip-meta { display: flex; gap: 12px; flex: none; font-size: 13px; letter-spacing: 0.02em; }
+.room .strip-x { display: grid; place-items: center; width: 30px; height: 30px; color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); border-radius: 2px; }
+.room .strip-x:hover { color: var(--paper-red); background: color-mix(in srgb, var(--paper-ink) 6%, var(--paper)); }
+.room .strip-grip:focus-visible, .room .strip-open:focus-visible, .room .strip-x:focus-visible { outline: 2px solid var(--paper-ink); outline-offset: -2px; }
+.slip-strip.is-ghost { padding: 0 12px; }
+
+/* ---------- the door ---------- */
+.signin { align-items: center; justify-content: center; gap: 0; padding-bottom: 6dvh; }
+.signin-wordmark { margin: 0 0 34px; padding: 0; font-size: 56px; }
+.signin-pass { position: relative; width: 236px; height: 318px; }
+.signin-docket { position: absolute; left: 0; right: 0; top: 0; height: 300px; animation: signin-feed 0.9s var(--spring) 0.15s backwards; }
+.signin-docket .plate { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.signin-print {
+  position: absolute; inset: 34px 22px 52px 22px; display: flex; flex-direction: column; gap: 10px;
+  font-family: var(--font-print); color: var(--paper-ink); line-height: 1;
+}
+.signin-print p { margin: 0; }
+.signin-head { display: flex; justify-content: space-between; font-size: 16px; }
+.signin-dashes { overflow: hidden; white-space: nowrap; font-size: 15px; letter-spacing: -0.02em; }
+.signin-order { margin: 6px 0 !important; font-weight: 700; font-size: 22px; letter-spacing: 0.01em; }
+.signin-foot { margin-top: auto !important; font-size: 15px; letter-spacing: 0.12em; color: var(--paper-red); }
+.signin-rail { position: absolute; left: -64px; bottom: 0; width: calc(100% + 128px); max-width: none; height: 34px; object-fit: fill; }
+.room .signin-button {
+  margin-top: 34px; min-width: 236px; height: 48px; padding: 0 22px;
+  font-family: var(--font-print); font-size: 18px; letter-spacing: 0.02em;
+  background: var(--ink); color: var(--ground); border-radius: var(--radius); box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  transition: transform 0.12s ease-out;
+}
+.room .signin-button:hover { transform: translateY(-1px); }
+.room .signin-button:active { transform: none; }
+.room .signin-button:disabled { opacity: 0.6; cursor: progress; }
+/* a thermal printer feeds in jerks: the docket comes down onto the rail and settles */
+@keyframes signin-feed { from { transform: translateY(-46px); opacity: 0; } 30% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .signin-docket { animation: fade-in 0.3s linear backwards; }
+  .epic-chevron, .epic-fill, .lane, .room .signin-button { transition: none; }
+  .epic-body { animation: none; }
+}
+
+/* ---------- narrower windows and the phone ---------- */
+@media (max-width: 1100px) {
+  .kanban-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 819px) {
+  .roombar { flex-wrap: wrap; height: auto; gap: 8px 18px; padding: 12px 16px 14px; }
+  .roombar .wordmark { font-size: 28px; }
+  .roombar .rooms { order: 3; flex-basis: 100%; font-size: 17px; }
+  .room-main { padding: 18px 16px 96px; }
+  .room-title { font-size: 24px; }
+  /* the Board on a phone: lanes side by side, a thumb's swipe apart */
+  .kanban-cols {
+    display: flex; gap: 14px; margin: 0 -16px; padding: 0 16px 8px; overflow-x: auto;
+    scroll-snap-type: x mandatory; scroll-padding: 0 16px; overscroll-behavior-x: contain;
+  }
+  .kanban-col { flex: 0 0 82%; scroll-snap-align: start; }
+  .epic-head { padding: 6px 10px 8px 4px; gap: 8px 10px; }
+  .room .epic-toggle { flex-basis: 100%; }
+  .epic-title { font-size: 19px; }
+  .epic-body { padding: 0 10px 12px; }
+  .slip-strip .slip-meta { display: none; }
+  .signin-wordmark { font-size: 44px; }
+  /* the Pass's top bar on the phone: the rooms take their own row under the day's line */
+  .pass .rooms { position: static; grid-column: 1 / -1; width: auto; height: auto; margin-top: 12px; font-size: 16px; }
+  .pass .room-link[aria-current="page"]::after { bottom: -5px; }
+}

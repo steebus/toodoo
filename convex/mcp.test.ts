@@ -20,7 +20,7 @@ it("speaks the MCP basics", async () => {
   });
   expect(await handleRpc({ jsonrpc: "2.0", method: "notifications/initialized" }, noop)).toBeNull();
   expect((await handleRpc(rpc("tools/list"), noop) as any).result.tools.map((t: any) => t.name)).toEqual(
-    ["get_snapshot", "add_tasks", "update_task", "set_day", "suggest", "plan", "unplan"]);
+    ["get_snapshot", "add_tasks", "update_task", "set_day", "list_epics", "save_epic", "suggest", "plan", "unplan"]);
   expect(await handleRpc(rpc("nope"), noop)).toMatchObject({ error: { code: -32601 } });
 });
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDays } from "@shared/planning.ts";
-import { NO_TAG } from "@shared/board.ts";
+import { NO_EPIC, NO_TAG } from "@shared/board.ts";
 import "../styles/layout.css";
 import "./pass.css";
 import { OfflineContext } from "../lib/offline";
@@ -44,7 +44,11 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   // A remembered tag that no task carries would hide everything: show All for now, but keep the tag
   // (the board may be a passing one, e.g. a day still loading or a kept copy).
   const stale = !!stored.tag && stored.tag !== NO_TAG && !board.tasks.some((t) => t.tags.includes(stored.tag));
-  const view = useMemo(() => (stale ? { ...stored, tag: "" } : stored), [stale, stored]);
+  const staleEpic = !!stored.epic && stored.epic !== NO_EPIC && !(board.epics ?? []).some((e) => e.id === stored.epic);
+  const view = useMemo(
+    () => (stale || staleEpic ? { ...stored, ...(stale ? { tag: "" } : {}), ...(staleEpic ? { epic: "" } : {}) } : stored),
+    [stale, staleEpic, stored],
+  );
   const model = useMemo(() => buildPass(board, view), [board, view]);
   // Shortcuts act on the focused docket (j/k move that focus); x and p are handled by the docket itself.
   const onDate = nav?.onDate;
@@ -97,6 +101,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           celebrate={celebrate}
           offline={offline}
           unsaved={!!actions?.unsaved}
+          rooms={!!actions}
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} compact={compact} actions={actions}>
         <Panes split={split}>
@@ -137,7 +142,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           }} onClose={() => setAdding(null)} onFailed={setAdding} />
         )}
         {actions && editTask && (
-          <EditSheet key={editTask.id} task={editTask} draft={draft} offline={offline}
+          <EditSheet key={editTask.id} task={editTask} epics={board.epics} draft={draft} offline={offline}
             onSave={(id, patch, values) => {
               void actions.save(id, patch).then((ok) => {
                 if (ok) return;

@@ -26,8 +26,8 @@
   -webkit-font-smoothing: antialiased;
 }
 .pass ::selection { background: var(--red-soft); color: var(--ink); }
-.pass :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
-.pass button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:is(.pass, .room) :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+:is(.pass, .room) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .pass .sep { display: inline-block; margin: 0 0.55em; }
 .pass .num { font-variant-numeric: tabular-nums; }
 
@@ -378,12 +378,12 @@
 .sheet-pair { display: grid; grid-template-columns: 1fr 1fr; gap: calc(14 * var(--u)); }
 .sheet-actions { display: flex; align-items: center; gap: calc(10 * var(--u)); margin-top: calc(6 * var(--u)); }
 .sheet-spacer { flex: 1; }
-.pass .sheet-actions button {
+:is(.pass, .room) .sheet-actions button {
   padding: calc(9 * var(--u)) calc(16 * var(--u)); font-size: calc(17 * var(--u)); line-height: 1; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
 }
-.pass .sheet-actions button:hover { border-color: var(--ink-3); }
-.pass .sheet-actions .sheet-save { background: var(--ink); color: var(--surface); border-color: var(--ink); }
-.pass .sheet-actions .sheet-delete { color: var(--red-ink); border-color: var(--red-soft); }
+:is(.pass, .room) .sheet-actions button:hover { border-color: var(--ink-3); }
+:is(.pass, .room) .sheet-actions .sheet-save { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+:is(.pass, .room) .sheet-actions .sheet-delete { color: var(--red-ink); border-color: var(--red-soft); }
 @media (max-width: 819px) {
   .sheet {
     inset: auto 0 0 0; width: 100vw; height: auto; max-height: 92dvh; border-left: 0; border-top: 1px solid var(--rule);
@@ -408,9 +408,9 @@
 }
 /* An error is a red-ruled slip: a full hairline and red print, AA in both themes. */
 .toast-error { background: var(--surface); color: var(--red-ink); border: 1px solid var(--red); }
-.pass .toast-error .toast-undo { color: var(--red-ink); }
+:is(.pass, .room) .toast-error .toast-undo { color: var(--red-ink); }
 .toast-msg { margin: 0; max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pass .toast-undo { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(6 * var(--u)); font-size: calc(16 * var(--u)); color: var(--surface); }
+:is(.pass, .room) .toast-undo { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(6 * var(--u)); font-size: calc(16 * var(--u)); color: var(--surface); }
 .toast-undo:hover { text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
 .toast-ring { transform: rotate(-90deg); }
 .toast-ring circle { fill: none; stroke-width: 2.5; }
@@ -705,7 +705,7 @@
 .fault button:first-child { color: var(--red-ink); border-color: var(--red-ink); }
 .plan-block.is-offline :is(.plan-body, .plan-resize, .plan-tick) { cursor: not-allowed; }
 .plan-tick:has(input:disabled) { opacity: 0.4; }
-.pass button:disabled, .pass input:disabled { opacity: 0.4; cursor: not-allowed; }
+:is(.pass, .room) :is(button, input, select):disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---------- the phone (<820px): the same pass, one room at a time ---------- */
 .tabs, .fab, .docket-compact .plate, .docket-compact .biro-ring, .grp-compact .rail-plate { display: none; }

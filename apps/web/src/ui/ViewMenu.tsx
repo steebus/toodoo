@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { NO_TAG, type GroupBy, type SortBy, type View } from "@shared/board.ts";
+import { NO_EPIC, NO_TAG, type GroupBy, type SortBy, type View } from "@shared/board.ts";
 import { ChevronIcon } from "./icons";
 
-const GROUPS: [GroupBy, string][] = [["status", "Status"], ["due", "Due"], ["priority", "Priority"], ["tag", "Tag"], ["source", "Source"]];
+const GROUPS: [GroupBy, string][] = [["status", "Status"], ["due", "Due"], ["priority", "Priority"], ["epic", "Epic"], ["tag", "Tag"], ["source", "Source"]];
 const SORTS: [SortBy, string][] = [["manual", "Manual"], ["due", "Due"], ["priority", "Priority"], ["time", "Time"], ["tag", "Tag"]];
 
-type Props = { view: View; tags: string[]; onChange: (v: View) => void; onSignOut?: () => void };
+type Props = {
+  view: View; tags: string[]; epics?: { id: string; title: string }[]; onChange: (v: View) => void; onSignOut?: () => void;
+};
 
-// One quiet control: group, sort and tag filter live in its popover.
-export function ViewMenu({ view, tags, onChange, onSignOut }: Props) {
+// One quiet control: group, sort and the tag and epic filters live in its popover.
+export function ViewMenu({ view, tags, epics = [], onChange, onSignOut }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -53,6 +55,16 @@ export function ViewMenu({ view, tags, onChange, onSignOut }: Props) {
               <option value={NO_TAG}>Untagged</option>
             </select>
           </label>
+          {epics.length > 0 && (
+            <label className="viewmenu-field">
+              Epic
+              <select value={view.epic ?? ""} onChange={(e) => onChange({ ...view, epic: e.target.value })}>
+                <option value="">All</option>
+                {epics.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+                <option value={NO_EPIC}>No epic</option>
+              </select>
+            </label>
+          )}
           {onSignOut && <button type="button" className="viewmenu-out" onClick={onSignOut}>Sign out</button>}
         </div>
       )}

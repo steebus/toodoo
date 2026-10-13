@@ -1,12 +1,15 @@
+import { byEpicRank, effectivePriority, epicMap, type Epic } from "./epics.ts";
 import { byOrder, daysBetween, dayWord, toMin, type Priority } from "./planning.ts";
 import type { FullTask } from "./snapshot.ts";
 
-export type GroupBy = "status" | "due" | "priority" | "tag" | "source";
+export type GroupBy = "status" | "due" | "priority" | "tag" | "source" | "epic";
 export type SortBy = "manual" | "due" | "priority" | "time" | "tag";
-export interface View { group: GroupBy; sort: SortBy; tag: string } // tag: "" all, a tag, or NO_TAG
+// tag: "" all, a tag, or NO_TAG; epic: "" (or missing) all, an epic's id, or NO_EPIC
+export interface View { group: GroupBy; sort: SortBy; tag: string; epic?: string }
 export interface Group { key: string; label: string; tasks: FullTask[] }
 
 export const NO_TAG = "__none";
+export const NO_EPIC = "__none";
 export const DEFAULT_VIEW: View = { group: "status", sort: "manual", tag: "" };
 
 const PRIORITY_RANK: Record<Priority | "none", number> = { high: 0, med: 1, low: 2, none: 3 };
@@ -19,17 +22,21 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const waitingDays = (due: string, today: string) => Math.max(0, daysBetween(due, today));
 
-export function filterTasks(tasks: FullTask[], tag: string): FullTask[] {
-  if (!tag) return tasks;
-  return tag === NO_TAG ? tasks.filter((t) => !t.tags.length) : tasks.filter((t) => t.tags.includes(tag));
+export function filterTasks(tasks: FullTask[], tag: string, epic = ""): FullTask[] {
+  const byEpic = !epic ? tasks : tasks.filter((t) => (epic === NO_EPIC ? !t.epic_id : t.epic_id === epic));
+  if (!tag) return byEpic;
+  return tag === NO_TAG ? byEpic.filter((t) => !t.tags.length) : byEpic.filter((t) => t.tags.includes(tag));
 }
 
 // Every sort ends in manual order (sort_order, then id), so ties are stable.
-export function sortTasks(tasks: FullTask[], sort: SortBy): FullTask[] {
+// Priority is the task's own as its epic lifts or sinks it.
+export function sortTasks(tasks: FullTask[], sort: SortBy, epics?: Epic[]): FullTask[] {
+  const em = epicMap(epics);
+  const eff = (t: FullTask) => rank(effectivePriority(t, t.epic_id ? em.get(t.epic_id) : null));
   const by: Record<SortBy, (a: FullTask, b: FullTask) => number> = {
     manual: () => 0,
     due: (a, b) => cmp(a.due, b.due),
-    priority: (a, b) => rank(a.priority) - rank(b.priority),
+    priority: (a, b) => eff(a) - eff(b),
     time: (a, b) => nullsLast(a.time, b.time),
     tag: (a, b) => nullsLast(firstTag(a), firstTag(b)),
   };
@@ -43,8 +50,8 @@ export function spanOf(times: (string | null | undefined)[]): { from: string; to
 }
 
 // Filter, sort, then group. Open tasks plus anything finished today; older history is not listed.
-export function groupTasks(tasks: FullTask[], today: string, view: View): Group[] {
-  const rows = sortTasks(filterTasks(tasks, view.tag), view.sort);
+export function groupTasks(tasks: FullTask[], today: string, view: View, epics?: Epic[]): Group[] {
+  const rows = sortTasks(filterTasks(tasks, view.tag, view.epic), view.sort, epics);
   const open = rows.filter((t) => !t.done);
   const doneToday = rows.filter((t) => t.done && t.done_on === today);
   if (view.group === "status") {
@@ -69,6 +76,12 @@ export function groupTasks(tasks: FullTask[], today: string, view: View): Group[
     case "priority":
       return bucket((t) => [t.priority ?? "none"], (k) => PRIORITY_LABEL[k as Priority | "none"],
         (a, b) => PRIORITY_RANK[a as Priority | "none"] - PRIORITY_RANK[b as Priority | "none"]);
+    case "epic": {
+      const em = epicMap(epics);
+      const order = [...(epics ?? [])].sort(byEpicRank).map((e) => e.id);
+      const at = (k: string) => (k === NO_EPIC || !em.has(k) ? order.length : order.indexOf(k));
+      return bucket((t) => [t.epic_id ?? NO_EPIC], (k) => em.get(k)?.title ?? "No epic", (a, b) => at(a) - at(b) || cmp(a, b));
+    }
     case "tag":
       return bucket((t) => (t.tags.length ? t.tags : [NO_TAG]), (k) => (k === NO_TAG ? "Untagged" : k),
         (a, b) => (a === NO_TAG ? 1 : b === NO_TAG ? -1 : cmp(a, b)));

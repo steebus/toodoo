@@ -2,8 +2,11 @@ import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { addDays, autoPlan, busySpans, firstFree, nowMin, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
+import { byEpicRank, type Epic } from "../shared/epics.ts";
 import { buildSnapshot, type FullTask, type State } from "../shared/snapshot.ts";
-import { type AddResult, InputError, parseDay, preparePatch, prepareTasks } from "../shared/validation.ts";
+import {
+  type AddResult, InputError, parseDay, parseEpic, parseEpicPatch, preparePatch, prepareTasks,
+} from "../shared/validation.ts";
 
 type R = QueryCtx["db"];
 type W = MutationCtx["db"];
@@ -21,7 +24,7 @@ export const clock = (now = new Date()) => ({ t: today(now), nowM: nowMin(now) }
 // Shared code throws InputError; Convex only forwards ConvexError data to callers.
 export function asConvexError(e: unknown): never {
   if (e instanceof InputError) {
-    throw new ConvexError({ code: e.message === "task not found" ? "not_found" : "input", message: e.message });
+    throw new ConvexError({ code: / not found$/.test(e.message) ? "not_found" : "input", message: e.message });
   }
   throw e;
 }
@@ -30,7 +33,30 @@ const toTask = (d: Doc<"tasks">): FullTask => ({
   id: d._id, title: d.title, due: d.due, time: d.time, priority: d.priority, estimate_mins: d.estimate_mins,
   done: d.done, done_on: d.done_on, sort_order: d.sort_order, source: d.source, external_id: d.external_id,
   tags: d.tags, link: d.link, note: d.note, description: d.description,
+  epic_id: d.epic_id ?? null, status: d.status ?? "todo",
 });
+
+const toEpic = (d: Doc<"epics">): Epic => ({
+  id: d._id, title: d.title, description: d.description, priority: d.priority, status: d.status, sort_order: d.sort_order,
+});
+
+async function ownedEpic(db: R, userId: string, id: string) {
+  const nid = db.normalizeId("epics", id);
+  const doc = nid ? await db.get(nid) : null;
+  return doc && doc.user_id === userId ? doc : null;
+}
+
+// An epic_id from a caller: null stays null; anything else must be one of this user's epics.
+async function epicRef(db: R, userId: string, id: string | null) {
+  if (id === null) return null;
+  const doc = await ownedEpic(db, userId, id);
+  if (!doc) throw new InputError("epic not found");
+  return doc._id;
+}
+
+export async function listEpics(db: R, userId: string): Promise<Epic[]> {
+  return (await db.query("epics").withIndex("by_user", (q) => q.eq("user_id", userId)).collect()).map(toEpic).sort(byEpicRank);
+}
 
 async function ownedTask(db: R, userId: string, id: string) {
   const nid = db.normalizeId("tasks", id);
@@ -50,6 +76,7 @@ export async function loadState(db: R, userId: string, t: string, date: string):
     tasks: [...open, ...done.filter((d) => d.done)].map(toTask),
     days: days.map((d) => ({ date: d.date, headline: d.headline, events: d.events })),
     blocks: blocks.map((b) => ({ task_id: b.task_id, date: b.date, start: b.start, mins: b.mins })),
+    epics: await listEpics(db, userId),
   };
 }
 
@@ -67,19 +94,25 @@ export async function addTasks(db: W, userId: string, inputs: unknown[], t: stri
   const { rows, skipped, errors } = prepareTasks(inputs, t);
   const created: AddResult["created"] = [];
   const now = Date.now();
-  for (const [i, r] of rows.entries()) {
+  for (const [i, { index, ...r }] of rows.entries()) {
+    let epic_id: Id<"epics"> | null;
+    try { epic_id = await epicRef(db, userId, r.epic_id); } catch (e) {
+      if (!(e instanceof InputError)) throw e;
+      errors.push({ index, error: e.message });
+      continue;
+    }
     if (r.external_id) {
       const hit = await db.query("tasks").withIndex("by_user_source_ext", (q) =>
         q.eq("user_id", userId).eq("source", r.source).eq("external_id", r.external_id)).first();
       if (hit) { skipped.push({ title: r.title, source: r.source, external_id: r.external_id }); continue; }
     }
     const id = await db.insert("tasks", {
-      ...r, user_id: userId, done: false, done_on: null,
+      ...r, epic_id, user_id: userId, done: false, done_on: null,
       sort_order: now / 1000 + i / 1000, created_at: new Date(now).toISOString(), updated_at: now,
     });
     created.push({ id, title: r.title, source: r.source, external_id: r.external_id });
   }
-  return { created, skipped, errors };
+  return { created, skipped, errors: errors.sort((a, b) => a.index - b.index) };
 }
 
 export async function updateTask(
@@ -91,9 +124,13 @@ export async function updateTask(
     : await db.query("tasks").withIndex("by_user_source_ext", (q) =>
         q.eq("user_id", userId).eq("source", find.source).eq("external_id", find.external_id)).first();
   if (!doc) throw new InputError("task not found");
+  if (p.epic_id !== undefined) p.epic_id = await epicRef(db, userId, p.epic_id as string | null);
   await db.patch(doc._id, { ...(p as Partial<Doc<"tasks">>), updated_at: Date.now() });
   const d = (await db.get(doc._id))!;
-  return { id: d._id, title: d.title, due: d.due, time: d.time, priority: d.priority, done: d.done, done_on: d.done_on, tags: d.tags };
+  return {
+    id: d._id, title: d.title, due: d.due, time: d.time, priority: d.priority, done: d.done, done_on: d.done_on, tags: d.tags,
+    epic_id: d.epic_id ?? null, status: d.status ?? "todo",
+  };
 }
 
 export async function setDay(db: W, userId: string, input: unknown) {
@@ -125,7 +162,7 @@ export async function suggestNext(db: R, userId: string, a: { date?: string; lim
   const free = date === t ? firstFree(15, snapUp(nowM), busySpans(events, s.blocks, date)) : null;
   return {
     date,
-    suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, limit: a.limit ?? 5 })
+    suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics, limit: a.limit ?? 5 })
       .map((x) => ({ id: x.task.id, title: x.task.title, reasons: x.reasons, estimate_mins: x.task.estimate_mins })),
     next_free: free == null ? null : toHM(free),
   };
@@ -140,7 +177,7 @@ export async function planDay(
   const date = a.date ?? t;
   const s = await loadState(db, userId, t, date);
   const r = autoPlan({
-    date, today: t, nowM, tasks: s.tasks, blocks: s.blocks,
+    date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics,
     events: s.days.find((d) => d.date === date)?.events ?? [],
     from: toMin(a.from) ?? undefined, until: toMin(a.until) ?? undefined, taskIds: a.task_ids,
   });
@@ -196,7 +233,8 @@ export async function board(db: R, userId: string, a: { date?: string }, now: Da
     day: s.days.find((d) => d.date === date) ?? null,
     tasks: [...s.tasks, ...extra],
     blocks: s.blocks.filter((b) => b.date >= addDays(date, -1) && b.date <= addDays(date, 1)),
-    suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks })
+    epics: s.epics ?? [],
+    suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics })
       .map((x) => ({ id: x.task.id, title: x.task.title, reasons: x.reasons })),
   };
 }
@@ -221,4 +259,57 @@ export async function placeBlock(db: W, userId: string, a: { task_id: string; da
 // whose task was deleted elsewhere must not stop partway.
 export async function removeBlock(db: W, userId: string, a: { task_id: string; date: string }) {
   return unplan(db, userId, a.date, [a.task_id]);
+}
+
+// ---------- epics ----------
+
+export async function createEpic(db: W, userId: string, input: unknown) {
+  const e = parseEpic(input);
+  const now = Date.now();
+  const id = await db.insert("epics", {
+    ...e, user_id: userId, sort_order: now / 1000, created_at: new Date(now).toISOString(), updated_at: now,
+  });
+  return toEpic((await db.get(id))!);
+}
+
+export async function updateEpic(db: W, userId: string, id: string, patch: unknown) {
+  const p = parseEpicPatch(patch);
+  const doc = await ownedEpic(db, userId, id);
+  if (!doc) throw new InputError("epic not found");
+  await db.patch(doc._id, { ...p, updated_at: Date.now() });
+  return toEpic((await db.get(doc._id))!);
+}
+
+// The epic goes; its tasks stay, with no epic. The ids come back so an undo can put them back in.
+export async function deleteEpic(db: W, userId: string, id: string) {
+  const doc = await ownedEpic(db, userId, id);
+  if (!doc) throw new InputError("epic not found");
+  const tasks = await db.query("tasks").withIndex("by_user_epic", (q) => q.eq("user_id", userId).eq("epic_id", doc._id)).collect();
+  for (const t of tasks) await db.patch(t._id, { epic_id: null, updated_at: Date.now() });
+  await db.delete(doc._id);
+  return { deleted: id, task_ids: tasks.map((t) => t._id as string) };
+}
+
+const RECENT_DONE_DAYS = 14;
+
+// What the Kanban and Epics screens work from: every open task, the last fortnight's done, and the epics.
+export async function workspace(db: R, userId: string, now: Date) {
+  const { t } = clock(now);
+  const open = await db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", userId).eq("done", false)).collect();
+  const done = await db.query("tasks")
+    .withIndex("by_user_done_on", (q) => q.eq("user_id", userId).gte("done_on", addDays(t, -RECENT_DONE_DAYS))).collect();
+  const epics = await listEpics(db, userId);
+  // Progress counts every task ever done in an epic, not just the fortnight listed.
+  const doneCounts: Record<string, number> = {};
+  for (const e of epics) {
+    const all = await db.query("tasks")
+      .withIndex("by_user_epic", (q) => q.eq("user_id", userId).eq("epic_id", e.id as Id<"epics">)).collect();
+    doneCounts[e.id] = all.filter((x) => x.done).length;
+  }
+  return {
+    today: t,
+    epics,
+    done_counts: doneCounts,
+    tasks: [...open, ...done.filter((d) => d.done)].map(toTask),
+  };
 }

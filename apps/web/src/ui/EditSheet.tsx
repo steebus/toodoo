@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { EPIC_STATUS_LABEL, TASK_STATUSES, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { formatDuration, parseDuration } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { normLink } from "@shared/validation.ts";
 
 export type Draft = {
   title: string; description: string; note: string; link: string; due: string; time: string;
-  priority: string; estimate: string; tags: string;
+  priority: string; estimate: string; tags: string; epic: string; status: string;
 };
 
 type Props = {
   task: FullTask;
+  epics?: Epic[];
   draft?: Draft | null;
   offline?: boolean;
   onSave: (id: string, patch: Record<string, unknown>, draft: Draft) => void;
@@ -21,7 +23,7 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, 
 
 // A native modal dialog: side sheet on desktop, bottom sheet under 820px (see pass.css).
 // The dialog traps focus; on close focus goes back to whatever opened it.
-export function EditSheet({ task, draft, offline = false, onSave, onDelete, onClose }: Props) {
+export function EditSheet({ task, epics = [], draft, offline = false, onSave, onDelete, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
   const restore = useRef<Element | null>(null);
@@ -35,6 +37,8 @@ export function EditSheet({ task, draft, offline = false, onSave, onDelete, onCl
     priority: task.priority ?? "",
     estimate: task.estimate_mins ? formatDuration(task.estimate_mins) : "",
     tags: task.tags.join(", "),
+    epic: task.epic_id ?? "",
+    status: task.status ?? "todo",
   });
   const [invalid, setInvalid] = useState<Partial<Record<"title" | "estimate" | "link", string>>>({});
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => {
@@ -77,6 +81,8 @@ export function EditSheet({ task, draft, offline = false, onSave, onDelete, onCl
     if (f.estimate.trim() !== (task.estimate_mins ? formatDuration(task.estimate_mins) : "")) patch.estimate_mins = f.estimate.trim() || null;
     const tags = f.tags.split(",").map((t) => t.trim()).filter(Boolean);
     if (!same(tags, task.tags)) patch.tags = tags;
+    if (f.epic !== (task.epic_id ?? "")) patch.epic_id = f.epic || null;
+    if (f.status !== (task.status ?? "todo")) patch.status = f.status;
     if (Object.keys(patch).length) onSave(task.id, patch, f);
     onClose();
   };
@@ -154,6 +160,23 @@ export function EditSheet({ task, draft, offline = false, onSave, onDelete, onCl
           <span>Tags</span>
           <input value={f.tags} onChange={set("tags")} autoComplete="off" />
         </label>
+        <div className="sheet-pair">
+          <label className="sheet-field">
+            <span>Epic</span>
+            <select value={f.epic} onChange={set("epic")}>
+              <option value="">None</option>
+              {epics.filter((e) => e.status !== "done" || e.id === f.epic).map((e) => (
+                <option key={e.id} value={e.id}>{e.status === "active" ? e.title : `${e.title} (${EPIC_STATUS_LABEL[e.status].toLowerCase()})`}</option>
+              ))}
+            </select>
+          </label>
+          <label className="sheet-field">
+            <span>Status</span>
+            <select value={f.status} onChange={set("status")}>
+              {TASK_STATUSES.map((s) => <option key={s} value={s}>{TASK_STATUS_LABEL[s]}</option>)}
+            </select>
+          </label>
+        </div>
         <div className="sheet-actions">
           <button type="button" className="sheet-delete" disabled={offline} onClick={() => {
               restore.current = document.querySelector(".quickadd-input");

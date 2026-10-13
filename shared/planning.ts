@@ -1,4 +1,5 @@
-// Pure planning logic shared by the web app and Convex functions. No imports: must run in Deno and Vite.
+// Pure planning logic shared by the web app and Convex functions. No package imports: must run in Deno and Vite.
+import { effectivePriority, epicWeight, STATUS_WEIGHT, TASK_WEIGHT, type Epic, type TaskStatus } from "./epics.ts";
 
 export const TZ = "Australia/Brisbane"; // ponytail: hard-coded TZ, move to a user setting if multi-user
 export const SNAP = 15;
@@ -16,6 +17,8 @@ export interface Task {
   done: boolean;
   done_on: string | null;
   sort_order: number;
+  epic_id?: string | null;
+  status?: TaskStatus;
 }
 export interface Block { task_id: string; date: string; start: string; mins: number }
 export interface DayEvent { start?: string; end?: string; title?: string; where?: string; allDay?: boolean }
@@ -94,8 +97,11 @@ export function defaultBlockMins(task: Pick<Task, "priority" | "estimate_mins">,
 export interface Suggestion { task: Task; score: number; reasons: string[] }
 
 // Weights ported 1:1 from the original planner artifact.
-export function suggestions(o: { date: string; today: string; nowM: number; tasks: Task[]; blocks: Block[]; limit?: number }): Suggestion[] {
+export function suggestions(o: {
+  date: string; today: string; nowM: number; tasks: Task[]; blocks: Block[]; limit?: number; epics?: Epic[];
+}): Suggestion[] {
   const { date, today: t, tasks, blocks } = o;
+  const epics = new Map((o.epics ?? []).map((e) => [e.id, e]));
   if (date < t) return [];
   const eff = effortMap(blocks, t, o.nowM);
   const prevDate = [...new Set(blocks.filter((b) => b.date < date).map((b) => b.date))].sort().pop();
@@ -105,6 +111,7 @@ export function suggestions(o: { date: string; today: string; nowM: number; task
   const out: Suggestion[] = [];
   for (const task of tasks) {
     if (task.done || plannedOn(task.id, date)) continue;
+    const epic = task.epic_id ? epics.get(task.epic_id) : undefined;
     let score = 0;
     const reasons: string[] = [];
     if (prevDate && prevIds.has(task.id)) { score += 3; reasons.push(`unfinished from ${dayWord(prevDate, t)}'s plan`); }
@@ -114,11 +121,20 @@ export function suggestions(o: { date: string; today: string; nowM: number; task
       reasons.push(n === 1 ? "due yesterday" : `overdue ${n}d`);
     } else if (task.due === date) { score += 2.2; reasons.push(date === t ? "due today" : "due that day"); }
     else if (task.due < date) { score += 1.5; reasons.push(`due ${dayWord(task.due, t)}`); }
-    else if (!prevIds.has(task.id) && task.priority !== "high") continue;
+    else if (!prevIds.has(task.id) && effectivePriority(task, epic) !== "high") continue;
     else { score -= 1; reasons.push(`due ${dayWord(task.due, t)}`); }
-    if (task.priority === "high") { score += 2.5; reasons.push("high priority"); }
-    else if (task.priority === "med") { score += 1; reasons.push("med priority"); }
-    else if (task.priority === "low") score -= 0.5;
+    score += TASK_WEIGHT[task.priority ?? "none"];
+    if (task.priority === "high") reasons.push("high priority");
+    else if (task.priority === "med") reasons.push("med priority");
+    if (epic) {
+      score += epicWeight(epic);
+      if (epic.status === "on_hold") reasons.push(`${epic.title} on hold`);
+      else if (epic.priority === "high" || epic.priority === "med") reasons.push(`${epic.priority} epic: ${epic.title}`);
+    }
+    if (task.status && task.status !== "todo") {
+      score += STATUS_WEIGHT[task.status];
+      reasons.push(task.status === "doing" ? "in progress" : "blocked");
+    }
     const e = eff.get(task.id);
     if (task.estimate_mins && e && e.planned >= task.estimate_mins) { score -= 1.5; reasons.push("estimate already planned"); }
     const other = nextPlanned(task.id);
@@ -160,7 +176,7 @@ export interface Unplaced { task_id: string; title: string; reason: string }
 
 export function autoPlan(o: {
   date: string; today: string; nowM: number; tasks: Task[]; events: DayEvent[]; blocks: Block[];
-  from?: number; until?: number; taskIds?: string[];
+  from?: number; until?: number; taskIds?: string[]; epics?: Epic[];
 }): { proposed: ProposedBlock[]; unplaced: Unplaced[] } {
   const byId = new Map(o.tasks.map((t) => [t.id, t]));
   const ranked = o.taskIds

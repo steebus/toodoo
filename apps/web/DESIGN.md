@@ -223,6 +223,9 @@ One line of mono in a white 4px input, with parsed chips (date, time, priority, 
 ### Buttons
 Quiet: white, 1px Rule border, 4px, border darkens to Ink 3 on hover. The one filled button is Save (Ink on Surface). Delete is red text on a red-soft border. Presets are plain text, the active one bold with a 2.5px ink underline.
 
+### Rooms and slips
+Beyond the day, the Board and Epics are rooms: pages that flow and scroll in plain px, under a top bar of the wordmark, the room nav (Day · Board · Epics, set like the presets) and Sign out. The room nav also sits in the Pass's top bar, in the open run between the wordmark and the headline. Tasks there are slips: CSS paper (`--paper`, never inverted) with a sawtooth top, mono print and capitalised titles, sitting in recessed wells. A card is a slip with when/estimate, title and an epic/tag foot; a strip is one printed line with a grip and a cross. A well taking a drop goes dashed. The sign-in screen is one docket plate fed down onto a rail plate, printed with the date and time, over a single ink button.
+
 ### Sheets, popovers, toast
 Edit sheet is a native dialog, a side sheet from the right (440px) on desktop and a bottom sheet on phone, with a blurred scrim. The view menu and slot picker are springy popovers. Toast is a dark slip at bottom centre with an undo and a draining ring; an error toast is a white slip with a red hairline.
 

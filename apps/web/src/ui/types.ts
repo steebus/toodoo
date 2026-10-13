@@ -1,4 +1,5 @@
 // View models the components render. Built from the Convex board by ./build.ts (live) or from a fixture board.
+import type { Epic } from "@shared/epics.ts";
 import type { Block, DayEvent } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 
@@ -11,6 +12,7 @@ export type BoardData = {
   day: { date: string; headline?: string | null; events: DayEvent[] } | null;
   tasks: FullTask[];
   blocks: Block[];
+  epics?: Epic[]; // missing on a board kept from before epics
   suggestions: { id: string; title: string; reasons: string[] }[];
 };
 

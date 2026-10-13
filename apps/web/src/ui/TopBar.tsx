@@ -1,15 +1,17 @@
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { CheckIcon } from "./icons";
+import { RoomNav } from "./RoomNav";
 
 type Props = {
   date: string; headline: string; done: number; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
-  celebrate?: boolean; offline?: boolean; unsaved?: boolean;
+  celebrate?: boolean; offline?: boolean; unsaved?: boolean; rooms?: boolean;
 };
 
-export function TopBar({ date, headline, done, total, presets, activePreset, onPreset, celebrate = false, offline = false, unsaved = false }: Props) {
+export function TopBar({ date, headline, done, total, presets, activePreset, onPreset, celebrate = false, offline = false, unsaved = false, rooms = false }: Props) {
   return (
     <header className="topbar">
       <p className="r-wordmark wordmark">toodoo</p>
+      {rooms && <RoomNav room="day" />}
       {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : "offline"}</span>}
       <h1 className="r-date date">{date}</h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}

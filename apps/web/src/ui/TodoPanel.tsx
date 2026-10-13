@@ -125,7 +125,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
   return (
     <section id="todo" className={`todo${compact ? " is-compact" : ""}`} aria-labelledby="todo-title" role={tabpanel ? "tabpanel" : undefined}>
       <h2 id="todo-title" className="r-todo-title panel-title">To do</h2>
-      <ViewMenu view={view} tags={model.tags} onChange={onView} onSignOut={onSignOut} />
+      <ViewMenu view={view} tags={model.tags} epics={model.epics} onChange={onView} onSignOut={onSignOut} />
       {span && (
         <p className="r-span span" aria-label={`From ${clock12(span.from)} to ${clock12(span.to)}`}>
           {clock12(span.from)}

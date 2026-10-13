@@ -1,4 +1,5 @@
 import { groupTasks, waitingDays, type View } from "@shared/board.ts";
+import { effectivePriority, epicMap, type Epic } from "@shared/epics.ts";
 import { DAY_END, DAY_START, dayWord, formatDuration, timedEvents, toHM, toMin } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { clock12, longDate, shortDate, wrapTitle } from "./format";
@@ -14,6 +15,7 @@ export type PassModel = {
   groups: GroupData[];
   topPickId: string | null;
   tags: string[];
+  epics: { id: string; title: string }[];
 };
 
 const est = (t: FullTask) => (t.estimate_mins ? `~${formatDuration(t.estimate_mins)}` : "");
@@ -26,9 +28,10 @@ function sourceLabel(t: FullTask): string {
   return t.source.toUpperCase();
 }
 
-function docket(t: FullTask, hm: string | null, today: string): DocketData {
+function docket(t: FullTask, hm: string | null, today: string, epic?: Epic): DocketData {
   const carried = !t.done && t.due < today;
-  const high = t.priority === "high";
+  const high = effectivePriority(t, epic) === "high";
+  const epicRow: MetaRow[] = epic ? [{ label: "EPIC", value: epic.title.toUpperCase() }] : [];
   const tags = t.tags.slice(0, 3);
   const tagRow: MetaRow[] = tags.length ? [{ label: "TAGS", value: tags.join(" ").toUpperCase() }] : [];
   const common = { id: t.id, done: t.done, high, hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title) };
@@ -38,7 +41,7 @@ function docket(t: FullTask, hm: string | null, today: string): DocketData {
       // The red slot over the title is the data itself (how long it has waited), not a kicker.
       ...common, variant: "carried", time: "", duration: "", source: sourceLabel(t), tag: `${n} ${n === 1 ? "DAY" : "DAYS"}`,
       lines: [t.title.toUpperCase()],
-      rows: [{ label: "DUE", value: shortDate(t.due) }, ...tagRow],
+      rows: [{ label: "DUE", value: shortDate(t.due) }, ...(epicRow.length ? epicRow : tagRow)],
       footer: { label: "DURATION", value: est(t) || "--" },
     };
   }
@@ -46,6 +49,7 @@ function docket(t: FullTask, hm: string | null, today: string): DocketData {
     ...(hm ? [{ label: "START", value: hm }] : []),
     ...(t.estimate_mins ? [{ label: "DURATION", value: estClock(t.estimate_mins) }] : []),
     ...(t.due !== today ? [{ label: "DUE", value: shortDate(t.due) }] : []),
+    ...epicRow,
     ...tagRow,
   ].slice(0, 3); // the paper has room for three
   const flags = [t.done ? "DONE" : "", high ? "! HIGH" : "", sourceLabel(t)].filter(Boolean);
@@ -99,6 +103,8 @@ export function buildPass(b: BoardData, view: View): PassModel {
   const byId = new Map(b.tasks.map((t) => [t.id, t]));
   const plannedStart = new Map(b.blocks.filter((x) => x.date === b.date).map((x) => [x.task_id, x.start]));
   const hmOf = (t: FullTask) => t.time ?? plannedStart.get(t.id) ?? null;
+  const epics = epicMap(b.epics);
+  const epicOf = (t: FullTask) => (t.epic_id ? epics.get(t.epic_id) : undefined);
   const status = groupTasks(b.tasks, b.today, { group: "status", sort: "manual", tag: "" });
   const count = (key: string) => status.find((g) => g.key === key)!.tasks.length;
   const done = count("done");
@@ -112,13 +118,14 @@ export function buildPass(b: BoardData, view: View): PassModel {
       const t = byId.get(s.id);
       return t ? [{ id: t.id, title: s.title, when: whenOf(t, b), why: s.reasons[0] ?? "" }] : [];
     }),
-    groups: groupTasks(b.tasks, b.today, view).map((g) => ({
+    groups: groupTasks(b.tasks, b.today, view, b.epics).map((g) => ({
       key: g.key,
       label: g.label,
       count: g.tasks.length,
-      dockets: g.tasks.map((t) => docket(t, hmOf(t), b.today)),
+      dockets: g.tasks.map((t) => docket(t, hmOf(t), b.today, epicOf(t))),
     })),
     topPickId: b.suggestions[0]?.id ?? null,
     tags: [...new Set(b.tasks.flatMap((t) => t.tags))].sort(),
+    epics: (b.epics ?? []).filter((e) => e.status !== "done" || b.tasks.some((t) => t.epic_id === e.id)),
   };
 }

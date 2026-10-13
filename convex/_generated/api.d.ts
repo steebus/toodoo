@@ -9,6 +9,7 @@
  */
 
 import type * as agent from "../agent.js";
+import type * as epics from "../epics.js";
 import type * as http from "../http.js";
 import type * as importArtifact from "../importArtifact.js";
 import type * as lib_user from "../lib/user.js";
@@ -26,6 +27,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
+  epics: typeof epics;
   http: typeof http;
   importArtifact: typeof importArtifact;
   "lib/user": typeof lib_user;
