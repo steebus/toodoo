@@ -18,7 +18,8 @@ export type BoardData = {
 };
 
 export type PlanBlock = {
-  id: string; // the task id for planned tasks
+  id: string; // the block's own id (a task can have several on a day); an event's index for events
+  taskId?: string; // the planned task
   kind: "event" | "task";
   startM: number;
   mins: number;

@@ -14,7 +14,7 @@ Steve's tasks and day plan live in toodoo, reached through the toodoo MCP tools.
 - `list_epics()` / `save_epic({id?, title, description?, priority?, status?})` — epics group tasks. Status is `planned`/`active`/`on_hold`/`done`. A task's epic counts for half its priority in `suggest` and `plan`; an epic on hold sinks its tasks.
 - `set_day({date, headline?, events?})` — events replace that day's list.
 - `suggest({date?, limit?})` — ranked "what next" with reasons and `next_free`.
-- `plan({date?, task_ids?, from?, until?, commit?})` — proposes blocks; saves only with `commit: true`.
+- `plan({date?, task_ids?, from?, until?, mins?, commit?})` — proposes blocks; saves only with `commit: true`. Blocks run in 5-minute steps, 5 minutes at least. A task can have several blocks a day: listing it (again), or one already on the line, adds another, and every block counts toward its estimate. `mins` sets each block's length (split deep work around meetings); small tasks listed together queue back to back (quick wins).
 - `unplan({date, task_ids?})`.
 
 ## Conventions

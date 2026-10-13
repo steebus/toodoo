@@ -111,7 +111,7 @@ function Live({ board, groups, manual, compact, actions, children, moves }: Prop
       const from = e.active.rect.current.translated;
       if (d && from && !reduced()) {
         setToLine(true);
-        setMorph({ docket: d, compact, at: new DOMRect(from.left, from.top, from.width, from.height), target: `[data-block="${CSS.escape(d.id)}"]` });
+        setMorph({ docket: d, compact, at: new DOMRect(from.left, from.top, from.width, from.height), target: `[data-task="${CSS.escape(d.id)}"]:last-of-type` });
       }
       actions.place(r.id, board.date, r.start, r.mins);
     }

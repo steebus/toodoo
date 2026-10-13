@@ -9,20 +9,20 @@ it("px and minutes are inverses of the plan's one mapping", () => {
   expect(deltaMin(-HOUR_PX / 2)).toBeCloseTo(-30, 6);
 });
 
-it("snaps to the nearest 15 minutes", () => {
-  expect(snap(7)).toBe(0);
-  expect(snap(8)).toBe(15);
-  expect(snap(622)).toBe(615);
-  expect(snap(-8)).toBe(-15);
+it("snaps to the nearest 5 minutes", () => {
+  expect(snap(2)).toBe(0);
+  expect(snap(3)).toBe(5);
+  expect(snap(622)).toBe(620);
+  expect(snap(-3)).toBe(-5);
 });
 
-it("clamps like the server: start 23:50 for 5m becomes 23:45 for 15m", () => {
-  expect(clampBlock(23 * 60 + 50, 5)).toEqual({ start: 1425, mins: 15 });
+it("clamps like the server: start 23:58 for 2m becomes 23:55 for 5m", () => {
+  expect(clampBlock(23 * 60 + 58, 2)).toEqual({ start: 1435, mins: 5 });
 });
 
-it("never lets a block run under 15m", () => {
-  expect(clampBlock(600, 0)).toEqual({ start: 600, mins: 15 });
-  expect(clampBlock(600, -40)).toEqual({ start: 600, mins: 15 });
+it("never lets a block run under 5m", () => {
+  expect(clampBlock(600, 0)).toEqual({ start: 600, mins: 5 });
+  expect(clampBlock(600, -40)).toEqual({ start: 600, mins: 5 });
 });
 
 it("resizing past 24:00 stops at midnight", () => {
@@ -36,7 +36,7 @@ it("moving above 00:00 stops at midnight and keeps the length", () => {
 
 it("moving past 24:00 keeps the length and ends at midnight", () => {
   expect(moveBlock(23 * 60 + 40, 60)).toEqual({ start: 1380, mins: 60 });
-  expect(moveBlock(611, 47)).toEqual({ start: 615, mins: 45 });
+  expect(moveBlock(611, 47)).toEqual({ start: 610, mins: 45 });
 });
 
 it("a clamped block is a fixed point of the server's clamp", () => {
@@ -45,7 +45,7 @@ it("a clamped block is a fixed point of the server's clamp", () => {
     expect(clampBlock(a.start, a.mins)).toEqual(a);
     expect(a.start).toBeGreaterThanOrEqual(0);
     expect(a.start + a.mins).toBeLessThanOrEqual(1440);
-    expect(a.mins).toBeGreaterThanOrEqual(15);
+    expect(a.mins).toBeGreaterThanOrEqual(5);
   }
 });
 
@@ -86,17 +86,17 @@ describe("openHour", () => {
 // a 1440-wide window (0.94) and the narrowest desktop window (0.57) must all land on the same minutes.
 describe.each([0.57, 0.94, 1])("at scale %s", (k) => {
   const hour = HOUR_PX * k; // one hour, in screen px
-  it("a drag of one screen hour moves a block an hour, snapped to 15m", () => {
+  it("a drag of one screen hour moves a block an hour, snapped to 5m", () => {
     expect(dragBlock({ start: 600, mins: 60, mode: "move" }, hour, k)).toEqual({ start: 660, mins: 60 });
-    expect(dragBlock({ start: 600, mins: 60, mode: "move" }, (hour * 7) / 60, k)).toEqual({ start: 600, mins: 60 });
-    expect(dragBlock({ start: 600, mins: 60, mode: "move" }, (hour * 8) / 60, k)).toEqual({ start: 615, mins: 60 });
+    expect(dragBlock({ start: 600, mins: 60, mode: "move" }, (hour * 2) / 60, k)).toEqual({ start: 600, mins: 60 });
+    expect(dragBlock({ start: 600, mins: 60, mode: "move" }, (hour * 3) / 60, k)).toEqual({ start: 605, mins: 60 });
   });
   it("a move stays inside 00:00 and 24:00", () => {
     expect(dragBlock({ start: 1410, mins: 60, mode: "move" }, hour * 2, k)).toEqual({ start: 1380, mins: 60 });
     expect(dragBlock({ start: 30, mins: 60, mode: "move" }, -hour * 2, k)).toEqual({ start: 0, mins: 60 });
   });
-  it("a resize keeps at least 15m and stops at midnight", () => {
-    expect(dragBlock({ start: 600, mins: 30, mode: "resize" }, -hour * 2, k)).toEqual({ start: 600, mins: 15 });
+  it("a resize keeps at least 5m and stops at midnight", () => {
+    expect(dragBlock({ start: 600, mins: 30, mode: "resize" }, -hour * 2, k)).toEqual({ start: 600, mins: 5 });
     expect(dragBlock({ start: 1380, mins: 30, mode: "resize" }, hour * 3, k)).toEqual({ start: 1380, mins: 60 });
   });
   it("a click picks the slot under it, within the day", () => {
@@ -110,7 +110,7 @@ describe.each([0.57, 0.94, 1])("at scale %s", (k) => {
     const grid = { gridTop: () => 100, startM: 360, endM: 1260, scale: () => k };
     const drop = (m: number) => ({ activatorEvent: { clientY: 100 + minToPx(m, 360) * k }, delta: { x: 0, y: 0 } });
     expect(minuteUnder(drop(17 * 60), grid)).toBe(17 * 60);
-    expect(minuteUnder(drop(17 * 60 + 8), grid)).toBe(17 * 60 + 15);
-    expect(minuteUnder(drop(17 * 60 + 7), grid)).toBe(17 * 60);
+    expect(minuteUnder(drop(17 * 60 + 8), grid)).toBe(17 * 60 + 10);
+    expect(minuteUnder(drop(17 * 60 + 7), grid)).toBe(17 * 60 + 5);
   });
 });

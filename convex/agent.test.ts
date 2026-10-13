@@ -100,7 +100,7 @@ it("board returns full tasks, blocks and suggestions for the day", async () => {
   const b = await t.query(api.agent.board, {});
   expect(b.today).toBe("2026-10-12");
   expect(b.tasks.find((x) => x.id === created[0].id)).toMatchObject({ title: "Board me", description: "why", priority: "high" });
-  expect(b.blocks).toEqual([{ task_id: created[0].id, date: "2026-10-12", start: "13:00", mins: 45 }]);
+  expect(b.blocks).toEqual([{ id: expect.any(String), task_id: created[0].id, date: "2026-10-12", start: "13:05", mins: 50 }]);
 });
 
 it("placeBlock clamps to the day and snaps", async () => {
@@ -108,7 +108,7 @@ it("placeBlock clamps to the day and snaps", async () => {
   const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Late" }] });
   await t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-12", start: "23:55", mins: 120 });
   const b = await t.query(api.agent.board, {});
-  expect(b.blocks[0]).toMatchObject({ start: "23:45", mins: 15 });
+  expect(b.blocks[0]).toMatchObject({ start: "23:55", mins: 5 }); // the last 5 minutes of the day
   await expect(t.mutation(api.agent.placeBlock, { task_id: "nope", date: "2026-10-12", start: "10:00", mins: 30 }))
     .rejects.toThrow(/task not found/);
 });
@@ -165,4 +165,33 @@ it("keeps a task's checklist, tidied, and reports it to the agent", async () => 
   const up = await t.mutation(api.agent.updateTask, { id, patch: { checklist: [{ text: "Passports", done: true }] } });
   expect(up.checklist).toEqual([{ text: "Passports", done: true }]);
   await expect(t.mutation(api.agent.updateTask, { id, patch: { checklist: Array(51).fill("x") } })).rejects.toThrow(/checklist/);
+});
+
+it("a task can hold several blocks in a day; each moves and goes on its own, and all count as time spent", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Deep work", estimate_mins: 180 }] });
+  const id = created[0].id;
+  const am = await t.mutation(api.agent.placeBlock, { task_id: id, date: "2026-10-12", start: "09:00", mins: 60 });
+  const pm = await t.mutation(api.agent.placeBlock, { task_id: id, date: "2026-10-12", start: "14:00", mins: 60 });
+  expect(am.id).not.toBe(pm.id);
+  const moved = await t.mutation(api.agent.placeBlock, { task_id: id, date: "2026-10-12", start: "14:30", mins: 90, block_id: pm.id });
+  expect(moved).toMatchObject({ id: pm.id, start: "14:30", mins: 90 });
+  let b = await t.query(api.agent.board, { now: Date.parse("2026-10-12T05:00:00Z") }); // 15:00 Brisbane
+  expect(b.blocks.map((x) => x.start).sort()).toEqual(["09:00", "14:30"]);
+  expect(b.effort[id]).toEqual({ planned: 150, actual: 90 }); // all of the morning, half an hour of the afternoon
+  await t.mutation(api.agent.removeBlock, { task_id: id, date: "2026-10-12", block_id: am.id });
+  b = await t.query(api.agent.board, { now: Date.parse("2026-10-12T05:00:00Z") });
+  expect(b.blocks.map((x) => x.start)).toEqual(["14:30"]);
+  await expect(t.mutation(api.agent.placeBlock, { task_id: id, date: "2026-10-12", start: "10:00", mins: 30, block_id: "nope" })).rejects.toThrow(/block not found/);
+});
+
+it("plan adds another block for a task already on the line, at mins, and says the new block's id", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Report", estimate_mins: 120 }] });
+  const id = created[0].id;
+  await t.mutation(api.agent.placeBlock, { task_id: id, date: "2026-10-12", start: "13:00", mins: 30 });
+  const r = await t.mutation(api.agent.plan, { task_ids: [id], from: "15:00", until: "17:00", mins: 45, commit: true, now: Date.parse("2026-10-12T02:00:00Z") });
+  expect(r.proposed).toEqual([{ id: expect.any(String), task_id: id, title: "Report", start: "15:00", mins: 45 }]);
+  const b = await t.query(api.agent.board, { now: Date.parse("2026-10-12T02:00:00Z") });
+  expect(b.blocks.filter((x) => x.task_id === id).map((x) => x.start).sort()).toEqual(["13:00", "15:00"]);
 });

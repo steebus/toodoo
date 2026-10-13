@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { m } from "motion/react";
-import { layoutLanes, SNAP, toHM } from "@shared/planning.ts";
+import { layoutLanes, SLOT, toHM } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
 import { clampBlock, dragBlock, moveBlock, openHour, slotAt, widenRange, type Placed } from "../lib/timeline";
@@ -100,14 +100,14 @@ export function Timeline({ plan, board, actions }: Props) {
   // A keyboard batch waiting on its idle timer. It is saved early rather than dropped: before a batch starts on
   // another block, when the line unmounts, and when the page is hidden.
   // It remembers the day and block it started on: navigating away within the pause must not move the write.
-  type Pending = { id: string; date: string; was: { start: number; mins: number }; start: number; mins: number };
+  type Pending = { id: string; taskId: string; date: string; was: { start: number; mins: number }; start: number; mins: number };
   const pending = useRef<Pending | null>(null);
-  const commitRef = useRef<(id: string, next: { start: number; mins: number }, at?: { date: string; was: Placed }) => void>(() => {});
+  const commitRef = useRef<(id: string, next: { start: number; mins: number }, at?: { date: string; was: Placed; taskId: string }) => void>(() => {});
   const flush = () => {
     clearTimeout(keyTimer.current);
     const p = pending.current;
     pending.current = null;
-    if (p) commitRef.current(p.id, p, { date: p.date, was: p.was });
+    if (p) commitRef.current(p.id, p, { date: p.date, was: p.was, taskId: p.taskId });
   };
   const flushRef = useRef(flush);
   flushRef.current = flush;
@@ -170,13 +170,15 @@ export function Timeline({ plan, board, actions }: Props) {
     return blocks.map((b) => byId.get(b.id)!); // stable DOM order, so a moving block keeps focus
   }, [blocks, draft]); // eslint-disable-line react-hooks/exhaustive-deps -- `at` reads draft
 
-  const commit = (id: string, next: { start: number; mins: number }, at?: { date: string; was: Placed }) => {
+  // A block moved or resized (by its own id): the write goes to that block, for its task.
+  const commit = (id: string, next: { start: number; mins: number }, at?: { date: string; was: Placed; taskId: string }) => {
     setDraft(null);
     const b = blocks.find((x) => x.id === id);
     const was = at?.was ?? (b && { start: b.startM, mins: b.mins });
-    if (!was || !actions || (was.start === next.start && was.mins === next.mins)) return;
+    const taskId = at?.taskId ?? b?.taskId;
+    if (!was || !taskId || !actions || (was.start === next.start && was.mins === next.mins)) return;
     refocus.current = document.activeElement?.closest(`[data-block]`)?.getAttribute("data-block") === id ? id : null;
-    actions.place(id, at?.date ?? date, next.start, next.mins);
+    actions.place(taskId, at?.date ?? date, next.start, next.mins, id);
   };
   commitRef.current = commit;
 
@@ -185,12 +187,12 @@ export function Timeline({ plan, board, actions }: Props) {
     e.preventDefault();
     if (offline) return;
     if (pending.current && (pending.current.id !== b.id || pending.current.date !== date)) flush();
-    const step = e.key === "ArrowUp" ? -SNAP : SNAP;
+    const step = e.key === "ArrowUp" ? -SLOT : SLOT; // a slot a press; the pointer gets the 5m grid
     const cur = draftRef.current?.id === b.id ? draftRef.current : { start: b.startM, mins: b.mins };
     const next = e.shiftKey ? clampBlock(cur.start, cur.mins + step) : moveBlock(cur.start + step, cur.mins);
     setDraft({ id: b.id, ...next, via: "key" });
     clearTimeout(keyTimer.current);
-    pending.current = { id: b.id, date, was: pending.current?.was ?? { start: b.startM, mins: b.mins }, ...next };
+    pending.current = { id: b.id, taskId: b.taskId ?? b.id, date, was: pending.current?.was ?? { start: b.startM, mins: b.mins }, ...next };
     keyTimer.current = setTimeout(flush, KEY_IDLE);
   };
 
@@ -269,9 +271,9 @@ export function Timeline({ plan, board, actions }: Props) {
   });
 
   // The free-time surface: one tab stop; arrows move a slot cursor, Enter opens the picker there.
-  const defaultSlot = () => Math.min(DAY - SNAP, nowM !== null ? Math.ceil(nowM / SNAP) * SNAP : Math.max(startM, 9 * 60));
+  const defaultSlot = () => Math.min(DAY - SLOT, nowM !== null ? Math.ceil(nowM / SLOT) * SLOT : Math.max(startM, 9 * 60));
   const moveCursor = (m: number) => {
-    const c = Math.max(0, Math.min(DAY - SNAP, m));
+    const c = Math.max(0, Math.min(DAY - SLOT, m));
     setCursor(c);
     const sc = scroller.current;
     if (sc) {
@@ -283,10 +285,10 @@ export function Timeline({ plan, board, actions }: Props) {
   };
   const onSlotsKey = (e: KeyboardEvent) => {
     const c = cursor ?? defaultSlot();
-    const steps: Record<string, number> = { ArrowUp: -SNAP, ArrowDown: SNAP, PageUp: -60, PageDown: 60 };
+    const steps: Record<string, number> = { ArrowUp: -SLOT, ArrowDown: SLOT, PageUp: -60, PageDown: 60 };
     if (e.key in steps) moveCursor(c + steps[e.key]);
     else if (e.key === "Home") moveCursor(startM);
-    else if (e.key === "End") moveCursor(endM - SNAP);
+    else if (e.key === "End") moveCursor(endM - SLOT);
     else if (e.key === "Enter" || e.key === " ") offline || setPicker(c);
     else return;
     e.preventDefault();
@@ -321,7 +323,7 @@ export function Timeline({ plan, board, actions }: Props) {
           />
         )}
         {live && cursor !== null && (
-          <span className="plan-cursor" aria-hidden style={{ top: px(slotTop(cursor)), height: px((SNAP * HOUR_PX) / 60 + BLOCK_LEAD / 2) }}>
+          <span className="plan-cursor" aria-hidden style={{ top: px(slotTop(cursor)), height: px((SLOT * HOUR_PX) / 60 + BLOCK_LEAD / 2) }}>
             <span className="plan-cursor-time">{clockOf(cursor)}</span>
           </span>
         )}
@@ -340,7 +342,7 @@ export function Timeline({ plan, board, actions }: Props) {
         </ol>
         <ol className="plan-blocks" aria-label="Plan">
           {lanes.map((b) => {
-            const editable = live && b.kind === "task" && !isOptimistic(b.id);
+            const editable = live && b.kind === "task" && !isOptimistic(b.id) && !isOptimistic(b.taskId ?? "");
             const dragging = ghost?.id === b.id;
             const shownAt = at(b);
             const time = shownAt.start === b.startM ? b.time : clockOf(shownAt.start);
@@ -368,7 +370,7 @@ export function Timeline({ plan, board, actions }: Props) {
             );
             if (!editable) return <m.li key={b.id} className={cls} style={style} {...snap}>{face}</m.li>;
             return (
-              <m.li key={b.id} data-block={b.id} className={cls} style={style} {...snap}>
+              <m.li key={b.id} data-block={b.id} data-task={b.taskId} className={cls} style={style} {...snap}>
                 <button
                   type="button"
                   className="plan-body"
@@ -389,10 +391,10 @@ export function Timeline({ plan, board, actions }: Props) {
                 </button>
                 <span className="plan-acts">
                   <label className="plan-tick">
-                    <input type="checkbox" aria-label={`Done: ${b.title}`} checked={!!b.done} disabled={offline} onChange={() => actions!.tick(b.id, !b.done)} />
+                    <input type="checkbox" aria-label={`Done: ${b.title}`} checked={!!b.done} disabled={offline} onChange={() => actions!.tick(b.taskId!, !b.done)} />
                     <DrawnCheck on={!!b.done} size={13} className="plan-tick-mark" />
                   </label>
-                  <button type="button" className="plan-x" disabled={offline} aria-label={`Unplan ${b.title}`} onClick={() => actions!.unplace(b.id, date)}>
+                  <button type="button" className="plan-x" disabled={offline} aria-label={`Unplan ${b.title}`} onClick={() => actions!.unplace(b.taskId!, date, b.id)}>
                     <span aria-hidden>×</span>
                   </button>
                 </span>

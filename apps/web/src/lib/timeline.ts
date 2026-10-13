@@ -1,5 +1,5 @@
-// Pure timeline maths: the inverse of plan.ts's minutes -> px, the 15m snap, and the server's clamp.
-import { SNAP, type Span } from "@shared/planning.ts";
+// Pure timeline maths: the inverse of plan.ts's minutes -> px, the 5m snap, and the server's clamp.
+import { SLOT, SNAP, type Span } from "@shared/planning.ts";
 import { BLOCK_LEAD, HOUR_PX, LABEL_Y } from "../ui/plan";
 
 const DAY = 24 * 60;
@@ -11,7 +11,7 @@ export const snap = (m: number) => Math.round(m / SNAP) * SNAP;
 
 export type Placed = { start: number; mins: number };
 
-// Exactly what placeBlock does on the server: start on the grid before 23:45, at least 15m, never past midnight.
+// Exactly what placeBlock does on the server: start on the 5m grid before 23:55, at least 5m, never past midnight.
 export function clampBlock(start: number, mins: number): Placed {
   const s = clamp(snap(start), 0, DAY - SNAP);
   return { start: s, mins: clamp(snap(mins), SNAP, DAY - s) };
@@ -23,9 +23,9 @@ export function moveBlock(start: number, mins: number): Placed {
   return { start: clamp(snap(start), 0, DAY - m), mins: m };
 }
 
-// The slot a block would start in if its top edge were at y (blocks sit BLOCK_LEAD above their line).
+// The 15m slot a click at y falls in (picking a slot goes by SLOTs; blocks then run on the 5m grid).
 export const hitSlot = (y: number, startM: number) =>
-  clamp(Math.floor(pxToMin(y + BLOCK_LEAD, startM) / SNAP) * SNAP, 0, DAY - SNAP);
+  clamp(Math.floor(pxToMin(y + BLOCK_LEAD, startM) / SLOT) * SLOT, 0, DAY - SLOT);
 
 // Grow an hour range to whole hours so every span fits, within the day.
 export function widenRange(startM: number, endM: number, spans: Span[]) {

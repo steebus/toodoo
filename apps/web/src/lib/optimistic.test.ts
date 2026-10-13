@@ -62,16 +62,28 @@ test("delete drops the task and all its blocks", () => {
   }
 });
 
-test("place upserts the block for that task and date; unplace removes only that one", () => {
-  const { store, both } = fake();
+test("place adds another block for the task (a task can have several a day); with block_id it moves just that one", () => {
+  const { store, both, q } = fake();
   placeBlock(store, { task_id: "a", date: "2026-10-12", start: "11:00", mins: 45 });
-  placeBlock(store, { task_id: "b", date: "2026-10-12", start: "13:00", mins: 15 });
+  const today = () => q[0].value!.blocks.filter((x) => x.task_id === "a" && x.date === "2026-10-12");
+  expect(today().map((x) => x.start)).toEqual(["09:00", "11:00"]);
+  const added = today()[1].id!;
+  expect(isOptimistic(added)).toBe(true);
+  placeBlock(store, { task_id: "a", date: "2026-10-12", start: "11:30", mins: 30, block_id: added });
   for (const b of both()) {
-    expect(b.blocks.filter((x) => x.task_id === "a" && x.date === "2026-10-12")).toEqual([{ task_id: "a", date: "2026-10-12", start: "11:00", mins: 45 }]);
-    expect(b.blocks).toHaveLength(3);
+    expect(b.blocks.filter((x) => x.task_id === "a" && x.date === "2026-10-12").map((x) => [x.start, x.mins])).toEqual([["09:00", 30], ["11:30", 30]]);
   }
+});
+
+test("unplace takes off one block by its id, or every block the task has that day", () => {
+  const { store, both, q } = fake();
+  placeBlock(store, { task_id: "a", date: "2026-10-12", start: "11:00", mins: 45 });
+  const added = q[0].value!.blocks.find((x) => x.start === "11:00")!.id!;
+  removeBlock(store, { task_id: "a", date: "2026-10-12", block_id: added });
+  for (const b of both()) expect(b.blocks.filter((x) => x.task_id === "a").map((x) => `${x.date} ${x.start}`)).toEqual(["2026-10-12 09:00", "2026-10-13 10:00"]);
+  placeBlock(store, { task_id: "a", date: "2026-10-12", start: "14:00", mins: 15 });
   removeBlock(store, { task_id: "a", date: "2026-10-12" });
-  for (const b of both()) expect(b.blocks.map((x) => `${x.task_id}@${x.date}`)).toEqual(["a@2026-10-13", "b@2026-10-12"]);
+  for (const b of both()) expect(b.blocks.map((x) => `${x.task_id}@${x.date}`)).toEqual(["a@2026-10-13"]);
 });
 
 test("add appends optimistic tasks with defaults", () => {

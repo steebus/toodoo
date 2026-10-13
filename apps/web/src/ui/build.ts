@@ -82,7 +82,7 @@ function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTas
     const s = toMin(pb.start);
     if (pb.date !== b.date || !t || s == null) continue;
     blocks.push({
-      id: t.id, kind: "task", startM: s, mins: pb.mins, time: clock12(pb.start), title: t.title,
+      id: pb.id ?? `${t.id}@${pb.start}`, taskId: t.id, kind: "task", startM: s, mins: pb.mins, time: clock12(pb.start), title: t.title,
       // The heavy rule marks the top pick (the docket with the biro ring), as the comp does.
       duration: formatDuration(pb.mins), current: t.id === b.suggestions[0]?.id, done: t.done, colour: colourOf(t),
     });
@@ -114,7 +114,11 @@ function whenOf(t: FullTask, b: BoardData): string {
 
 export function buildPass(b: BoardData, view: View): PassModel {
   const byId = new Map(b.tasks.map((t) => [t.id, t]));
-  const plannedStart = new Map(b.blocks.filter((x) => x.date === b.date).map((x) => [x.task_id, x.start]));
+  // A docket's START is its first block of the day (it may have several).
+  const plannedStart = new Map<string, string>();
+  for (const x of [...b.blocks].filter((x) => x.date === b.date).sort((p, q) => (toMin(q.start) ?? 0) - (toMin(p.start) ?? 0))) {
+    plannedStart.set(x.task_id, x.start);
+  }
   const hmOf = (t: FullTask) => t.time ?? plannedStart.get(t.id) ?? null;
   const epics = epicMap(b.epics);
   const epicOf = (t: FullTask) => (t.epic_id ? epics.get(t.epic_id) : undefined);

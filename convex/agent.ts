@@ -36,7 +36,7 @@ export const deleteTask = mutation({
   handler: async (ctx, a) => m.deleteTask(ctx.db, await requireUser(ctx), a.id).catch(m.asConvexError),
 });
 export const plan = mutation({
-  args: { date, task_ids: ids, from: v.optional(v.string()), until: v.optional(v.string()), commit: v.optional(v.boolean()), now },
+  args: { date, task_ids: ids, from: v.optional(v.string()), until: v.optional(v.string()), mins: v.optional(v.number()), commit: v.optional(v.boolean()), now },
   handler: async (ctx, { now, ...a }) => m.planDay(ctx.db, await requireUser(ctx), a, at(now)),
 });
 export const unplan = mutation({
@@ -48,10 +48,10 @@ export const board = query({
   handler: async (ctx, { now = Date.now(), ...a }) => m.board(ctx.db, await requireUser(ctx), a, new Date(now)),
 });
 export const placeBlock = mutation({
-  args: { task_id: v.string(), date: v.string(), start: v.string(), mins: v.number() },
+  args: { task_id: v.string(), date: v.string(), start: v.string(), mins: v.number(), block_id: v.optional(v.string()) },
   handler: async (ctx, a) => m.placeBlock(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),
 });
 export const removeBlock = mutation({
-  args: { task_id: v.string(), date: v.string() },
+  args: { task_id: v.string(), date: v.string(), block_id: v.optional(v.string()) },
   handler: async (ctx, a) => m.removeBlock(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),
 });

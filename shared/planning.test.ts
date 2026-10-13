@@ -39,7 +39,7 @@ describe("times", () => {
     expect(toHM(555)).toBe("09:15");
     expect(toHM(-5)).toBe("00:00");
     expect(toHM(5000)).toBe("23:59");
-    expect(snapUp(541)).toBe(555);
+    expect(snapUp(541)).toBe(545); // the 5-minute grid
     expect(snapUp(540)).toBe(540);
   });
   it("formats 12-hour times", () => {
@@ -91,9 +91,12 @@ describe("effort", () => {
     expect([...e.days].sort()).toEqual(["2026-10-11", T, "2026-10-13"]);
   });
   it("defaults block length from the remaining estimate, else priority", () => {
-    expect(defaultBlockMins({ priority: null, estimate_mins: 100 }, 30)).toBe(75);
+    expect(defaultBlockMins({ priority: null, estimate_mins: 100 }, 30)).toBe(70);
     expect(defaultBlockMins({ priority: null, estimate_mins: 600 }, 0)).toBe(240);
-    expect(defaultBlockMins({ priority: "high", estimate_mins: 60 }, 55)).toBe(60);
+    expect(defaultBlockMins({ priority: "high", estimate_mins: 60 }, 55)).toBe(5); // 5 minutes left: 5 minutes
+    expect(defaultBlockMins({ priority: null, estimate_mins: 3 })).toBe(5); // never under 5
+    expect(defaultBlockMins({ priority: null, estimate_mins: 10 })).toBe(10); // a quick win takes what it needs
+    expect(defaultBlockMins({ priority: "high", estimate_mins: 60 }, 60)).toBe(60); // estimate all used: by priority
     expect(defaultBlockMins({ priority: "low", estimate_mins: null })).toBe(30);
   });
 });
@@ -195,17 +198,24 @@ describe("autoPlan", () => {
   });
   it("never plans before now on today, and refuses past days", () => {
     const r = autoPlan({ ...base, tasks: [task("a")], from: 9 * 60 });
-    expect(r.proposed[0].start).toBe("12:15");
+    expect(r.proposed[0].start).toBe("12:10"); // now 12:02, five minutes' grace, then the 5-minute grid
     const past = autoPlan({ ...base, date: "2026-10-11", tasks: [task("a")], taskIds: ["a"] });
     expect(past.proposed).toEqual([]);
     expect(past.unplaced[0].reason).toBe("that day is in the past");
   });
-  it("uses explicit task ids and reports ones already planned", () => {
-    const tasks = [task("a", { due: "2026-10-30" }), task("b")];
+  it("gives a task asked for again another block, sized to what is left of its estimate", () => {
+    const tasks = [task("a", { due: "2026-10-30" }), task("b", { estimate_mins: 90 })];
     const blocks: Block[] = [{ task_id: "b", date: D, start: "13:00", mins: 30 }];
-    const r = autoPlan({ ...base, tasks, blocks, taskIds: ["a", "b"] });
-    expect(r.proposed.map((p) => p.task_id)).toEqual(["a"]);
-    expect(r.unplaced).toEqual([{ task_id: "b", title: "b", reason: "already planned that day" }]);
+    const r = autoPlan({ ...base, tasks, blocks, taskIds: ["a", "b", "b"] });
+    expect(r.proposed.map((p) => [p.task_id, p.mins])).toEqual([["a", 30], ["b", 60], ["b", 30]]);
+    expect(r.unplaced).toEqual([]);
+  });
+  it("sizes every block to mins when given (split work), and queues small tasks back to back", () => {
+    const tasks = [task("a", { estimate_mins: 180 }), task("q1", { estimate_mins: 10 }), task("q2", { estimate_mins: 15 })];
+    const one = autoPlan({ ...base, tasks, blocks: [], taskIds: ["a"], from: 13 * 60, until: 14 * 60, mins: 60 });
+    expect(one.proposed).toEqual([{ task_id: "a", title: "a", start: "13:00", mins: 60 }]);
+    const wins = autoPlan({ ...base, tasks, blocks: [], taskIds: ["q1", "q2"], from: 14 * 60, until: 15 * 60 });
+    expect(wins.proposed.map((p) => [p.task_id, p.start, p.mins])).toEqual([["q1", "14:00", 10], ["q2", "14:10", 15]]);
   });
 });
 

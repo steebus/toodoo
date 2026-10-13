@@ -80,8 +80,8 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
       if (!a || e.defaultPrevented) return;
       const dockets = [...document.querySelectorAll<HTMLElement>(".pass [data-docket] .dk-open:not(:disabled)")];
       const at = dockets.indexOf(document.activeElement as HTMLElement);
-      const el = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("[data-docket], .plan-block[data-block]");
-      const id = el?.dataset.docket ?? el?.dataset.block;
+      const el = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("[data-docket], .plan-block[data-task]");
+      const id = el?.dataset.docket ?? el?.dataset.task;
       if (a === "add") narrow ? actions && !offline && setAdding("") : document.querySelector<HTMLElement>(".quickadd-input")?.focus();
       else if (a === "down") dockets[at < 0 ? 0 : Math.min(at + 1, dockets.length - 1)]?.focus();
       else if (a === "up") dockets[at < 0 ? dockets.length - 1 : Math.max(at - 1, 0)]?.focus();

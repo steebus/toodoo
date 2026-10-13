@@ -48,7 +48,7 @@ const filed = task({ title: "File taxes", done: true, done_on: T });
 const board = (o: Partial<BoardData> = {}): BoardData => ({
   today: T, date: T, nowM: 10 * 60 + 30, app_url: null, day: null,
   tasks: [report, landlord, plants, filed],
-  blocks: [{ task_id: report.id, date: T, start: "09:00", mins: 60 }],
+  blocks: [{ id: "blk1", task_id: report.id, date: T, start: "09:00", mins: 60 }],
   suggestions: [{ id: plants.id, title: plants.title, reasons: ["high priority"] }],
   ...o,
 });
@@ -91,7 +91,7 @@ it("arrow keys move a block in 15m steps and Shift resizes it, saved once after 
   expect(fn("placeBlock")).not.toHaveBeenCalled();
   act(() => void vi.advanceTimersByTime(200));
   expect(fn("placeBlock")).toHaveBeenCalledTimes(1);
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:30", mins: 75 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:30", mins: 75, block_id: "blk1" });
   expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent("Moved: Write report");
 });
 
@@ -102,7 +102,7 @@ it("keyboard moves clamp at midnight", () => {
   for (let i = 0; i < 40; i++) fireEvent.keyDown(document.activeElement!, { key: "ArrowUp" });
   for (let i = 0; i < 3; i++) fireEvent.keyDown(document.activeElement!, { key: "ArrowUp", shiftKey: true });
   act(() => void vi.advanceTimersByTime(500));
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "00:00", mins: 15 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "00:00", mins: 15, block_id: "blk1" });
 });
 
 it("undo after a move puts the block back", async () => {
@@ -112,13 +112,13 @@ it("undo after a move puts the block back", async () => {
   fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
   act(() => void vi.advanceTimersByTime(500));
   fireEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
-  expect(fn("placeBlock")).toHaveBeenLastCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 60 });
+  expect(fn("placeBlock")).toHaveBeenLastCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 60, block_id: "blk1" });
 });
 
 it("the block's x unplans it with undo", async () => {
   show();
   await userEvent.click(screen.getByRole("button", { name: "Unplan Write report" }));
-  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T });
+  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, block_id: "blk1" }); // just this block
   await userEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
   expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 60 });
 });
@@ -136,8 +136,11 @@ it("clicking an empty slot offers suggestions first, then other open tasks", () 
   const names = within(picker).getAllByRole("option").map((o) => o.textContent);
   expect(names[0]).toContain("Water plants");
   expect(names.some((x) => x?.includes("Email landlord"))).toBe(true);
-  // Already on the line, or done: not offered.
-  expect(names.some((x) => x?.includes("Write report") || x?.includes("File taxes"))).toBe(false);
+  // Already on the line: offered (a task can have another block), but after the rest. Done: not offered.
+  const planned = names.findIndex((x) => x?.includes("Write report"));
+  expect(planned).toBeGreaterThan(names.findIndex((x) => x?.includes("Email landlord")));
+  expect(names[planned]).toContain("already on the line");
+  expect(names.some((x) => x?.includes("File taxes"))).toBe(false);
 });
 
 it("picking a task places it at the slot for its default length", async () => {
@@ -227,8 +230,8 @@ it("a pending keyboard move is saved before arrows start on another block", () =
   vi.useFakeTimers();
   show(board({
     blocks: [
-      { task_id: report.id, date: T, start: "09:00", mins: 60 },
-      { task_id: landlord.id, date: T, start: "11:00", mins: 30 },
+      { id: "blk1", task_id: report.id, date: T, start: "09:00", mins: 60 },
+      { id: "blk2", task_id: landlord.id, date: T, start: "11:00", mins: 30 },
     ],
   }));
   block().focus();
@@ -236,9 +239,9 @@ it("a pending keyboard move is saved before arrows start on another block", () =
   act(() => void vi.advanceTimersByTime(100));
   screen.getByRole("button", { name: "Email landlord, 11:00–11:30" }).focus();
   fireEvent.keyDown(document.activeElement!, { key: "ArrowUp" });
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:15", mins: 60 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:15", mins: 60, block_id: "blk1" });
   act(() => void vi.advanceTimersByTime(500));
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: landlord.id, date: T, start: "10:45", mins: 30 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: landlord.id, date: T, start: "10:45", mins: 30, block_id: "blk2" });
   expect(fn("placeBlock")).toHaveBeenCalledTimes(2);
 });
 
@@ -248,7 +251,7 @@ it("a pending keyboard move is saved when the line unmounts", () => {
   block().focus();
   fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
   unmount();
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:15", mins: 60 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:15", mins: 60, block_id: "blk1" });
 });
 
 it("a pending keyboard move is saved when the page is hidden", () => {
@@ -257,7 +260,7 @@ it("a pending keyboard move is saved when the page is hidden", () => {
   block().focus();
   fireEvent.keyDown(document.activeElement!, { key: "ArrowDown", shiftKey: true });
   act(() => void window.dispatchEvent(new Event("pagehide")));
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 75 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 75, block_id: "blk1" });
   act(() => void vi.advanceTimersByTime(500));
   expect(fn("placeBlock")).toHaveBeenCalledTimes(1);
 });
@@ -280,7 +283,7 @@ it("a drag that ends drops the block at the snapped time", () => {
   fireEvent.pointerDown(body, { clientY: 100, button: 0, pointerId: 1 });
   fireEvent.pointerMove(body, { clientY: 100 + 68.6, pointerId: 1 });
   fireEvent.pointerUp(body, { clientY: 100 + 68.6, pointerId: 1 });
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "10:00", mins: 60 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "10:00", mins: 60, block_id: "blk1" });
 });
 
 it("Tab out of the picker closes it", async () => {
@@ -298,4 +301,17 @@ it("an impossible date in the URL falls back to today and is cleaned away", () =
   expect(state.args[0].date).toBeUndefined();
   expect(window.location.search).toBe("");
   expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
+});
+
+it("a task can sit on the line twice: each block shows and comes off on its own", async () => {
+  show(board({
+    blocks: [
+      { id: "am", task_id: report.id, date: T, start: "09:00", mins: 60 },
+      { id: "pm", task_id: report.id, date: T, start: "14:00", mins: 30 },
+    ],
+  }));
+  const unplan = screen.getAllByRole("button", { name: "Unplan Write report" });
+  expect(unplan).toHaveLength(2);
+  await userEvent.click(unplan[1]);
+  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, block_id: "pm" });
 });

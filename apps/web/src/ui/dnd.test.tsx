@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { FullTask } from "@shared/snapshot.ts";
@@ -147,17 +147,17 @@ it("Enter on a docket title opens the sheet instead of starting a drag", async (
   expect(screen.queryByText(/^Picked up/)).not.toBeInTheDocument();
 });
 
-it("Undo after p on an already planned docket puts the old block back and removes nothing", async () => {
+it("p on an already planned docket adds another block; Undo takes just that one off and leaves the first", async () => {
   show();
   fn("plan").mockResolvedValue({
-    date: T, committed: true, unplaced: [], proposed: [{ task_id: report.id, title: "Write report", start: "13:00", mins: 90 }],
+    date: T, committed: true, unplaced: [], proposed: [{ id: "new1", task_id: report.id, title: "Write report", start: "13:00", mins: 90 }],
   });
   edit("Write report").focus();
   await userEvent.keyboard("p");
   await within(toast()).findByText("Planned Write report for 1:00");
   await userEvent.click(within(toast()).getByRole("button", { name: /undo/i }));
-  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "09:00", mins: 60 });
-  expect(fn("removeBlock")).not.toHaveBeenCalled();
+  await waitFor(() => expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, block_id: "new1" }));
+  expect(fn("placeBlock")).not.toHaveBeenCalled();
 });
 
 it("Plan all says how many did not fit", async () => {

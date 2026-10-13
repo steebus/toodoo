@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
+import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
 import { buildSnapshot, type FullTask, type State } from "../shared/snapshot.ts";
 import {
@@ -90,7 +90,7 @@ export async function loadState(db: R, userId: string, t: string, date: string):
   return {
     tasks: [...open, ...done.filter((d) => d.done)].map(toTask),
     days: days.map((d) => ({ date: d.date, headline: d.headline, events: d.events })),
-    blocks: blocks.map((b) => ({ task_id: b.task_id, date: b.date, start: b.start, mins: b.mins })),
+    blocks: blocks.map((b) => ({ id: b._id, task_id: b.task_id, date: b.date, start: b.start, mins: b.mins })),
     epics: await listEpics(db, userId),
   };
 }
@@ -178,7 +178,7 @@ export async function suggestNext(db: R, userId: string, a: { date?: string; lim
   const date = a.date ?? t;
   const s = await loadState(db, userId, t, date);
   const events = s.days.find((d) => d.date === date)?.events ?? [];
-  const free = date === t ? firstFree(15, snapUp(nowM), busySpans(events, s.blocks, date)) : null;
+  const free = date === t ? firstFree(SLOT, snapUp(nowM), busySpans(events, s.blocks, date)) : null;
   return {
     date,
     suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics, limit: a.limit ?? 5 })
@@ -189,7 +189,7 @@ export async function suggestNext(db: R, userId: string, a: { date?: string; lim
 
 export async function planDay(
   db: W, userId: string,
-  a: { date?: string; task_ids?: string[]; from?: string; until?: string; commit?: boolean }, now = new Date(),
+  a: { date?: string; task_ids?: string[]; from?: string; until?: string; mins?: number; commit?: boolean }, now = new Date(),
 ) {
   checkDate(a.date);
   const { t, nowM } = clock(now);
@@ -198,18 +198,17 @@ export async function planDay(
   const r = autoPlan({
     date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics,
     events: s.days.find((d) => d.date === date)?.events ?? [],
-    from: toMin(a.from) ?? undefined, until: toMin(a.until) ?? undefined, taskIds: a.task_ids,
+    from: toMin(a.from) ?? undefined, until: toMin(a.until) ?? undefined, taskIds: a.task_ids, mins: a.mins,
   });
-  if (a.commit) {
-    for (const p of r.proposed) {
-      const taskId = p.task_id as Id<"tasks">;
-      const existing = (await db.query("plan_blocks").withIndex("by_task", (q) => q.eq("task_id", taskId)).collect())
-        .find((b) => b.date === date);
-      if (existing) await db.patch(existing._id, { start: p.start, mins: p.mins });
-      else await db.insert("plan_blocks", { user_id: userId, date, task_id: taskId, start: p.start, mins: p.mins });
-    }
+  // Committed: each proposal is a new block (a task already on the line gets another), and says its id.
+  const proposed = [];
+  for (const p of r.proposed) {
+    const id = a.commit
+      ? await db.insert("plan_blocks", { user_id: userId, date, task_id: p.task_id as Id<"tasks">, start: p.start, mins: p.mins })
+      : undefined;
+    proposed.push(id ? { id, ...p } : p);
   }
-  return { date, committed: !!a.commit && r.proposed.length > 0, ...r };
+  return { date, committed: !!a.commit && r.proposed.length > 0, proposed, unplaced: r.unplaced };
 }
 
 export async function unplan(db: W, userId: string, date: string, taskIds?: string[]) {
@@ -262,26 +261,39 @@ export async function board(db: R, userId: string, a: { date?: string }, now: Da
   };
 }
 
-const snap = (m: number) => Math.round(m / 15) * 15;
+const snap = (m: number) => Math.round(m / SNAP) * SNAP;
 
-export async function placeBlock(db: W, userId: string, a: { task_id: string; date: string; start: string; mins: number }) {
+// A block on the line: block_id moves or resizes that one; without it, the task gets a new block that day (it may
+// already have others). The time snaps to 5 minutes (5 at least) and stays inside the day.
+export async function placeBlock(
+  db: W, userId: string, a: { task_id: string; date: string; start: string; mins: number; block_id?: string },
+) {
   checkDate(a.date);
   const task = await ownedTask(db, userId, a.task_id);
   if (!task) throw new InputError("task not found");
-  const s = Math.min(24 * 60 - 15, Math.max(0, snap(toMin(a.start) ?? 0)));
-  const mins = Math.max(15, Math.min(1440, snap(a.mins), 24 * 60 - s));
-  const existing = (await db.query("plan_blocks").withIndex("by_task", (q) => q.eq("task_id", task._id)).collect())
-    .find((b) => b.date === a.date);
+  const s = Math.min(24 * 60 - SNAP, Math.max(0, snap(toMin(a.start) ?? 0)));
+  const mins = Math.max(SNAP, Math.min(1440, snap(a.mins), 24 * 60 - s));
   const row = { start: toHM(s), mins };
-  if (existing) await db.patch(existing._id, row);
-  else await db.insert("plan_blocks", { user_id: userId, date: a.date, task_id: task._id, ...row });
-  return { task_id: task._id, date: a.date, ...row };
+  if (a.block_id) {
+    const nid = db.normalizeId("plan_blocks", a.block_id);
+    const block = nid ? await db.get(nid) : null;
+    if (!block || block.user_id !== userId || block.task_id !== task._id) throw new InputError("block not found");
+    await db.patch(block._id, { ...row, date: a.date });
+    return { id: block._id, task_id: task._id, date: a.date, ...row };
+  }
+  const id = await db.insert("plan_blocks", { user_id: userId, date: a.date, task_id: task._id, ...row });
+  return { id, task_id: task._id, date: a.date, ...row };
 }
 
-// Quietly a no-op for a gone or foreign task: unplan only ever reads this user's blocks, and an undo
-// whose task was deleted elsewhere must not stop partway.
-export async function removeBlock(db: W, userId: string, a: { task_id: string; date: string }) {
-  return unplan(db, userId, a.date, [a.task_id]);
+// One block (block_id), or all of a task's blocks that day. Quietly a no-op for a gone or foreign task or block:
+// an undo whose task was deleted elsewhere must not stop partway.
+export async function removeBlock(db: W, userId: string, a: { task_id: string; date: string; block_id?: string }) {
+  if (!a.block_id) return unplan(db, userId, a.date, [a.task_id]);
+  const nid = db.normalizeId("plan_blocks", a.block_id);
+  const block = nid ? await db.get(nid) : null;
+  if (!block || block.user_id !== userId) return { removed: 0 };
+  await db.delete(block._id);
+  return { removed: 1 };
 }
 
 // ---------- epics ----------

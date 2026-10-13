@@ -32,10 +32,11 @@ export const TOOL_DEFS = [
     description: "What to do next: ranked open tasks with reasons, plus next_free (today only).",
     inputSchema: obj({ date, limit: { type: "integer", minimum: 1, maximum: 20 } }) },
   { name: "plan",
-    description: "Auto-plan time blocks between from and until (HH:MM) around events, using suggestions or task_ids. Proposes only; saves when commit is true.",
-    inputSchema: obj({ date, task_ids: { type: "array", maxItems: 50, items: { type: "string" } }, from: hm, until: hm, commit: { type: "boolean" } }) },
+    description: "Auto-plan time blocks between from and until (HH:MM) around events and existing blocks, using suggestions or task_ids. A task can have several blocks a day: listing a task (again), or one already on the line, adds another block; every block counts toward its estimate. Blocks run in 5-minute steps, 5m at least, and size to what's left of the estimate (else 30m, 1h for high), or to mins when given (split deep work around meetings). Small tasks listed together queue back to back (quick wins). Proposes only; saves when commit is true (returns each saved block's id).",
+    inputSchema: obj({ date, task_ids: { type: "array", maxItems: 50, items: { type: "string" } }, from: hm, until: hm,
+      mins: { type: "integer", minimum: 5, maximum: 240 }, commit: { type: "boolean" } }) },
   { name: "unplan", annotations: { destructiveHint: true },
-    description: "Remove plan blocks for a date (all, or just task_ids).",
+    description: "Remove plan blocks for a date (all, or every block of just task_ids).",
     inputSchema: obj({ date, task_ids: { type: "array", maxItems: 50, items: { type: "string" } } }, ["date"]) },
 ];
 

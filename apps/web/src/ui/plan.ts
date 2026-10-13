@@ -6,7 +6,7 @@ export const LABEL_Y = 22; // an hour label's centre, from the grid top
 export const LINE_DROP = 0; // a rule sits on its minute
 export const BLOCK_LEAD = 0; // a block starts on its start line
 export const BLOCK_TRIM = 0; // and runs exactly its minutes
-export const BLOCK_MIN = HOUR_PX / 4; // at least one 15-minute slot tall
+export const BLOCK_MIN = HOUR_PX / 12; // a 5-minute block, the shortest there is
 export const NOW_LEAD = 11; // the now-line's rule is the middle of its 22px row: this puts the rule on now
 
 // The one minutes -> px function: y (from the grid top) of a minute of the day.

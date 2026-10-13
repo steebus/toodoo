@@ -33,8 +33,10 @@ export type Actions = {
   tick: (id: string, done: boolean) => void;
   remove: (id: string) => void;
   save: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
-  place: (id: string, date: string, start: number, mins: number) => void;
-  unplace: (id: string, date: string) => void;
+  // A block for the task: blockId moves that one; without it the task gets another block that day.
+  place: (id: string, date: string, start: number, mins: number, blockId?: string) => void;
+  // One block (blockId), or all the task's blocks that day.
+  unplace: (id: string, date: string, blockId?: string) => void;
   addAndPlace: (t: NewTask, date: string, start: number, mins: number) => Promise<boolean>;
   reorder: (id: string, sortOrder: number) => void;
   // A change dragged into being (to another rail), with Undo putting the old values back.
@@ -161,38 +163,42 @@ export function useActions(board: BoardData): Actions {
     [updateTask, fail],
   );
 
-  // Callers clamp (lib/timeline.ts); the server clamps again. Undo restores the block as it was, or unplans.
+  // Callers clamp (lib/timeline.ts); the server clamps again. Undo puts a moved block back where it was, or takes a
+  // new one off again.
   const place = useCallback(
-    (id: string, date: string, start: number, mins: number) => {
-      if (isOptimistic(id)) return;
+    (id: string, date: string, start: number, mins: number, blockId?: string) => {
+      if (isOptimistic(id) || (blockId && isOptimistic(blockId))) return;
       const b = live.current;
       const t = b.tasks.find((x) => x.id === id);
-      const prev = b.blocks.find((x) => x.task_id === id && x.date === date);
+      const prev = blockId ? b.blocks.find((x) => x.id === blockId) : undefined;
+      const saved = placeBlock({ task_id: id, date, start: toHM(start), mins, ...(prev ? { block_id: blockId } : {}) });
       show({
         kind: "undo", message: `${prev ? "Moved" : "Planned"}: ${t?.title ?? "task"}`,
         undo: () => {
           const back = prev
-            ? placeBlock({ task_id: id, date, start: prev.start, mins: prev.mins })
-            : removeBlock({ task_id: id, date });
+            ? placeBlock({ task_id: id, date: prev.date, start: prev.start, mins: prev.mins, block_id: blockId })
+            : saved.then((r) => removeBlock({ task_id: id, date, block_id: (r as { id: string }).id }));
           void back.catch((e) => fail("Couldn't undo", e));
         },
       });
-      placeBlock({ task_id: id, date, start: toHM(start), mins }).catch((e) => fail("Couldn't plan that", e));
+      saved.catch((e) => fail("Couldn't plan that", e));
     },
     [placeBlock, removeBlock, show, fail],
   );
 
   const unplace = useCallback(
-    (id: string, date: string) => {
+    (id: string, date: string, blockId?: string) => {
       const b = live.current;
-      const prev = b.blocks.find((x) => x.task_id === id && x.date === date);
-      if (!prev || isOptimistic(id)) return;
+      const gone = b.blocks.filter((x) => (blockId ? x.id === blockId : x.task_id === id && x.date === date));
+      if (!gone.length || isOptimistic(id)) return;
       const t = b.tasks.find((x) => x.id === id);
       show({
         kind: "undo", message: `Unplanned: ${t?.title ?? "task"}`,
-        undo: () => void placeBlock({ task_id: id, date, start: prev.start, mins: prev.mins }).catch((e) => fail("Couldn't undo", e)),
+        undo: () => void (async () => {
+          for (const x of gone) await placeBlock({ task_id: id, date: x.date, start: x.start, mins: x.mins });
+        })().catch((e) => fail("Couldn't undo", e)),
       });
-      removeBlock({ task_id: id, date }).catch((e) => fail("Couldn't unplan that", e));
+      removeBlock({ task_id: id, date, ...(blockId ? { block_id: blockId } : {}) }).catch((e) => fail("Couldn't unplan that", e));
     },
     [placeBlock, removeBlock, show, fail],
   );
@@ -251,11 +257,9 @@ export function useActions(board: BoardData): Actions {
     async (ids: string[], date: string) => {
       const real = ids.filter((id) => !isOptimistic(id));
       if (!real.length) return;
-      // What was on the line before: Undo puts moved blocks back and removes only the new ones.
-      const before = new Map(live.current.blocks.filter((x) => x.date === date).map((x) => [x.task_id, x]));
       try {
         const r = (await planDay({ date, task_ids: real, commit: true, now: Date.now() })) as {
-          proposed: { task_id: string; title: string; start: string }[];
+          proposed: { id?: string; task_id: string; title: string; start: string }[];
           unplaced: { title: string; reason: string }[];
         };
         if (!r.proposed.length) {
@@ -269,13 +273,11 @@ export function useActions(board: BoardData): Actions {
           message:
             (placed.length === 1 ? `Planned ${placed[0].title} for ${clock12(placed[0].start)}` : `Planned ${placed.length}`) +
             (r.unplaced.length ? `, ${r.unplaced.length} didn't fit` : ""),
+          // Planning only ever adds blocks: Undo takes just those off again.
           undo: () =>
             void (async () => {
               for (const p of placed) {
-                const was = before.get(p.task_id);
-                await (was
-                  ? placeBlock({ task_id: p.task_id, date, start: was.start, mins: was.mins })
-                  : removeBlock({ task_id: p.task_id, date }));
+                await removeBlock({ task_id: p.task_id, date, ...(p.id ? { block_id: p.id } : {}) });
               }
             })().catch((e) => fail("Couldn't undo", e)),
         });
@@ -283,7 +285,7 @@ export function useActions(board: BoardData): Actions {
         fail("Couldn't plan that", e);
       }
     },
-    [planDay, placeBlock, removeBlock, show, fail],
+    [planDay, removeBlock, show, fail],
   );
 
   return {

@@ -2,7 +2,10 @@
 import { effectivePriority, epicWeight, STATUS_WEIGHT, TASK_WEIGHT, type Epic, type TaskStatus } from "./epics.ts";
 
 export const TZ = "Australia/Brisbane"; // ponytail: hard-coded TZ, move to a user setting if multi-user
-export const SNAP = 15;
+// Blocks start and run in 5-minute steps, 5 minutes at least: a quick win can be that short. Picking a slot on the
+// line (a click, the keyboard cursor) goes by 15-minute SLOTs.
+export const SNAP = 5;
+export const SLOT = 15;
 export const DAY_START = 6 * 60;
 export const DAY_END = 22 * 60;
 
@@ -20,7 +23,8 @@ export interface Task {
   epic_id?: string | null;
   status?: TaskStatus;
 }
-export interface Block { task_id: string; date: string; start: string; mins: number }
+// A slot on a day's line. A task can have several in one day (deep work split around meetings); each counts.
+export interface Block { id?: string; task_id: string; date: string; start: string; mins: number }
 export interface DayEvent { start?: string; end?: string; title?: string; where?: string; allDay?: boolean }
 export interface Span { s: number; e: number }
 
@@ -84,12 +88,13 @@ export function effortMap(blocks: Block[], t: string, nowM: number) {
   return map;
 }
 
-// Remaining estimate (capped at 4h) when there is one, otherwise 1h for high priority and 30m for the rest.
+// Remaining estimate (at least 5m, at most 4h) when there is one, otherwise 1h for high priority and 30m for the
+// rest. A quick win (a 10-minute job) takes its 10 minutes, so several queue back to back.
 export function defaultBlockMins(task: Pick<Task, "priority" | "estimate_mins">, planned = 0): number {
   const est = task.estimate_mins ?? 0;
   if (est) {
     const left = est - planned;
-    if (left >= SNAP) return Math.min(240, snapUp(left));
+    if (left > 0) return Math.min(240, Math.max(SNAP, snapUp(left))); // 5m at least: a quick win takes what it needs
   }
   return task.priority === "high" ? 60 : 30;
 }
@@ -177,10 +182,11 @@ export interface Unplaced { task_id: string; title: string; reason: string }
 export function autoPlan(o: {
   date: string; today: string; nowM: number; tasks: Task[]; events: DayEvent[]; blocks: Block[];
   from?: number; until?: number; taskIds?: string[]; epics?: Epic[];
+  mins?: number; // each block this long (snapped), instead of what is left of the estimate
 }): { proposed: ProposedBlock[]; unplaced: Unplaced[] } {
   const byId = new Map(o.tasks.map((t) => [t.id, t]));
   const ranked = o.taskIds
-    ? o.taskIds.map((id) => byId.get(id)).filter((t): t is Task => !!t && !t.done)
+    ? o.taskIds.map((id) => byId.get(id)).filter((t): t is Task => !!t && !t.done) // repeats welcome: one block each
     : suggestions({ ...o, limit: 20 }).map((s) => s.task);
   const proposed: ProposedBlock[] = [];
   const unplaced: Unplaced[] = [];
@@ -197,9 +203,12 @@ export function autoPlan(o: {
   const candidates = [...ranked.filter(isFixed), ...ranked.filter((t) => !isFixed(t))];
   const eff = effortMap(o.blocks, o.today, o.nowM);
   const placed = o.blocks.filter((b) => b.date === o.date);
+  // A task asked for again (listed twice, or already on the line) gets another block: every block counts toward its
+  // estimate, so each new one sizes to what is left.
+  const more = new Map<string, number>();
   for (const t of candidates) {
-    if (placed.some((b) => b.task_id === t.id)) { skip(t, "already planned that day"); continue; }
-    const mins = defaultBlockMins(t, eff.get(t.id)?.planned ?? 0);
+    const before = (eff.get(t.id)?.planned ?? 0) + (more.get(t.id) ?? 0);
+    const mins = o.mins ? Math.max(SNAP, Math.min(240, snapUp(o.mins))) : defaultBlockMins(t, before);
     const fixed = t.due === o.date ? toMin(t.time) : null;
     const s = fixed != null && fixed >= from && fixed + mins <= until
       ? fixed
@@ -207,6 +216,7 @@ export function autoPlan(o: {
     if (s + mins > until) { skip(t, "no room in that window"); continue; }
     placed.push({ task_id: t.id, date: o.date, start: toHM(s), mins });
     proposed.push({ task_id: t.id, title: t.title, start: toHM(s), mins });
+    more.set(t.id, (more.get(t.id) ?? 0) + mins);
   }
   return { proposed, unplaced };
 }

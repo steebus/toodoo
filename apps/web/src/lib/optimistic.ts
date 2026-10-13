@@ -58,12 +58,18 @@ export const deleteTask = (store: Store, { id }: { id: string }) =>
     ...b, tasks: b.tasks.filter((t) => t.id !== id), blocks: b.blocks.filter((x) => x.task_id !== id),
   }));
 
-export const placeBlock = (store: Store, a: Block) =>
+// With block_id, that block moves; without, the task gets another block (an optimistic id until the server's).
+let optimisticBlock = 0;
+export const placeBlock = (store: Store, a: Block & { block_id?: string }) => {
+  const { block_id, ...row } = a;
+  const id = block_id ?? `optimistic-b${++optimisticBlock}`;
   patchBoards(store, (b) => ({
-    ...b, blocks: [...b.blocks.filter((x) => !(x.task_id === a.task_id && x.date === a.date)), a],
+    ...b, blocks: [...b.blocks.filter((x) => !(block_id && x.id === block_id)), { ...row, id }],
   }));
+};
 
-export const removeBlock = (store: Store, a: { task_id: string; date: string }) =>
+// One block (block_id), or every block the task has that day.
+export const removeBlock = (store: Store, a: { task_id: string; date: string; block_id?: string }) =>
   patchBoards(store, (b) => ({
-    ...b, blocks: b.blocks.filter((x) => !(x.task_id === a.task_id && x.date === a.date)),
+    ...b, blocks: b.blocks.filter((x) => (a.block_id ? x.id !== a.block_id : !(x.task_id === a.task_id && x.date === a.date))),
   }));

@@ -41,9 +41,9 @@ const onLine = (id: string, minute: number, gridTop = 100) =>
   });
 
 it("dropping on the line plans at the snapped minute under the pointer", () => {
-  // 10:07 snaps to 10:00; the default length is 30m.
-  expect(resolveDragEnd(onLine("a", 10 * 60 + 7), env())).toEqual({ kind: "plan", id: "a", start: 600, mins: 30 });
-  expect(resolveDragEnd(onLine("a", 10 * 60 + 8), env())).toEqual({ kind: "plan", id: "a", start: 615, mins: 30 });
+  // On the 5-minute grid: 10:07 snaps to 10:05, 10:08 to 10:10; the default length is 30m.
+  expect(resolveDragEnd(onLine("a", 10 * 60 + 7), env())).toEqual({ kind: "plan", id: "a", start: 605, mins: 30 });
+  expect(resolveDragEnd(onLine("a", 10 * 60 + 8), env())).toEqual({ kind: "plan", id: "a", start: 610, mins: 30 });
 });
 it("the planned length is the task's default, less what is already planned", () => {
   expect(resolveDragEnd(onLine("d", 600), env())).toMatchObject({ mins: 60 });
@@ -51,7 +51,7 @@ it("the planned length is the task's default, less what is already planned", () 
   expect(resolveDragEnd(onLine("e", 600), env({ planned: () => 30 }))).toMatchObject({ mins: 60 });
 });
 it("a drop past midnight stays inside the day, and a keyboard drag has no pointer so plans nothing", () => {
-  expect(resolveDragEnd(onLine("a", 23 * 60 + 50), env())).toMatchObject({ start: 24 * 60 - 15, mins: 15 });
+  expect(resolveDragEnd(onLine("a", 23 * 60 + 50), env())).toMatchObject({ start: 23 * 60 + 50, mins: 10 });
   expect(resolveDragEnd({ ...onLine("a", 600), activatorEvent: { key: "Space" } as never }, env())).toBeNull();
 });
 

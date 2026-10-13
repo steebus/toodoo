@@ -57,16 +57,18 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- open once
 
   const options = useMemo((): Option[] => {
+    // A task can take more than one block a day, so ones already on the line are offered too, after the rest.
     const planned = new Set(board.blocks.filter((b) => b.date === date).map((b) => b.task_id));
-    const open = board.tasks.filter((t) => !t.done && !planned.has(t.id) && !isOptimistic(t.id));
+    const open = board.tasks.filter((t) => !t.done && !isOptimistic(t.id));
     const byId = new Map(open.map((t) => [t.id, t]));
     const why = new Map(board.suggestions.map((s) => [s.id, s.reasons[0]]));
     const first = board.suggestions.flatMap((s) => (byId.has(s.id) ? [byId.get(s.id)!] : []));
     const rest = open.filter((t) => !why.has(t.id));
     const needle = q.trim().toLowerCase();
-    const found = [...first, ...rest]
+    const ranked = [...first, ...rest];
+    const found = [...ranked.filter((t) => !planned.has(t.id)), ...ranked.filter((t) => planned.has(t.id))]
       .filter((t) => !needle || t.title.toLowerCase().includes(needle))
-      .map((t): Option => ({ key: t.id, label: t.title, why: why.get(t.id), task: t }));
+      .map((t): Option => ({ key: t.id, label: t.title, why: planned.has(t.id) ? "already on the line" : why.get(t.id), task: t }));
     const parsed = parseQuickAdd(q, board.today, board.nowM);
     return parsed.title.trim() ? [...found, { key: "create", label: parsed.title.trim(), create: true }] : found;
   }, [board, date, q]);
@@ -75,8 +77,10 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
   useEffect(() => {
     dialog.current?.querySelector(`[id="${optId(sel)}"]`)?.scrollIntoView?.({ block: "nearest" });
   }, [sel, options.length]); // eslint-disable-line react-hooks/exhaustive-deps -- optId is stable per mount
+  // Every block counts toward the estimate, today's too, so another block sizes to what is left: the server's tally
+  // over every day where it has one (tasks with an estimate), else the blocks this board carries.
   const plannedMins = (t: FullTask) =>
-    board.blocks.filter((b) => b.task_id === t.id && b.date !== date).reduce((n, b) => n + b.mins, 0);
+    board.effort?.[t.id]?.planned ?? board.blocks.filter((b) => b.task_id === t.id).reduce((n, b) => n + b.mins, 0);
 
   const choose = (o: Option | undefined) => {
     if (!o) return;
