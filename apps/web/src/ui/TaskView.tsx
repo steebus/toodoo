@@ -179,7 +179,14 @@ function Field({ label, value, display, placeholder = "", kind = "word", classNa
   const [draft, setDraft] = useState(value);
   const [problem, setProblem] = useState<string | null>(null);
   const box = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const shown = useRef<HTMLButtonElement>(null);
+  const back = useRef(false); // an edit just ended from the keyboard: focus returns to the value, still in the ticket
   const begin = () => { setDraft(value); setProblem(null); setEditing(true); };
+  useEffect(() => {
+    if (editing || !back.current) return;
+    back.current = false;
+    shown.current?.focus();
+  }, [editing]);
   useEffect(() => {
     if (!editing) return;
     const el = box.current;
@@ -195,15 +202,15 @@ function Field({ label, value, display, placeholder = "", kind = "word", classNa
     if (!(await onSave(draft))) setEditing(true); // refused: back open with what was typed
   };
   const keys = (e: KeyboardEvent) => {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setEditing(false); setProblem(null); return; }
-    if (e.key === "Enter" && (kind !== "text" || e.metaKey || e.ctrlKey)) { e.preventDefault(); void commit(); }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); back.current = true; setEditing(false); setProblem(null); return; }
+    if (e.key === "Enter" && (kind !== "text" || e.metaKey || e.ctrlKey)) { e.preventDefault(); back.current = true; void commit(); }
   };
   if (!editing) {
-    const shown = display !== null && display !== undefined && display !== "" ? display : null;
+    const shownValue = display !== null && display !== undefined && display !== "" ? display : null;
     return (
-      <button type="button" className={`tk-field ${className}${shown ? "" : " is-empty"}`}
-        aria-label={`${label}${typeof shown === "string" ? `: ${shown}` : value ? `: ${value}` : ""}. Edit`} onClick={begin}>
-        {shown ?? placeholder}
+      <button ref={shown} type="button" className={`tk-field ${className}${shownValue ? "" : " is-empty"}`}
+        aria-label={`${label}${typeof shownValue === "string" ? `: ${shownValue}` : value ? `: ${value}` : ""}. Edit`} onClick={begin}>
+        {shownValue ?? placeholder}
       </button>
     );
   }

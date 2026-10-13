@@ -67,8 +67,19 @@ it("renders the header from the board", () => {
   show();
   expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
   expect(screen.getByText("Standup, then focus time.")).toBeInTheDocument();
-  // Carried 2 + Today 3 + Done today 1; one of them is done.
-  expect(screen.getByText("1 of 6 done")).toBeInTheDocument();
+  // The count has gone; Focus has its place (nothing is on the line in this board, so it waits).
+  expect(screen.getByRole("button", { name: /Focus/ })).toBeDisabled();
+});
+
+it("the date's chevron opens the day menu: theme, share and sign out", async () => {
+  show();
+  await userEvent.click(screen.getByRole("button", { name: /Tuesday 10 March/ }));
+  const menu = screen.getByRole("menu", { name: "Day menu" });
+  expect(within(menu).getAllByRole("menuitem").map((x) => x.textContent?.trim())).toEqual(["Auto", "Share to toodoo", "Sign out"]);
+  const theme = within(menu).getByRole("menuitem", { name: /^Theme: Auto/ });
+  await userEvent.click(theme);
+  expect(within(menu).getByRole("menuitem", { name: /^Theme: Light/ })).toBeInTheDocument();
+  expect(document.documentElement.dataset.theme).toBe("light");
 });
 
 it("lists each status group with its count", () => {
@@ -108,7 +119,8 @@ it("opens a docket as a ticket, with its actions on it", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Open WRITE REPORT" }));
   const ticket = screen.getByRole("dialog", { name: "WRITE REPORT" });
   expect(within(ticket).getByText("! HIGH")).toBeInTheDocument();
-  for (const name of ["Done", "Plan it", "Edit", "Delete"]) expect(within(ticket).getByRole("button", { name })).toBeInTheDocument();
+  for (const name of ["Done", "Plan it", "Delete"]) expect(within(ticket).getByRole("button", { name })).toBeInTheDocument();
+  expect(within(ticket).getByRole("button", { name: "! HIGH" })).toHaveAttribute("aria-pressed", "true");
   await userEvent.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).toBeNull();
 });

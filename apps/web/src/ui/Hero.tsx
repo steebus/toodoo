@@ -12,6 +12,7 @@ import { focusBlock, focusIntent } from "../lib/focus";
 import { buildPass } from "./build";
 import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
+import { compactDate } from "./format";
 import { HelpSheet } from "./HelpSheet";
 import { AddButton, AddSheet, Tabs, type Tab } from "./Mobile";
 import { MotionRoot, useArrivals, useCelebration } from "./motion";
@@ -107,6 +108,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
       <div className="pass" data-offline={offline || undefined} data-tab={narrow ? tab : undefined}>
         <TopBar
           date={model.dateLabel}
+          dateShort={compactDate(board.date)}
           headline={model.headline}
           total={model.total}
           room={actions ? "day" : undefined}
@@ -116,8 +118,9 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           onPreset={(p) => setSplit(PRESET_SPLIT[p])}
           onFocus={focusNow}
           celebrate={celebrate}
-          offline={offline}
+          offline={offline || !!actions?.away}
           unsaved={!!actions?.unsaved}
+          reconnecting={!offline && !!actions?.away}
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} moves={view.group === "status"} compact={compact} actions={actions}>
         <Panes split={split}>
@@ -181,21 +184,61 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
 }
 
 // The frame with no data yet, so the first paint is not blank.
+// Everything sits where it will be (the Next up box, the line's hours, rails of blank tickets), quietly shimmering,
+// so the board arriving fills in rather than jumps in.
 export function HeroShell() {
   return (
-    <div className="pass">
+    <div className="pass is-loading" aria-busy>
       <header className="topbar">
         <p className="r-wordmark wordmark">toodoo</p>
+        <p className="r-date date"><span className="skel skel-line" style={{ width: "62%" }} /></p>
+        <p className="r-headline headline"><span className="skel skel-line" style={{ width: "48%" }} /></p>
         <div className="r-topbar-rule topbar-rule" aria-hidden />
       </header>
-      <main className="pass-main">
-        <section className="dayplan" aria-labelledby="dayplan-title">
+      <main className="pass-main" style={{ ["--split" as string]: 33.85 }}>
+        <section className="dayplan" aria-labelledby="dayplan-title" style={{ ["--nu-h" as string]: "calc(100 * var(--u) + 1.6cqh)" }}>
           <h2 id="dayplan-title" className="r-dayplan-title panel-title">Day plan</h2>
+          <div className="nextup skel-box" aria-hidden>
+            <span className="skel skel-line" style={{ width: "30%" }} />
+            <span className="skel skel-line" style={{ width: "78%" }} />
+            <span className="skel skel-line" style={{ width: "64%" }} />
+          </div>
+          <div className="plan-scroll skel-plan" aria-hidden>
+            {Array.from({ length: 8 }, (_, i) => <span key={i} className="skel-hour" />)}
+          </div>
         </section>
         <section className="todo" aria-labelledby="todo-title">
           <h2 id="todo-title" className="r-todo-title panel-title">To do</h2>
+          <div className="r-quickadd quickadd-input skel-input" aria-hidden />
+          <div className="todo-scroll" aria-hidden>
+            {[3, 2].map((n, g) => (
+              <section key={g} className="grp grp-today">
+                <div className="grp-head"><span className="skel skel-line" style={{ width: "9ch", height: "0.9em" }} /></div>
+                <ol className="grp-dockets">
+                  {Array.from({ length: n }, (_, i) => <SkeletonTicket key={i} />)}
+                </ol>
+              </section>
+            ))}
+          </div>
         </section>
       </main>
     </div>
+  );
+}
+
+// A blank ticket: the paper, and grey bars where the print will be.
+export function SkeletonTicket() {
+  return (
+    <li className="docket docket-today is-skel">
+      <div className="dk-paper">
+        <div className="dk-print">
+          <span className="skel skel-line" style={{ width: "40%" }} />
+          <span className="skel skel-line skel-title" style={{ width: "86%" }} />
+          <span className="skel skel-line skel-title" style={{ width: "58%" }} />
+          <span className="skel skel-line" style={{ width: "70%", marginTop: "auto" }} />
+          <span className="skel skel-line" style={{ width: "70%" }} />
+        </div>
+      </div>
+    </li>
   );
 }

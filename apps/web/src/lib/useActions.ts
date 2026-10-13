@@ -4,7 +4,7 @@ import { api } from "@convex/_generated/api";
 import { toHM } from "@shared/planning.ts";
 import { clock12 } from "../ui/format";
 import type { BoardData } from "../ui/types";
-import { useOffline } from "./offline";
+import { useNoNetwork, useOffline } from "./offline";
 import * as opt from "./optimistic";
 import { isOptimistic, type Store } from "./optimistic";
 
@@ -24,7 +24,8 @@ export type NewTask = {
 };
 
 export type Actions = {
-  offline: boolean;
+  offline: boolean; // no network: writes are held back
+  away?: boolean; // the socket has been down a few seconds (reconnecting, or offline)
   unsaved: boolean;
   toast: ToastData | null;
   dismiss: () => void;
@@ -57,8 +58,10 @@ export function useActions(board: BoardData): Actions {
   live.current = board;
   // Offline, every new write is a quiet no-op (the UI disables its controls; this is the backstop).
   // Undo is never gated: Convex queues it behind the write it reverses, and `unsaved` shows the queue.
-  const offline = useOffline();
-  const unsaved = useConvexConnectionState().hasInflightRequests && offline;
+  // Writes wait only when there is no network; a socket coming back after the app was away just queues them.
+  const offline = useNoNetwork();
+  const away = useOffline(); // the socket has been down a while: shown as a stamp, and with writes waiting, "unsaved"
+  const unsaved = useConvexConnectionState().hasInflightRequests && away;
   const open = useRef(!offline);
   open.current = !offline;
   const gate = useCallback(<A extends unknown[], R>(fn: (...a: A) => R, off: R) => (...a: A): R => (open.current ? fn(...a) : off), []);
@@ -284,7 +287,7 @@ export function useActions(board: BoardData): Actions {
   );
 
   return {
-    offline, unsaved, toast, dismiss,
+    offline, unsaved, away, toast, dismiss,
     add: gate(add, Promise.resolve(false)), tick: gate(tick, undefined), remove: gate(remove, undefined),
     save: gate(save, Promise.resolve(false)), place: gate(place, undefined), unplace: gate(unplace, undefined),
     addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined), shift: gate(shift, undefined),

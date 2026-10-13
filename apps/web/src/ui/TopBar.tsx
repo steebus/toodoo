@@ -7,8 +7,8 @@ import { RoomNav } from "./RoomNav";
 import { ThemeCycle } from "./ThemeSwitch";
 
 type Props = {
-  date: string; headline: string; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
-  celebrate?: boolean; offline?: boolean; unsaved?: boolean;
+  date: string; dateShort?: string; headline: string; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
+  celebrate?: boolean; offline?: boolean; unsaved?: boolean; reconnecting?: boolean;
   room?: Room; // the room nav, and which room is lit; none in the fixture
   onFocus?: () => void; // Focus on the task in hand; missing when there is nothing on the line now or next
   onSignOut?: () => void;
@@ -16,16 +16,16 @@ type Props = {
 
 // The one header row, the same in every room: wordmark and rooms, the date (its chevron opens the day menu:
 // theme, share, sign out) over the day's line, Focus, and the Plan · Capture presets.
-export function TopBar({ date, headline, total, presets, activePreset, onPreset, onFocus, onSignOut, celebrate = false, offline = false, unsaved = false, room }: Props) {
+export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, onSignOut, celebrate = false, offline = false, unsaved = false, reconnecting = false, room }: Props) {
   const line = useRef<HTMLParagraphElement>(null);
   useFitText(line, headline, 0.6);
   return (
     <header className="topbar">
       <p className="r-wordmark wordmark">toodoo</p>
       {room && <RoomNav room={room} />}
-      {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : "offline"}</span>}
+      {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : reconnecting ? "reconnecting" : "offline"}</span>}
       <h1 className="r-date date">
-        {room ? <DayMenu date={date} onSignOut={onSignOut} /> : date}
+        {room ? <DayMenu date={date} short={dateShort} onSignOut={onSignOut} /> : date}
       </h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
       <p ref={line} className="r-headline headline" title={headline || undefined}>
@@ -56,7 +56,7 @@ export function TopBar({ date, headline, total, presets, activePreset, onPreset,
 
 // The date, and a chevron for the day menu: the theme (one button that steps Light, Dark, Auto), Share to toodoo,
 // Sign out. A popover like the view menu: Escape or a click away closes it.
-function DayMenu({ date, onSignOut }: { date: string; onSignOut?: () => void }) {
+function DayMenu({ date, short, onSignOut }: { date: string; short?: string; onSignOut?: () => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -72,8 +72,9 @@ function DayMenu({ date, onSignOut }: { date: string; onSignOut?: () => void }) 
   }, [open]);
   return (
     <span className="daymenu" ref={root}>
-      <button type="button" className="daymenu-button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        {date}
+      <button type="button" className="daymenu-button" aria-haspopup="menu" aria-expanded={open} aria-label={date} onClick={() => setOpen((o) => !o)}>
+        <span className="date-long">{date}</span>
+        {short && <span className="date-short" aria-hidden>{short}</span>}
         <ChevronIcon size={18} className={`daymenu-chevron${open ? " is-open" : ""}`} />
       </button>
       {open && (

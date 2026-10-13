@@ -1,5 +1,8 @@
 import { byEpicRank, effectivePriority, epicMap, type Epic } from "./epics.ts";
-import { byOrder, daysBetween, dayWord, toMin, type Priority } from "./planning.ts";
+import { addDays, byOrder, daysBetween, dayWord, toMin, type Priority } from "./planning.ts";
+
+// Coming up is this many days ahead; Later is past it.
+export const LATER_AFTER = 7;
 import type { FullTask } from "./snapshot.ts";
 
 export type GroupBy = "status" | "due" | "priority" | "tag" | "source" | "epic";
@@ -55,13 +58,16 @@ export function groupTasks(tasks: FullTask[], today: string, view: View, epics?:
   const open = rows.filter((t) => !t.done);
   const doneToday = rows.filter((t) => t.done && t.done_on === today);
   if (view.group === "status") {
-    // Coming up sorts by day; the sort is stable, so the chosen order holds within a day.
-    const comingUp = open.filter((t) => t.due > today).sort((a, b) => cmp(a.due, b.due));
+    // Coming up is the week ahead, Later everything after; both by day (the sort is stable, so the chosen order
+    // holds within a day).
+    const week = addDays(today, LATER_AFTER);
+    const ahead = open.filter((t) => t.due > today).sort((a, b) => cmp(a.due, b.due));
     return [
       { key: "carried", label: "Carried over", tasks: open.filter((t) => t.due < today) },
       { key: "today", label: "Today", tasks: open.filter((t) => t.due === today) },
       { key: "done", label: "Done today", tasks: doneToday },
-      { key: "comingup", label: "Coming up", tasks: comingUp },
+      { key: "comingup", label: "Coming up", tasks: ahead.filter((t) => t.due <= week) },
+      { key: "later", label: "Later", tasks: ahead.filter((t) => t.due > week) },
     ];
   }
   const visible = rows.filter((t) => !t.done || t.done_on === today);

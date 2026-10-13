@@ -225,7 +225,8 @@
   }
   .kanban-col { flex: 0 0 82%; scroll-snap-align: start; }
   .epic-head { padding: 6px 10px 8px 4px; gap: 8px 10px; }
-  .room .epic-toggle { flex-basis: 100%; }
+  .room .epic-toggle { flex: 1 1 0; }
+  .epic-meta { padding-left: 0; }
   .epic-title { font-size: 19px; }
   .epic-body { padding: 0 10px 12px; }
   .epic-list { grid-template-columns: 1fr; }
@@ -520,3 +521,83 @@
 }
 .tk-tag-add:hover, .tk-tag-add:focus { border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); outline: none; width: 14ch; }
 .tk-tag-add::placeholder { color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); }
+
+/* ---------- the phone: one header row (toodoo · date · Focus), Day · Board · Epics along the bottom ---------- */
+.date-short { display: none; }
+@media (max-width: 819px) {
+  .pass .topbar { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 10px; padding-bottom: 12px; }
+  .pass .topbar .wordmark { grid-area: 1 / 1; }
+  .pass .topbar .date { grid-area: 1 / 2; justify-content: center; margin: 0; font-size: 17px; min-width: 0; }
+  .pass .topbar .focus-slot { grid-area: 1 / 3; }
+  .pass .topbar .headline { grid-area: 2 / 1 / 3 / -1; margin-top: 10px; text-align: left; justify-content: flex-start; }
+  .date-long { display: none; }
+  .date-short { display: inline; white-space: nowrap; }
+  .daymenu-pop { left: 50%; }
+  .pass .focus-button { padding: 7px 10px; font-size: 15px; }
+  /* the rooms bar: fixed along the bottom, a tab per room */
+  .pass .rooms, .room .rooms {
+    position: fixed; z-index: 15; left: 0; right: 0; top: auto; bottom: 0; width: auto; display: flex; height: auto; margin: 0;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background: var(--surface); border-top: 1px solid var(--rule); font-size: 16px;
+  }
+  .rooms .room-slot { flex: 1; }
+  .rooms .room-dot { display: none; }
+  .rooms .room-link { display: grid; place-items: center; width: 100%; height: 56px; padding: 0; font-weight: 700; color: var(--ink-3); }
+  .rooms .room-link[aria-current="page"] { color: var(--ink); }
+  .pass .rooms .room-link[aria-current="page"]::after, .room .rooms .room-link[aria-current="page"]::after {
+    left: 50%; right: auto; top: -1px; bottom: auto; width: 48px; margin-left: -24px; height: 3px; border-radius: 0 0 2px 2px;
+  }
+  .pass { padding-bottom: calc(57px + env(safe-area-inset-bottom)); }
+  .room-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 819px) { .pass.pass-top { padding-bottom: 0; } }
+
+/* ---------- the Board on a phone: one column at a time, under tabs that take drops ---------- */
+.kb-tabs {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin: 0 0 14px; padding: 3px;
+  background: var(--well); border: 1px solid var(--rule-soft); border-radius: 8px;
+  position: sticky; top: calc(var(--room-top, 0px)); z-index: 4;
+}
+.room .kb-tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px; border-radius: 6px;
+  font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3);
+}
+.room .kb-tab .count-chip { min-width: 22px; height: 18px; font-size: 12px; }
+.room .kb-tab[aria-selected="true"] { color: var(--ink); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.room .kb-tab.is-over { outline: 1.5px dashed var(--ink-3); outline-offset: -2px; }
+@media (max-width: 819px) {
+  .kanban-cols { display: block; margin: 0; padding: 0; overflow: visible; }
+  .kanban-col { width: 100%; }
+  .kanban-col .lane-label { display: none; }
+  .kanban .room-head { gap: 8px; }
+  .kanban .room-pick select { max-width: 150px; }
+}
+
+/* ---------- loading: the page's own shape, shimmering quietly ---------- */
+.skel {
+  display: block; height: 0.8em; border-radius: 3px;
+  background: linear-gradient(90deg, var(--skel-a, rgb(0 0 0 / 0.07)) 0 30%, var(--skel-b, rgb(0 0 0 / 0.13)) 50%, var(--skel-a, rgb(0 0 0 / 0.07)) 70%) 0 0 / 300% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+.skel-line { margin: 0.25em 0; }
+.skel-title { height: 1.1em; }
+:root[data-theme="dark"] .pass:not(.docket) .skel, :root[data-theme="dark"] .room .skel { --skel-a: rgb(255 255 255 / 0.06); --skel-b: rgb(255 255 255 / 0.12); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .skel { --skel-a: rgb(255 255 255 / 0.06); --skel-b: rgb(255 255 255 / 0.12); } }
+.dk-paper .skel, .slip .skel { --skel-a: rgb(0 0 0 / 0.07); --skel-b: rgb(0 0 0 / 0.13); } /* on paper, which never inverts */
+.docket.is-skel .dk-print { gap: calc(6 * var(--u)); }
+.is-loading .date, .is-loading .headline { width: 100%; }
+.is-loading .date .skel, .is-loading .headline .skel { margin: 0 auto; }
+.skel-box { display: grid; gap: calc(6 * var(--u)); }
+.skel-plan { display: grid; align-content: start; gap: calc(52 * var(--u)); padding: calc(20 * var(--u)) 0 0 16%; }
+.skel-hour { display: block; height: 0; border-top: 1px dashed var(--rule-dash); }
+.skel-input { background: var(--surface); }
+.skel-lane .slip { cursor: default; }
+@keyframes skel-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+
+/* The rooms' add lines are the same printer slot, smaller. */
+.lane-add input {
+  background: var(--paper); color: var(--paper-ink); border: 2px solid var(--rail-ink); border-radius: 6px;
+  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.07), 0 2px 0 var(--rail-lo); caret-color: var(--biro);
+}
+.lane-add input::placeholder { color: color-mix(in srgb, var(--paper-ink) 48%, var(--paper)); }

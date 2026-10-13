@@ -166,19 +166,44 @@
 }
 .span-arrow { font-family: var(--font-ui); font-weight: 700; }
 
+/* The quick add is the ticket printer: a strip of paper in a slot with a dark 2D outline (the rails' ink), and Add
+   is the printer's chunky key. Filing a line feeds a slip out of the slot (.qa-feed) as the ticket flies off. */
 .quickadd-input {
   padding: 0 calc(19 * var(--u));
-  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
-  font-family: var(--font-print); font-size: calc(20.5 * var(--u)); color: var(--ink);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
-  caret-color: var(--red);
+  background: var(--paper); color: var(--paper-ink); border: calc(2.5 * var(--u)) solid var(--rail-ink); border-radius: calc(7 * var(--u));
+  font-family: var(--font-print); font-size: calc(20.5 * var(--u));
+  box-shadow: inset 0 calc(4 * var(--u)) 0 rgb(0 0 0 / 0.07), 0 calc(3 * var(--u)) 0 var(--rail-lo);
+  caret-color: var(--biro);
 }
-.quickadd-input:focus-visible { border-color: var(--ink-3); }
+.quickadd-input:focus-visible { outline: none; box-shadow: inset 0 calc(4 * var(--u)) 0 rgb(0 0 0 / 0.07), 0 calc(3 * var(--u)) 0 var(--rail-lo), 0 0 0 calc(3 * var(--u)) color-mix(in srgb, var(--biro) 35%, transparent); }
+.quickadd-input[aria-invalid="true"] { border-color: var(--red); }
 .add-button {
-  background: var(--surface) !important; border: 1px solid var(--rule) !important; border-radius: var(--radius);
-  font-size: calc(21 * var(--u)); line-height: 1; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  background: var(--rail-fill) !important; color: var(--rail-ink) !important; border: calc(2.5 * var(--u)) solid var(--rail-ink) !important;
+  border-radius: calc(7 * var(--u)); font-family: var(--font-print); font-weight: 700; font-size: calc(19 * var(--u)) !important; letter-spacing: 0.06em; text-transform: uppercase;
+  line-height: 1; box-shadow: inset 0 calc(3 * var(--u)) 0 var(--rail-hi), 0 calc(4 * var(--u)) 0 var(--rail-ink); transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
 }
-.add-button:hover { border-color: var(--ink-3) !important; }
+.add-button:hover { filter: brightness(1.04); }
+.add-button:active:not(:disabled) { transform: translateY(calc(4 * var(--u))); box-shadow: inset 0 calc(3 * var(--u)) 0 var(--rail-hi), 0 0 0 var(--rail-ink); }
+.qa-feed {
+  position: absolute; z-index: 2; pointer-events: none;
+  left: calc(var(--r-quickadd-x) + var(--r-quickadd-w) * 0.1); width: calc(var(--r-quickadd-w) * 0.22);
+  top: calc(var(--r-quickadd-y) + var(--r-quickadd-h) - 2px); height: calc(54 * var(--u));
+  background: var(--paper); filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.18));
+  transform-origin: top center; animation: qa-print 0.9s both;
+}
+.qa-feed::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: calc(-4 * var(--u)); height: calc(4 * var(--u));
+  background: conic-gradient(from -45deg at 50% 100%, var(--paper) 90deg, transparent 0) 0 0 / calc(8 * var(--u)) calc(4 * var(--u)) repeat-x;
+}
+/* thermal print feeds in jerks, holds a beat, then the slip is torn off and drops away */
+@keyframes qa-print {
+  0% { clip-path: inset(0 0 100% 0); }
+  40% { clip-path: inset(0 0 0 0); animation-timing-function: steps(1); }
+  55% { clip-path: inset(0 0 0 0); transform: none; opacity: 1; }
+  100% { clip-path: inset(0 0 0 0); transform: translateY(calc(26 * var(--u))) rotate(6deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .qa-feed { display: none; } .add-button { transition: none; } }
+@media (max-width: 819px) { .qa-feed { display: none; } }
 .pass .chips { width: calc(57.3cqw * var(--kt, 1)); }
 .chips { display: flex; overflow: hidden; gap: calc(12 * var(--u)); margin: 0; padding: 0; list-style: none; }
 .chip {
@@ -792,7 +817,7 @@
   .bumped-slot { left: auto; right: calc(14px + env(safe-area-inset-right)); top: calc(46px + env(safe-area-inset-top)); width: 104px; }
   .bumped-tick { left: auto; right: 2px; top: calc(12px + env(safe-area-inset-top)); height: 24px; }
 
-  /* the two rooms slide past each other: Today on the left, Plan on the right */
+  /* the two halves slide past each other: Plan on the left, Today on the right (as on a desktop) */
   .pass-main { position: relative; flex: 1; min-height: 0; overflow: hidden; }
   .dayplan, .todo {
     position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 14px;
@@ -801,8 +826,8 @@
   .pass[data-tab="today"] .dayplan, .pass[data-tab="plan"] .todo {
     visibility: hidden; transition: transform 0.6s var(--spring), visibility 0s linear 0.6s;
   }
-  .pass[data-tab="today"] .dayplan { transform: translateX(100%); }
-  .pass[data-tab="plan"] .todo { transform: translateX(-100%); }
+  .pass[data-tab="today"] .dayplan { transform: translateX(-100%); }
+  .pass[data-tab="plan"] .todo { transform: translateX(100%); }
   .pass :is(.r-dayplan-title, .r-todo-title) { position: static; width: auto; height: 28px; padding: 0 16px; font-size: 24px; }
 
   /* Plan: the title row carries the day nav, the line fills the rest */
@@ -869,20 +894,29 @@
   }
   .pass .dk-act + .dk-act { border-left: 1px solid var(--rule); }
 
-  /* thumb reach: the add button over the corner, the tabs along the bottom */
+  /* thumb reach: the add ticket over the corner, above the rooms bar; Plan | Today under the header */
   .pass .fab {
-    display: grid; place-items: center; position: absolute; z-index: 4;
-    right: calc(16px + env(safe-area-inset-right)); bottom: calc(72px + env(safe-area-inset-bottom));
-    width: 58px; height: 58px; border-radius: 50%;
-    background: var(--ink); color: var(--ground); box-shadow: 0 6px 18px rgb(0 0 0 / 0.24), 0 1px 3px rgb(0 0 0 / 0.2);
+    display: grid; place-items: center; align-content: center; gap: 1px; position: absolute; z-index: 4;
+    right: calc(18px + env(safe-area-inset-right)); bottom: calc(80px + env(safe-area-inset-bottom));
+    width: 58px; height: 64px; border-radius: 3px 3px 0 0; rotate: -4deg;
+    background: var(--paper); color: var(--biro);
+    filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.25)) drop-shadow(0 0 1px rgb(0 0 0 / 0.3));
   }
+  .pass .fab::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 5px;
+    background: conic-gradient(from -45deg at 50% 100%, var(--paper) 90deg, transparent 0) 0 0 / 8px 5px repeat-x;
+  }
+  .fab-print { font-family: var(--font-print); font-size: 10px; letter-spacing: 0.14em; color: var(--paper-ink); }
+  .pass .fab:disabled { opacity: 0.5; }
   .tabs {
-    display: flex; flex: none; position: relative; z-index: 3; padding-bottom: env(safe-area-inset-bottom);
-    background: var(--surface); border-top: 1px solid var(--rule);
+    display: flex; flex: none; order: 1; position: relative; z-index: 3; margin: 10px 16px 0;
+    background: var(--well); border: 1px solid var(--rule-soft); border-radius: 8px; padding: 3px;
   }
-  .pass .tab { position: relative; flex: 1; height: 56px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.02em; color: var(--ink-3); }
+  .pass .tab { position: relative; flex: 1; height: 38px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.02em; color: var(--ink-3); border-radius: 6px; }
   .pass .tab[aria-selected="true"] { color: var(--ink); }
-  .tab-ink { position: absolute; left: 50%; top: -1px; width: 48px; height: 3px; margin-left: -24px; background: var(--ink); border-radius: 0 0 2px 2px; }
+  .tab-ink { position: absolute; inset: 0; z-index: -1; background: var(--surface); border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+  .pass > .topbar { order: 0; }
+  .pass-main { order: 2; }
   .toast-slot { left: calc(16px + env(safe-area-inset-left)); right: 90px; bottom: calc(80px + env(safe-area-inset-bottom)); transform: none; }
   .toast-msg { flex: 1; min-width: 0; max-width: none; }
 
@@ -915,7 +949,7 @@
   .docket-compact.has-epic .dk-print::before { left: 6px; top: 12px; bottom: 8px; width: 3px; }
 }
 .chip-epic { width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: var(--epic); }
-.quickadd-input::placeholder { color: var(--ink-3); }
+.quickadd-input::placeholder { color: color-mix(in srgb, var(--paper-ink) 48%, var(--paper)); }
 
 /* A rail with a docket from another rail held over it: dashed, as every provisional drop target is. */
 .grp.is-over { outline: 1.5px dashed var(--ink-3); outline-offset: calc(2 * var(--u)); border-radius: calc(6 * var(--u)); }

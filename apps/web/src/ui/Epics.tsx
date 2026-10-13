@@ -28,8 +28,8 @@ function loadPrefs(): Prefs {
     return { showDone: false, open: {} };
   }
 }
-// Active and planned epics start open; on hold, done and the unfiled pile start closed.
-const openByDefault = (e?: Epic) => !!e && (e.status === "active" || e.status === "planned");
+// Every epic starts folded (its name, colour, progress and controls still show); opened ones stay open.
+const openByDefault = (_e?: Epic) => false;
 
 export function Epics({ work, actions }: { work: WorkData; actions: WorkActions }) {
   const [prefs, setPrefsState] = useState(loadPrefs);

@@ -108,6 +108,7 @@ function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unkn
 
 export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
+  const [laterOpen, setLaterOpen] = useState(false);
   const [doneOpen, toggleDone] = useDoneOpen();
   const scroll = useRef<HTMLDivElement | null>(null);
 
@@ -116,7 +117,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
     [model.groups],
   );
   const shown = (g: GroupData) =>
-    g.dockets.length > 0 && (g.key !== "comingup" || comingOpen) && (g.key !== "done" || doneOpen);
+    g.dockets.length > 0 && (g.key !== "comingup" || comingOpen) && (g.key !== "later" || laterOpen) && (g.key !== "done" || doneOpen);
   const sig = (compact ? "c|" : "") + groups.map((g) => (shown(g) ? g.dockets.map((d) => d.id).join(",") : "")).join("|");
   const visible = useVisibleDockets(scroll, [sig]);
 
@@ -125,8 +126,8 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
       g.dockets.filter((d) => !visible || visible.has(d.id)).map((d) => d.hm),
     );
     return spanOf(times);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` only reads comingOpen and doneOpen
-  }, [groups, visible, comingOpen, doneOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` only reads the fold states
+  }, [groups, visible, comingOpen, laterOpen, doneOpen]);
 
   const flight = useAddFlight(groups, scroll, compact);
 
@@ -167,6 +168,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
                 geo={geo}
                 drop={dnd && view.group === "status" && (g.key === "today" || g.key === "done" || g.key === "comingup") ? g.key : undefined}
                 toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) }
+                  : g.key === "later" ? { open: laterOpen, onToggle: () => setLaterOpen((o) => !o) }
                   : g.key === "done" && g.count > 0 ? { open: doneOpen, onToggle: toggleDone } : undefined}
               >
                 {open && (

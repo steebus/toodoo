@@ -5,12 +5,13 @@ import type { NewTask } from "../lib/useActions";
 import { QuickAdd } from "./QuickAdd";
 
 export type Tab = "today" | "plan";
+// Plan on the left and Today on the right, as the panes sit on a desktop.
 const TABS: { tab: Tab; label: string; panel: string }[] = [
-  { tab: "today", label: "Today", panel: "todo" },
   { tab: "plan", label: "Plan", panel: "dayplan" },
+  { tab: "today", label: "Today", panel: "todo" },
 ];
 
-// The phone's two rooms: the list and the line. The ink bar under the active tab slides between them.
+// The phone's two halves of the day, under the header: the line and the list. The ink bar slides between them.
 // A tablist: arrows (and Home / End) move between the tabs and select as they go.
 export function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -35,13 +36,14 @@ export function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   );
 }
 
-// Thumb-reach add: a round button over the bottom-right corner.
+// Thumb-reach add: a blank ticket over the bottom-right corner, a pen cross on it, torn along its foot.
 export function AddButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
-    <m.button type="button" className="fab" aria-label="Add a to do" disabled={disabled} whileTap={{ scale: 0.88 }} onClick={onClick}>
-      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden>
-        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    <m.button type="button" className="fab" aria-label="Add a to do" disabled={disabled} whileTap={{ scale: 0.9, rotate: 0 }} onClick={onClick}>
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden>
+        <path d="M12.3 4.2c-.3 4.9-.2 10.3.1 15.6M4.6 12.1c4.9.4 10 .2 14.9-.3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" fill="none" />
       </svg>
+      <span className="fab-print" aria-hidden>ADD</span>
     </m.button>
   );
 }

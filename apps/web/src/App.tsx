@@ -12,7 +12,7 @@ import { useWorkActions, useWorkspace } from "./lib/useWork";
 import { Epics } from "./ui/Epics";
 import { Hero, HeroShell } from "./ui/Hero";
 import { Kanban } from "./ui/Kanban";
-import { RoomShell } from "./ui/RoomShell";
+import { RoomShell, RoomSkeleton } from "./ui/RoomShell";
 import { ShareRoom } from "./ui/ShareRoom";
 import { SignIn as Door } from "./ui/SignIn";
 import type { BoardData } from "./ui/types";
@@ -65,12 +65,13 @@ function SharedRoom() {
 
 function WorkRoom({ room }: { room: "board" | "epics" }) {
   const out = useSignOut();
-  const work = useWorkspace();
+  const { user } = useAuth();
+  const work = useWorkspace(user?.id ?? lastUser());
   const board = useTodayBoard();
   const actions = useWorkActions(work);
   return (
     <RoomShell room={room} board={board} offline={actions.offline} onSignOut={out}>
-      {work ? (room === "board" ? <Kanban work={work} actions={actions} /> : <Epics work={work} actions={actions} />) : <main className="room-main" aria-busy />}
+      {work ? (room === "board" ? <Kanban work={work} actions={actions} /> : <Epics work={work} actions={actions} />) : <RoomSkeleton room={room} />}
     </RoomShell>
   );
 }
@@ -130,12 +131,13 @@ class Guard extends Component<{ cached?: string; children: ReactNode }, { failed
   }
 }
 
-// Offline with no way to sign in: the last signed-in person's kept board is shown read-only (Home gates its writes).
-// Once Convex reconnects and auth resolves, the Authenticated path takes over.
-function ColdStart({ children }: { children: ReactNode }) {
+// A cold start: while sign-in is still being checked, the last signed-in person's kept board shows at once (and
+// on its own if there is no network to sign in with), so opening the app is never a blank wait. Once auth
+// resolves, the Authenticated path takes over with live data.
+function ColdStart({ children, waiting = false }: { children: ReactNode; waiting?: boolean }) {
   const offline = useOffline();
   const last = lastUser();
-  return offline && last && hasCachedBoard(last) ? <Guard cached={last}><Rooms cached={last} /></Guard> : <>{children}</>;
+  return (waiting || offline) && last && hasCachedBoard(last) ? <Guard cached={last}><Rooms cached={last} /></Guard> : <>{children}</>;
 }
 
 function SignIn() {
@@ -147,7 +149,7 @@ export function App() {
   if (new URLSearchParams(window.location.search).get("fixture") === "1") return <FixtureHero />;
   return (
     <>
-      <AuthLoading><ColdStart>{null}</ColdStart></AuthLoading>
+      <AuthLoading><ColdStart waiting><HeroShell /></ColdStart></AuthLoading>
       <Unauthenticated><ColdStart><SignIn /></ColdStart></Unauthenticated>
       <Authenticated><Guard><Rooms /></Guard></Authenticated>
     </>

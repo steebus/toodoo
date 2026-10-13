@@ -1,19 +1,25 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Epic } from "@shared/epics.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import type { NewTask, ToastData } from "./useActions";
 import { useMinuteTick } from "./useBoard";
-import { useOffline } from "./offline";
+import { loadWork, saveWork, useNoNetwork } from "./offline";
 import { isOptimistic } from "./optimistic";
 import * as w from "./workOptimistic";
 
 export type { WorkData } from "./workOptimistic";
 
-export function useWorkspace(): w.WorkData | undefined {
+// The live workspace, kept on the device as it comes; until it comes, what was kept last.
+export function useWorkspace(userId?: string): w.WorkData | undefined {
   const now = useMinuteTick();
-  return useQuery(api.epics.workspace, { now });
+  const live = useQuery(api.epics.workspace, { now });
+  useEffect(() => {
+    if (live && userId) saveWork(userId, live);
+  }, [live, userId]);
+  const [kept] = useState(() => (userId ? loadWork<w.WorkData>(userId) : undefined));
+  return live ?? kept;
 }
 
 export type EpicFields = Pick<Epic, "title" | "description" | "priority" | "status" | "colour">;
@@ -50,7 +56,7 @@ export function useWorkActions(work: w.WorkData | undefined): WorkActions {
   const dismiss = useCallback(() => setToast(null), []);
   const live = useRef(work);
   live.current = work;
-  const offline = useOffline();
+  const offline = useNoNetwork();
   const open = useRef(!offline);
   open.current = !offline;
 

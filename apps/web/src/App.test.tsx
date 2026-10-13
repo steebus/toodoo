@@ -3,12 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ signIn: vi.fn(), signOut: vi.fn(), user: undefined as { id: string } | undefined }));
-const state = vi.hoisted(() => ({ authed: false, live: true, socket: true, throws: null as Error | null }));
+const state = vi.hoisted(() => ({ authed: false, authLoading: false, live: true, socket: true, throws: null as Error | null }));
 vi.mock("@workos-inc/authkit-react", () => ({ useAuth: () => auth }));
 vi.mock("convex/react", () => ({
-  Authenticated: ({ children }: any) => (state.authed ? children : null),
-  Unauthenticated: ({ children }: any) => (state.authed ? null : children),
-  AuthLoading: () => null,
+  Authenticated: ({ children }: any) => (state.authed && !state.authLoading ? children : null),
+  Unauthenticated: ({ children }: any) => (state.authed || state.authLoading ? null : children),
+  AuthLoading: ({ children }: any) => (state.authLoading ? children : null),
   useConvexConnectionState: () => ({ hasEverConnected: state.socket, isWebSocketConnected: state.socket }),
   useMutation: () => Object.assign(vi.fn(), { withOptimisticUpdate() { return this; } }),
   useQuery: () => {
@@ -69,13 +69,13 @@ it("signing out clears the kept boards", async () => {
   state.authed = true;
   saveBoard("u1", "2026-03-10", kept as any);
   render(<App />);
-  await userEvent.click(document.querySelector(".viewmenu-button")!);
-  await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+  await userEvent.click(document.querySelector(".daymenu-button")!);
+  await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
   expect(auth.signOut).toHaveBeenCalled();
   expect(loadBoard("u1", "2026-03-10")).toBeUndefined();
 });
 
-it("cold start with the radio on but no network: the kept board after a few seconds without a socket", () => {
+it("cold start with the radio on but no network: the kept board after a few seconds without a socket, reconnecting", () => {
   state.authed = false;
   state.live = false;
   state.socket = false;
@@ -86,7 +86,7 @@ it("cold start with the radio on but no network: the kept board after a few seco
   expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   act(() => void vi.advanceTimersByTime(4000));
   expect(screen.getAllByText(/kept task/i)[0]).toBeInTheDocument();
-  expect(screen.getByText("offline")).toBeInTheDocument();
+  expect(screen.getByText("reconnecting")).toBeInTheDocument();
 });
 
 it("a query that throws shows the kept board with Retry and Sign out; Retry remounts", async () => {
@@ -125,5 +125,20 @@ it("cold start: a board query refused for want of sign-in falls back to the kept
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   } finally {
     vi.mocked(console.error).mockRestore();
+  }
+});
+
+it("a cold start while sign-in is still being checked shows the kept board at once", () => {
+  state.authLoading = true;
+  state.live = false; // no data before auth: the socket waits for the token
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-03-10T10:00:00") });
+  saveBoard("u1", "2026-03-10", kept as any);
+  localStorage.setItem("toodoo.lastUser", "u1");
+  try {
+    render(<App />);
+    expect(screen.getAllByText(/kept task/i)[0]).toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+    state.authLoading = false;
   }
 });

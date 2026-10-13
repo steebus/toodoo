@@ -23,9 +23,9 @@ describe("groupTasks by status", () => {
   ];
   const groups = groupTasks(tasks, T, view());
 
-  it("makes the four groups in order", () => {
-    expect(groups.map((g) => g.key)).toEqual(["carried", "today", "done", "comingup"]);
-    expect(groups.map((g) => g.label)).toEqual(["Carried over", "Today", "Done today", "Coming up"]);
+  it("makes the five groups in order", () => {
+    expect(groups.map((g) => g.key)).toEqual(["carried", "today", "done", "comingup", "later"]);
+    expect(groups.map((g) => g.label)).toEqual(["Carried over", "Today", "Done today", "Coming up", "Later"]);
   });
   it("splits by due date and done state, dropping older history", () => {
     expect(titles(groups[0].tasks)).toEqual(["Overdue A", "Overdue B"]);
@@ -37,7 +37,7 @@ describe("groupTasks by status", () => {
     expect(titles(groups[3].tasks)).toEqual(["Later A", "Later B"]);
   });
   it("keeps empty groups so counts stay honest", () => {
-    expect(groupTasks([], T, view()).map((g) => g.tasks.length)).toEqual([0, 0, 0, 0]);
+    expect(groupTasks([], T, view()).map((g) => g.tasks.length)).toEqual([0, 0, 0, 0, 0]);
   });
 });
 
@@ -117,4 +117,15 @@ describe("spanOf and waitingDays", () => {
   it("first and last, order-independent", () =>
     expect(spanOf(["13:00", null, "09:15", "15:30"])).toEqual({ from: "09:15", to: "15:30" }));
   it("counts days waiting", () => expect(waitingDays("2026-03-04", T)).toBe(6));
+});
+
+it("puts the week ahead in Coming up and everything after in Later, each by due date", () => {
+  const g = groupTasks([
+    task({ title: "In a month", due: "2026-04-10" }),
+    task({ title: "Next week", due: "2026-03-17" }),
+    task({ title: "In eight days", due: "2026-03-18" }),
+    task({ title: "Tomorrow", due: "2026-03-11" }),
+  ], T, view());
+  expect(titles(g.find((x) => x.key === "comingup")!.tasks)).toEqual(["Tomorrow", "Next week"]);
+  expect(titles(g.find((x) => x.key === "later")!.tasks)).toEqual(["In eight days", "In a month"]);
 });

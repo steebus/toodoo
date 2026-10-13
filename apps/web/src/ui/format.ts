@@ -26,6 +26,12 @@ export function longDate(d: string): string {
   return `${p.weekday} ${p.day} ${p.month}`;
 }
 
+// "Tue 13 Oct": the date where there is little room (the phone's header).
+export function compactDate(d: string): string {
+  const p = dayParts(d, { weekday: "short", day: "numeric", month: "short" });
+  return `${p.weekday} ${p.day} ${p.month}`;
+}
+
 // "FRI  6 OCT"
 export function shortDate(d: string): string {
   const p = dayParts(d, { weekday: "short", day: "numeric", month: "short" });

@@ -65,11 +65,9 @@ it("the Board's ] key moves a card to the next column and Enter opens it", async
   await userEvent.keyboard("]");
   expect(a.move).toHaveBeenCalledWith("a", { status: "doing", sort_order: expect.any(Number) }, "Doing: Write it");
   await userEvent.keyboard("{Enter}");
-  const ticket = screen.getByRole("dialog", { name: "WRITE IT" });
-  await userEvent.click(within(ticket).getByRole("button", { name: "Blocked" }));
-  expect(a.move).toHaveBeenLastCalledWith("a", { status: "blocked" }, "Blocked: Write it");
-  await userEvent.click(within(ticket).getByRole("button", { name: "Edit" }));
-  expect(screen.getByRole("dialog", { name: "Edit" })).toBeTruthy();
+  const ticket = screen.getByRole("dialog", { name: /WRITE IT/ });
+  await userEvent.click(within(ticket).getByRole("button", { name: "BLOCKED" }));
+  expect(a.save).toHaveBeenLastCalledWith("a", { status: "blocked" });
 });
 
 it("the Epics screen hides done epics until asked, and unfiles a task with its cross", async () => {
@@ -77,6 +75,9 @@ it("the Epics screen hides done epics until asked, and unfiles a task with its c
   render(<Epics work={work([task("a", { title: "In hot", epic_id: "hot" }), task("b", { title: "Loose" })])} actions={a} />);
   expect(screen.getByRole("heading", { name: "Hot" })).toBeTruthy();
   expect(screen.queryByRole("heading", { name: "Old" })).toBeNull();
+  // Epics start folded: open this one to reach its tickets.
+  expect(screen.queryByRole("button", { name: "Take In hot out of Hot" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: /^Hot$/ }));
   await userEvent.click(screen.getByRole("button", { name: "Take In hot out of Hot" }));
   expect(a.move).toHaveBeenCalledWith("a", { epic_id: null }, "Out of Hot: In hot");
   await userEvent.click(screen.getByRole("button", { name: /Show done/ }));

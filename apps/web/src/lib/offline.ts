@@ -38,10 +38,24 @@ export const hasCachedBoard = (user: string) => {
 export const lastUser = () => { try { return localStorage.getItem(USER) ?? undefined; } catch { return undefined; } };
 export const setLastUser = (id: string) => { try { localStorage.setItem(USER, id); } catch { /* ignore */ } };
 
+// The Board and Epics rooms' data, kept the same way (one copy per person), so they open at once too.
+const WORK = "toodoo.work.";
+export function saveWork<T>(user: string, work: T) {
+  try { localStorage.setItem(WORK + user, JSON.stringify(work)); } catch { /* storage full or blocked */ }
+}
+export function loadWork<T>(user: string): T | undefined {
+  try {
+    const raw = localStorage.getItem(WORK + user);
+    return raw ? (JSON.parse(raw) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // Sign out: nothing of this person stays on the device.
 export function clearCache() {
   try {
-    for (const k of Object.keys(localStorage)) if (k.startsWith(PREFIX)) localStorage.removeItem(k);
+    for (const k of Object.keys(localStorage)) if (k.startsWith(PREFIX) || k.startsWith(WORK)) localStorage.removeItem(k);
     localStorage.removeItem(USER);
   } catch { /* ignore */ }
 }
@@ -79,6 +93,13 @@ export function useOffline() {
     return () => clearTimeout(t);
   }, [down, cold]);
   return !online || dead;
+}
+
+// No network at all (the device says so). Only then are writes held back: with a network, a socket that is
+// down (the app was in the background and the phone closed it) comes back by itself, and Convex queues
+// writes made meanwhile and sends them when it does.
+export function useNoNetwork() {
+  return !useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
 }
 
 // Read by the controls that write (docket tick, timeline), so they disable instead of vanishing.

@@ -7,6 +7,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { keepOnScreen } from "../lib/keepOnScreen";
 import { dropOf, type Drop, type Lane } from "../lib/lanes";
 
+// A tab that stands for a lane (the phone's Board shows one column at a time): a drop on it lands at the lane's end.
+export const TAB = "tab:";
+
 // A drop ends with a click on whatever is under the pointer: slips ignore clicks this soon after one.
 export const lastDrop = { at: 0 };
 export const justDropped = () => Date.now() - lastDrop.at < 300;
@@ -69,7 +72,8 @@ export function LaneDnd({ lanes, titleOf, laneName, onDrop, ghost, disabled, chi
       onDragEnd={(e) => {
         setActive(null);
         lastDrop.at = Date.now();
-        const to = dropOf(lanes, String(e.active.id), e.over ? String(e.over.id) : null);
+        const over = e.over ? String(e.over.id) : null;
+        const to = dropOf(lanes, String(e.active.id), over?.startsWith(TAB) ? over.slice(TAB.length) : over);
         if (to) onDrop(String(e.active.id), to);
       }}
     >

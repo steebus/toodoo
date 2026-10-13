@@ -5,7 +5,9 @@ import { addDays, byOrder } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { laneStep, orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
-import { LaneDnd, LaneList } from "./LaneDnd";
+import { useDroppable } from "@dnd-kit/core";
+import { useNarrow } from "../lib/useNarrow";
+import { LaneDnd, LaneList, TAB } from "./LaneDnd";
 import { LaneAdd, SlipGhost, SortableSlip } from "./Slip";
 import { TaskView } from "./TaskView";
 import { Toast } from "./Toast";
@@ -62,6 +64,9 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   const epics = useMemo(() => epicMap(work.epics), [work.epics]);
   const byId = useMemo(() => new Map(work.tasks.map((t) => [t.id, t])), [work.tasks]);
   const lanes: Lane[] = COLUMNS.map((c) => ({ id: c, ids: cols[c].map((t) => t.id) }));
+  // On the phone, one column at a time under tabs (which take drops too); on a desktop, all four.
+  const narrow = useNarrow();
+  const [shown, setShown] = useState<Column>("todo");
   const [viewing, setViewing] = useState<string | null>(null);
   const viewTask = viewing ? byId.get(viewing) : undefined;
   const manual = view.sort === "manual";
@@ -123,8 +128,13 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
           return t ? <SlipGhost task={t} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today} showEpic={!filterEpic} /> : null;
         }}
       >
+        {narrow && (
+          <div className="kb-tabs" role="tablist" aria-label="Columns">
+            {COLUMNS.map((c) => <ColumnTab key={c} column={c} count={cols[c].length} on={shown === c} onSelect={() => setShown(c)} />)}
+          </div>
+        )}
         <div className="kanban-cols">
-          {COLUMNS.map((c) => (
+          {COLUMNS.filter((c) => !narrow || c === shown).map((c) => (
             <section key={c} className={`kanban-col is-${c}`} aria-labelledby={`col-${c}`}>
               <h2 id={`col-${c}`} className="lane-label">
                 {label(c)}
@@ -155,5 +165,17 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
       )}
       <Toast toast={actions.toast} onDismiss={actions.dismiss} />
     </main>
+  );
+}
+
+// A column's tab on the phone: its name and count; pick it to show that column, or drop a card on it to move the
+// card there (to the column's foot).
+function ColumnTab({ column, count, on, onSelect }: { column: Column; count: number; on: boolean; onSelect: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${TAB}${column}`, data: { type: "lane" } });
+  return (
+    <button ref={setNodeRef} type="button" role="tab" aria-selected={on} className={`kb-tab${isOver ? " is-over" : ""}`} onClick={onSelect}>
+      {label(column)}
+      <span className="count-chip">{count}</span>
+    </button>
   );
 }

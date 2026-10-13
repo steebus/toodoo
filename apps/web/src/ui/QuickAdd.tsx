@@ -18,6 +18,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
   const [invalid, setInvalid] = useState(false);
   const parsed = parseQuickAdd(line, today, nowM, epics);
   const input = useRef<HTMLInputElement>(null);
+  const [fed, setFed] = useState(0);
   // Chips pop in (CSS) as they are understood; the ones there at first paint just sit there.
   const live = useRef(false);
   useEffect(() => {
@@ -30,6 +31,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
     if (!parsed.title.trim()) return setInvalid(true);
     const typed = line;
     if (input.current) Object.assign(launch, { from: input.current.getBoundingClientRect(), at: Date.now() });
+    setFed((n) => n + 1); // the printer feeds a slip out of the slot
     setLine("");
     setInvalid(false);
     void onAdd?.({
@@ -57,6 +59,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
         }}
       />
       <button type="submit" className="r-add-button add-button" disabled={disabled}>Add</button>
+      {fed > 0 && <span key={fed} className="qa-feed" aria-hidden />}
       <ul className="r-chips chips" aria-label="Parsed">
         {parsed.chips.map((c, i) => {
           const high = c.kind === "priority" && parsed.priority === "high";
