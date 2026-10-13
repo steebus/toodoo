@@ -7,7 +7,6 @@ import { addDays, byOrder, formatDuration } from "@shared/planning.ts";
 import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
-import { EditSheet } from "./EditSheet";
 import { EpicSheet } from "./EpicSheet";
 import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "./icons";
 import { justDropped, LaneDnd, LaneList } from "./LaneDnd";
@@ -39,7 +38,6 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
     try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* holds for this visit */ }
   };
   const [sheet, setSheet] = useState<string | "new" | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
   const off = actions.offline;
 
@@ -75,7 +73,6 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
   const unfile = (t: FullTask) => actions.move(t.id, { epic_id: null }, `Out of ${nameOf(t.epic_id!)}: ${t.title}`);
 
   const editEpic = sheet && sheet !== "new" ? epics.get(sheet) : undefined;
-  const editTask = editing ? byId.get(editing) : undefined;
   const viewTask = viewing ? byId.get(viewing) : undefined;
   const strip = (t: FullTask, lane: string) => (
     <EpicTicket key={t.id} task={t} lane={lane} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today}
@@ -174,19 +171,13 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
           onClose={() => setSheet(null)} />
       )}
       {viewTask && (
-        <TaskView key={viewTask.id} task={viewTask} today={work.today} offline={off}
+        <TaskView key={viewTask.id} task={viewTask} today={work.today} offline={off} epics={work.epics}
           epic={viewTask.epic_id ? epics.get(viewTask.epic_id) : undefined}
           onClose={() => setViewing(null)}
           onTick={(done) => actions.move(viewTask.id, { done }, `${done ? "Done" : "Reopened"}: ${viewTask.title}`)}
-          onStatus={(s) => actions.move(viewTask.id, { status: s }, `${TASK_STATUS_LABEL[s]}: ${viewTask.title}`)}
           onTomorrow={() => void actions.save(viewTask.id, { due: addDays(work.today, 1) })}
-          onEdit={() => { setViewing(null); setEditing(viewTask.id); }}
-          onDelete={() => actions.remove(viewTask.id)}
-          onChecklist={(checklist) => void actions.save(viewTask.id, { checklist })} />
-      )}
-      {editTask && (
-        <EditSheet key={editTask.id} task={editTask} epics={work.epics} offline={off}
-          onSave={(id, patch) => void actions.save(id, patch)} onDelete={actions.remove} onClose={() => setEditing(null)} />
+          onSave={(patch) => actions.save(viewTask.id, patch)}
+          onDelete={() => actions.remove(viewTask.id)} />
       )}
       <Toast toast={actions.toast} onDismiss={actions.dismiss} />
     </main>

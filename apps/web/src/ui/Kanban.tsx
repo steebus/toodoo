@@ -5,7 +5,6 @@ import { addDays, byOrder } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { laneStep, orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
-import { EditSheet } from "./EditSheet";
 import { LaneDnd, LaneList } from "./LaneDnd";
 import { LaneAdd, SlipGhost, SortableSlip } from "./Slip";
 import { TaskView } from "./TaskView";
@@ -63,9 +62,7 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   const epics = useMemo(() => epicMap(work.epics), [work.epics]);
   const byId = useMemo(() => new Map(work.tasks.map((t) => [t.id, t])), [work.tasks]);
   const lanes: Lane[] = COLUMNS.map((c) => ({ id: c, ids: cols[c].map((t) => t.id) }));
-  const [editing, setEditing] = useState<string | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
-  const editTask = editing ? byId.get(editing) : undefined;
   const viewTask = viewing ? byId.get(viewing) : undefined;
   const manual = view.sort === "manual";
   const off = actions.offline;
@@ -148,19 +145,13 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
         </div>
       </LaneDnd>
       {viewTask && (
-        <TaskView key={viewTask.id} task={viewTask} today={work.today} offline={off}
+        <TaskView key={viewTask.id} task={viewTask} today={work.today} offline={off} epics={work.epics}
           epic={viewTask.epic_id ? epics.get(viewTask.epic_id) : undefined}
           onClose={() => setViewing(null)}
           onTick={(done) => actions.move(viewTask.id, { done }, `${done ? "Done" : "Reopened"}: ${viewTask.title}`)}
-          onStatus={(s) => actions.move(viewTask.id, { status: s }, `${TASK_STATUS_LABEL[s]}: ${viewTask.title}`)}
           onTomorrow={() => void actions.save(viewTask.id, { due: addDays(work.today, 1) })}
-          onEdit={() => { setViewing(null); setEditing(viewTask.id); }}
-          onDelete={() => actions.remove(viewTask.id)}
-          onChecklist={(checklist) => void actions.save(viewTask.id, { checklist })} />
-      )}
-      {editTask && (
-        <EditSheet key={editTask.id} task={editTask} epics={work.epics} offline={off}
-          onSave={(id, patch) => void actions.save(id, patch)} onDelete={actions.remove} onClose={() => setEditing(null)} />
+          onSave={(patch) => actions.save(viewTask.id, patch)}
+          onDelete={() => actions.remove(viewTask.id)} />
       )}
       <Toast toast={actions.toast} onDismiss={actions.dismiss} />
     </main>

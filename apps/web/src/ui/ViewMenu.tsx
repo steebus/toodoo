@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { NO_EPIC, NO_TAG, type GroupBy, type SortBy, type View } from "@shared/board.ts";
-import { go } from "../lib/useRoute";
 import { ChevronIcon } from "./icons";
-import { ThemeSwitch } from "./ThemeSwitch";
 
 const GROUPS: [GroupBy, string][] = [["status", "Status"], ["due", "Due"], ["priority", "Priority"], ["epic", "Epic"], ["tag", "Tag"], ["source", "Source"]];
 const SORTS: [SortBy, string][] = [["manual", "Manual"], ["due", "Due"], ["priority", "Priority"], ["time", "Time"], ["tag", "Tag"]];
 
 type Props = {
-  view: View; tags: string[]; epics?: { id: string; title: string }[]; onChange: (v: View) => void; onSignOut?: () => void;
+  view: View; tags: string[]; epics?: { id: string; title: string }[]; onChange: (v: View) => void;
 };
 
 // One quiet control: group, sort and the tag and epic filters live in its popover.
-export function ViewMenu({ view, tags, epics = [], onChange, onSignOut }: Props) {
+export function ViewMenu({ view, tags, epics = [], onChange }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -67,12 +65,6 @@ export function ViewMenu({ view, tags, epics = [], onChange, onSignOut }: Props)
               </select>
             </label>
           )}
-          <div className="viewmenu-field">
-            Theme
-            <ThemeSwitch />
-          </div>
-          <button type="button" className="viewmenu-out" onClick={() => go("share")}>Share to toodoo</button>
-          {onSignOut && <button type="button" className="viewmenu-out" onClick={onSignOut}>Sign out</button>}
         </div>
       )}
     </div>

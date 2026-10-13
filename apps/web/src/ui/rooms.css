@@ -344,8 +344,16 @@
 }
 
 /* ---------- Focus: the task in hand, everything else dark and blurred, a kitchen timer running ---------- */
-.pass .preset-focus { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); margin-right: calc(18 * var(--u)); color: var(--ink); font-weight: 700; }
-.pass .preset-focus:disabled { color: var(--ink-3); font-weight: 400; opacity: 0.6; }
+/* Focus: in the count's old place, the one inked control in the header row. */
+.focus-slot { display: flex; align-items: center; justify-content: center; margin: 0; }
+.pass .focus-button {
+  display: inline-flex; align-items: center; gap: calc(7 * var(--u)); padding: calc(6 * var(--u)) calc(14 * var(--u));
+  font-family: var(--font-ui); font-weight: 700; font-size: calc(20 * var(--u)); line-height: 1; color: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: calc(5 * var(--u)); box-shadow: 0 calc(2 * var(--u)) 0 var(--rule);
+}
+.pass .focus-button:hover:not(:disabled) { background: var(--well); }
+.pass .focus-button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+.pass .focus-button:disabled { color: var(--ink-3); border-color: var(--rule); box-shadow: none; opacity: 1; }
 .sheet-ticket.is-focus::backdrop { background: rgb(8 8 8 / 0.62); backdrop-filter: blur(9px) saturate(0.8); }
 /* Placed from the sheet (the dialog is its frame): centred in the dark room to its left. */
 .kitchen-timer {
@@ -438,3 +446,77 @@
 @media (max-width: 819px) {
   .lane.tickets { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
+
+/* ---------- the shared header row in the Board, Epics and Share rooms ---------- */
+/* The Day view's own top bar, laid out on a full-height (transparent, click-through) frame so its measured
+   positions hold, and shown as a sticky strip the height of the Day view's header. */
+.room-top { position: sticky; top: 0; z-index: 10; height: 7.42dvh; background: var(--ground); }
+.pass.pass-top { height: 100dvh; background: transparent; overflow: visible; pointer-events: none; }
+.pass-top .topbar { pointer-events: auto; }
+@media (max-width: 819px) {
+  .room-top { height: auto; }
+  .pass.pass-top { height: auto; pointer-events: auto; }
+}
+
+/* ---------- the day menu: the date's chevron (theme, share, sign out) ---------- */
+.daymenu { position: relative; display: inline-flex; }
+.pass .daymenu-button { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)); border-radius: var(--radius); }
+.pass .daymenu-button:hover { background: var(--well); }
+.daymenu-chevron { width: calc(18 * var(--u)); height: calc(18 * var(--u)); color: var(--ink-2); transition: transform 0.2s ease; }
+.daymenu-chevron.is-open { transform: rotate(180deg); }
+.daymenu-pop {
+  position: absolute; left: 50%; top: calc(100% + 8px); z-index: 30; translate: -50% 0; min-width: 200px; padding: 6px;
+  display: grid; gap: 2px; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14); transform-origin: top center; animation: pop-in 0.6s var(--spring) both;
+}
+.pass .daymenu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; text-align: left; white-space: nowrap;
+  font-family: var(--font-print); font-size: 15px; letter-spacing: 0; color: var(--ink-2); border-radius: var(--radius);
+}
+.pass .daymenu-item:hover { color: var(--ink); background: var(--well); }
+@media (prefers-reduced-motion: reduce) { .daymenu-pop { animation: none; } .daymenu-chevron { transition: none; } }
+
+/* ---------- the ticket edits in place: printed values are buttons; editing swaps in a field on the paper ---------- */
+.tk-head { align-items: baseline; }
+.tk-head-end { display: inline-flex; gap: 12px; }
+:is(.pass, .room) .tk-field {
+  display: inline; padding: 1px 3px; margin: -1px -3px; font: inherit; letter-spacing: inherit; text-align: left; color: inherit;
+  border-radius: 2px; cursor: text; overflow-wrap: anywhere;
+}
+:is(.pass, .room) .tk-field:hover { background: color-mix(in srgb, var(--paper-ink) 6%, var(--paper)); }
+:is(.pass, .room) .tk-field.is-empty { color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); font-style: normal; }
+.tk-body.tk-field, .tk-note.tk-field { display: block; width: 100%; white-space: pre-line; }
+.tk-title .tk-field { display: block; width: 100%; }
+.tk-editing { display: grid; gap: 4px; }
+.tk-editing input, .tk-editing textarea {
+  width: 100%; box-sizing: border-box; padding: 4px 6px; margin: -5px -7px; font: inherit; letter-spacing: inherit; color: var(--paper-ink);
+  background: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); border: 1.5px dashed color-mix(in srgb, var(--paper-ink) 55%, var(--paper));
+  border-radius: 2px; resize: vertical; caret-color: var(--biro);
+}
+.tk-title .tk-editing textarea { text-transform: uppercase; resize: none; }
+.tk-head .tk-editing { display: inline-grid; }
+.tk-head .tk-editing input { width: auto; min-width: 9ch; margin: -5px 0; }
+.tk-editing input:focus, .tk-editing textarea:focus { outline: none; border-style: solid; }
+.tk-editing [aria-invalid="true"] { border-color: var(--paper-red); }
+.tk-problem { font-size: 13px; color: var(--paper-red); }
+.tk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+:is(.pass, .room) .tk-chip { padding: 5px 9px; font-size: 13px; letter-spacing: 0.04em; }
+:is(.pass, .room) .tk-chip.is-high[aria-pressed="true"] { color: var(--paper-red); border-color: var(--paper-red); }
+.tk-source { margin-left: auto; font-size: 13px; letter-spacing: 0.05em; }
+.tk-epic select {
+  padding: 3px 4px; font: inherit; font-size: 14px; letter-spacing: 0.04em; color: var(--paper-ink); background: transparent;
+  border: 1px dashed transparent; border-radius: 2px; cursor: pointer;
+}
+.tk-epic select:hover, .tk-epic select:focus-visible { border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); outline: none; }
+.tk-epic select option { color: initial; background: initial; }
+.tk-link { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; font-size: 14px; }
+.tk-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.tk-tag { display: inline-flex; align-items: center; gap: 2px; }
+:is(.pass, .room) .tk-tag-x { display: grid; place-items: center; width: 18px; height: 18px; color: inherit; opacity: 0.6; border-radius: 2px; }
+:is(.pass, .room) .tk-tag-x:hover { opacity: 1; color: var(--paper-red); }
+.tk-tag-add {
+  width: 9ch; padding: 3px 5px; font: inherit; font-size: 14px; color: var(--paper-ink); background: transparent;
+  border: 1px dashed transparent; border-radius: 2px;
+}
+.tk-tag-add:hover, .tk-tag-add:focus { border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); outline: none; width: 14ch; }
+.tk-tag-add::placeholder { color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); }

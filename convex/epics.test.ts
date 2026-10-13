@@ -109,3 +109,24 @@ it("an epic's priority reaches the board's suggestions and the agent's snapshot"
   expect(snap.tasks.due.find((x) => x.title === "Lifted")).toMatchObject({ epic: "Hot" });
   expect(snap.epics.map((e) => e.title)).toEqual(["Hot", "Held"]);
 });
+
+it("lets the agent name an epic and say a status in a tracker's words", async () => {
+  const t = setup();
+  const crooz = await t.mutation(api.epics.create, { epic: { title: "Croozn", status: "active" } });
+  await t.mutation(api.epics.create, { epic: { title: "Website relaunch" } });
+  const { created, errors } = await t.mutation(api.agent.addTasks, {
+    tasks: [
+      { title: "CROOZ-293 Bulk testing", epic: "croozn", status: "To Do", priority: "High priority" },
+      { title: "Hero copy", epic: "relaunch", status: "In Progress" },
+      { title: "Lost", epic: "Garden shed" },
+    ],
+  });
+  expect(created.map((c) => c.title)).toEqual(["CROOZ-293 Bulk testing", "Hero copy"]);
+  expect(errors[0].error).toMatch(/epic not found: Garden shed \(open epics: Croozn, Website relaunch\)/);
+  const ws = await t.query(api.epics.workspace, { now });
+  expect(ws.tasks.find((x) => x.title.startsWith("CROOZ"))).toMatchObject({ epic_id: crooz.id, status: "todo", priority: "high", note: null });
+  expect(ws.tasks.find((x) => x.title === "Hero copy")).toMatchObject({ status: "doing" });
+  const up = await t.mutation(api.agent.updateTask, { id: created[1].id, patch: { epic: "Croozn", status: "on hold" } });
+  expect(up).toMatchObject({ epic_id: crooz.id, status: "blocked" });
+  await expect(t.mutation(api.agent.updateTask, { id: created[1].id, patch: { status: "someday" } })).rejects.toThrow(/status must be/);
+});

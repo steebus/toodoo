@@ -111,10 +111,9 @@ it("a failed tick shows the error toast", async () => {
   await waitFor(() => expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent(/couldn.t save/i));
 });
 
-// A docket opens its ticket; the ticket's Edit opens the edit sheet.
+// A docket opens its ticket.
 const openSheet = async (name = "Open WRITE REPORT") => {
   await userEvent.click(screen.getByRole("button", { name }));
-  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }));
   return screen.getByRole("dialog");
 };
 
@@ -152,29 +151,37 @@ it("Undo of a delete puts back the task's blocks on every loaded day", async () 
   expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: "re1", date: "2026-03-11", start: "14:00", mins: 30 });
 });
 
-it("the edit sheet saves only the changed fields", async () => {
-  const sheet = await openSheet();
-  expect(within(sheet).getByLabelText("Estimate")).toHaveValue("1h 30m");
-  await userEvent.clear(within(sheet).getByLabelText("Title"));
-  await userEvent.type(within(sheet).getByLabelText("Title"), "Write the report");
-  await userEvent.clear(within(sheet).getByLabelText("Tags"));
-  await userEvent.type(within(sheet).getByLabelText("Tags"), "work, q2");
-  await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
-  expect(fn("updateTask")).toHaveBeenCalledWith({ id: report.id, patch: { title: "Write the report", tags: ["work", "q2"] } });
-  expect(screen.queryByRole("dialog")).toBeNull();
+// Click a printed value to edit it in place; Enter keeps it.
+const field = (ticket: HTMLElement, label: string) => within(ticket).getByRole("button", { name: new RegExp(`^${label}\\b.*Edit$`) });
+
+it("the ticket edits in place: a title, a tag taken off, a tag put on, each saved alone", async () => {
+  const ticket = await openSheet();
+  await userEvent.click(field(ticket, "Title"));
+  await userEvent.clear(within(ticket).getByLabelText("Title"));
+  await userEvent.type(within(ticket).getByLabelText("Title"), "Write the report{Enter}");
+  expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { title: "Write the report" } });
+  await userEvent.click(within(ticket).getByRole("button", { name: "Remove tag q1" }));
+  expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { tags: ["work"] } });
+  await userEvent.type(within(ticket).getByRole("textbox", { name: "Add a tag" }), "q2{Enter}");
+  expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { tags: ["work", "q1", "q2"] } });
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
 });
 
-it("saving with no changes just closes", async () => {
-  const sheet = await openSheet();
-  await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
+it("a field left as it was saves nothing", async () => {
+  const ticket = await openSheet();
+  await userEvent.click(field(ticket, "Title"));
+  await userEvent.keyboard("{Enter}");
   expect(fn("updateTask")).not.toHaveBeenCalled();
-  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("Escape closes the sheet without saving and focus returns to the docket", async () => {
+it("Escape puts a field back; a second Escape closes the ticket and focus returns to the docket", async () => {
   const opener = screen.getByRole("button", { name: "Open WRITE REPORT" });
-  const sheet = await openSheet();
-  await userEvent.type(within(sheet).getByLabelText("Title"), "!!");
+  const ticket = await openSheet();
+  await userEvent.click(field(ticket, "Title"));
+  await userEvent.type(within(ticket).getByLabelText("Title"), "!!");
+  await userEvent.keyboard("{Escape}");
+  expect(within(ticket).queryByRole("textbox", { name: "Title" })).toBeNull();
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
   await userEvent.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(fn("updateTask")).not.toHaveBeenCalled();
@@ -206,23 +213,22 @@ it("a docket still waiting for its real id is inert", async () => {
   expect(fn("updateTask")).not.toHaveBeenCalled();
 });
 
-it("a bad estimate keeps the sheet open", async () => {
-  const sheet = await openSheet();
-  await userEvent.clear(within(sheet).getByLabelText("Estimate"));
-  await userEvent.type(within(sheet).getByLabelText("Estimate"), "abc");
-  await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
-  expect(screen.getByRole("dialog")).toBeInTheDocument();
-  expect(within(sheet).getByLabelText("Estimate")).toHaveAttribute("aria-invalid", "true");
+it("a bad estimate keeps the field open with what is wrong", async () => {
+  const ticket = await openSheet();
+  await userEvent.click(field(ticket, "Estimate"));
+  await userEvent.clear(within(ticket).getByLabelText("Estimate"));
+  await userEvent.type(within(ticket).getByLabelText("Estimate"), "abc{Enter}");
+  expect(within(ticket).getByLabelText("Estimate")).toHaveAttribute("aria-invalid", "true");
+  expect(within(ticket).getByRole("alert")).toHaveTextContent("Like 45m or 1h 30m");
   expect(fn("updateTask")).not.toHaveBeenCalled();
 });
 
-it("a rejected save reopens the sheet with the draft and shows the error", async () => {
+it("a refused save opens the field again with what was typed, and says so", async () => {
   fn("updateTask").mockRejectedValue(new Error("nope"));
-  const sheet = await openSheet();
-  await userEvent.type(within(sheet).getByLabelText("Title"), "!");
-  await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
-  await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-  expect(within(screen.getByRole("dialog")).getByLabelText("Title")).toHaveValue("Write report!");
+  const ticket = await openSheet();
+  await userEvent.click(field(ticket, "Title"));
+  await userEvent.type(within(ticket).getByLabelText("Title"), "!{Enter}");
+  await waitFor(() => expect(within(screen.getByRole("dialog")).getByLabelText("Title")).toHaveValue("Write report!"));
   expect(screen.getByRole("status", { name: "Notice" })).toHaveTextContent(/couldn.t save/i);
 });
 

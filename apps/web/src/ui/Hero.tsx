@@ -8,11 +8,10 @@ import { isOptimistic, type Actions } from "../lib/useActions";
 import { actionFor } from "../lib/shortcuts";
 import { useNarrow } from "../lib/useNarrow";
 import { useStoredView } from "../lib/useStoredView";
-import { focusBlock } from "../lib/focus";
+import { focusBlock, focusIntent } from "../lib/focus";
 import { buildPass } from "./build";
 import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
-import { EditSheet, type Draft } from "./EditSheet";
 import { HelpSheet } from "./HelpSheet";
 import { AddButton, AddSheet, Tabs, type Tab } from "./Mobile";
 import { MotionRoot, useArrivals, useCelebration } from "./motion";
@@ -32,10 +31,8 @@ type Props = {
 // The first viewport of The Pass: top bar, Day plan (left third), To do rails (right two thirds).
 export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const offline = !!actions?.offline;
-  const [editing, setEditing] = useState<string | null>(null);
   const [viewing, setViewing] = useState<string | null>(null); // the task read in its ticket sheet
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const editTask = editing ? board.tasks.find((t) => t.id === editing) : undefined;
+  const [editTitle, setEditTitle] = useState(false); // opened with e: the title starts open
   const [help, setHelp] = useState(false);
   // The phone: two tabs instead of two panes, and the quick add in a sheet (null: closed; else its line).
   const narrow = useNarrow();
@@ -63,16 +60,18 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const block = focusBlock(board);
   const focusNow = actions && block ? () => { opener.current = document.activeElement; setFocusing(true); setViewing(block.id); } : undefined;
   const focused = focusing && block && viewing === block.id ? block : null;
-  // Clicking a task reads it (the ticket); e, or Edit on the ticket, edits it.
-  const opener = useRef<Element | null>(null); // what opened the ticket, for focus when the sheets close
-  const showTask = actions && ((id: string) => {
+  // Focus asked for from another room: it lands here and opens straight away.
+  useEffect(() => {
+    if (Date.now() - focusIntent.at > 5000) return;
+    focusIntent.at = 0;
+    focusNow?.();
+  }, [focusNow === undefined]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Clicking a task opens its ticket, where everything edits in place; e opens it with the title ready to type.
+  const opener = useRef<Element | null>(null); // what opened the ticket, for focus when it closes
+  const showTask = actions && ((id: string, edit = false) => {
     opener.current = document.activeElement;
+    setEditTitle(edit);
     setViewing(id);
-  });
-  const openTask = actions && ((id: string) => {
-    setViewing(null);
-    setDraft(null);
-    setEditing(id);
   });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,7 +84,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
       if (a === "add") narrow ? actions && !offline && setAdding("") : document.querySelector<HTMLElement>(".quickadd-input")?.focus();
       else if (a === "down") dockets[at < 0 ? 0 : Math.min(at + 1, dockets.length - 1)]?.focus();
       else if (a === "up") dockets[at < 0 ? dockets.length - 1 : Math.max(at - 1, 0)]?.focus();
-      else if (a === "edit") id && openTask?.(id);
+      else if (a === "edit") id && showTask?.(id, true);
       else if (a === "prevDay" || a === "nextDay") navDate && onDate?.(addDays(navDate, a === "nextDay" ? 1 : -1));
       else if (a === "today") onDate?.(today);
       else if (a === "presetPlan") setSplit(PRESET_SPLIT.Plan);
@@ -109,8 +108,9 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
         <TopBar
           date={model.dateLabel}
           headline={model.headline}
-          done={model.done}
           total={model.total}
+          room={actions ? "day" : undefined}
+          onSignOut={onSignOut}
           presets={PRESETS}
           activePreset={preset}
           onPreset={(p) => setSplit(PRESET_SPLIT[p])}
@@ -118,7 +118,6 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           celebrate={celebrate}
           offline={offline}
           unsaved={!!actions?.unsaved}
-          rooms={!!actions}
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} moves={view.group === "status"} compact={compact} actions={actions}>
         <Panes split={split}>
@@ -134,7 +133,6 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
             view={view}
             onView={setView}
             quickAdd={quickAdd}
-            onSignOut={onSignOut}
             onAdd={actions?.add}
             onOpen={showTask}
             onTick={actions?.tick}
@@ -161,19 +159,8 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
             return actions.add(t);
           }} onClose={() => setAdding(null)} onFailed={setAdding} />
         )}
-        {actions && editTask && (
-          <EditSheet key={editTask.id} task={editTask} epics={board.epics} returnTo={opener.current} draft={draft} offline={offline}
-            onSave={(id, patch, values) => {
-              void actions.save(id, patch).then((ok) => {
-                if (ok) return;
-                setDraft(values);
-                setEditing(id);
-              });
-            }}
-            onDelete={actions.remove} onClose={() => setEditing(null)} />
-        )}
         {actions && viewTask && (
-          <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline}
+          <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline} epics={board.epics} editTitle={editTitle}
             epic={viewTask.epic_id ? board.epics?.find((e) => e.id === viewTask.epic_id) : undefined}
             progress={viewTask.estimate_mins && board.effort?.[viewTask.id]?.actual
               ? { spent: board.effort[viewTask.id].actual, est: viewTask.estimate_mins } : null}
@@ -182,9 +169,8 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
             onTick={(done) => actions.tick(viewTask.id, done)}
             onPlan={() => void actions.planTasks([viewTask.id], board.date)}
             onTomorrow={() => void actions.save(viewTask.id, { due: addDays(board.today, 1) })}
-            onEdit={() => openTask?.(viewTask.id)}
-            onDelete={() => actions.remove(viewTask.id)}
-            onChecklist={(checklist) => void actions.save(viewTask.id, { checklist })} />
+            onSave={(patch) => actions.save(viewTask.id, patch)}
+            onDelete={() => actions.remove(viewTask.id)} />
         )}
         {help && <HelpSheet onClose={() => setHelp(false)} />}
         {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}

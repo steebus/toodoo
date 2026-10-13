@@ -21,7 +21,8 @@ Steve's tasks and day plan live in toodoo, reached through the toodoo MCP tools.
 - Personal settings (noise calendars to skip, calendars that duplicate each other, the Atlassian cloudId) are not in this skill: they come from the routine prompt's **Personal settings** block. If they're missing, ask Steve rather than guessing.
 - `source`: `jira`, `email`, `calendar`, `gtasks`, `message`, `you`, or an app name like `trippn`.
 - `external_id` — always set it for anything from a connector so reruns never duplicate: `jira:<KEY>` (e.g. `jira:ACME-293`), `gmail:<threadId>` (the Gmail API thread id, hex), `calendar:<eventId>`, `gtasks:<short-slug>`, `message:<short-slug>`.
-- Tasks: short title in Steve's words; `note` = one line of who/where; `link` to the thread or issue; `due` defaults to today; `priority` high/med/low only when clear; `estimate_mins` when obvious; lowercase `tags`, Jira gets `["work"]`.
+- Tasks: short title in Steve's words; `note` = one line of who/where (only that: never priority, status, epic or dates); `link` to the thread or issue; `due` defaults to today; `priority` high/med/low only when clear; `estimate_mins` when obvious; lowercase `tags`, Jira gets `["work"]`.
+- Put each fact in its field. From Jira: `priority` from its priority (Highest/High → high, Medium → med, Low/Lowest → low), `status` from its status (To Do → todo, In Progress/In Review → doing, Blocked/On hold → blocked), `epic` = the issue's epic or project by **name** (`list_epics` or the snapshot's `epics` show the names; an unknown name comes back as an error listing them, so pick one or leave it out), `estimate_mins` from its original estimate, `due` from its due date.
 - Meetings and bill reminders are events (`set_day`), not tasks, unless they need prep.
 - Unticked tasks roll over by themselves — never copy or move old tasks.
 - Never change or delete existing tasks unless Steve asks. Never save a plan without his OK (see below).

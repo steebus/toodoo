@@ -50,18 +50,26 @@ function Live({ board, date, onDate }: { board: BoardData; date: string; onDate:
 }
 
 // The Board and Epics rooms work from one live query; until it lands, the room's frame.
+// Today's board for the shared header (date, the day's line, Focus), kept like the Day view's for offline.
+function useTodayBoard() {
+  const { user } = useAuth();
+  return useBoard(undefined, user?.id);
+}
+
 function SharedRoom() {
   const out = useSignOut();
   const offline = useOffline();
-  return <RoomShell room="share" offline={offline} onSignOut={out}><ShareRoom offline={offline} /></RoomShell>;
+  const board = useTodayBoard();
+  return <RoomShell room="share" board={board} offline={offline} onSignOut={out}><ShareRoom offline={offline} /></RoomShell>;
 }
 
 function WorkRoom({ room }: { room: "board" | "epics" }) {
   const out = useSignOut();
   const work = useWorkspace();
+  const board = useTodayBoard();
   const actions = useWorkActions(work);
   return (
-    <RoomShell room={room} offline={actions.offline} onSignOut={out}>
+    <RoomShell room={room} board={board} offline={actions.offline} onSignOut={out}>
       {work ? (room === "board" ? <Kanban work={work} actions={actions} /> : <Epics work={work} actions={actions} />) : <main className="room-main" aria-busy />}
     </RoomShell>
   );

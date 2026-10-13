@@ -782,7 +782,8 @@
   }
   .topbar :is(.r-wordmark, .r-date, .r-headline, .r-progress) { position: static; width: auto; height: auto; }
   .wordmark { font-size: 28px; padding: 0; }
-  .topbar .progress { position: relative; inset: auto; grid-area: 1 / 2; font-size: 17px; padding: 0 0 7px; }
+  .topbar .focus-slot { position: relative; inset: auto; grid-area: 1 / 2; padding: 0; }
+  .pass .focus-button { font-size: 16px; padding: 7px 12px; }
   .progress-track { left: 0; bottom: 0; }
   .date { grid-column: 1 / -1; justify-content: flex-start; margin: 12px 0 0; padding: 0; font-size: 18px; }
   .headline { grid-column: 1 / -1; justify-content: flex-start; margin-top: 7px; font-size: 15px; line-height: 1.35; white-space: normal; color: var(--ink-2); }

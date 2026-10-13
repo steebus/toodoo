@@ -1,18 +1,18 @@
 import { useTheme, type Theme } from "../lib/theme";
 import { AutoIcon, MoonIcon, SunIcon } from "./icons";
 
-const OPTIONS: [Theme, string, typeof SunIcon][] = [["light", "Light", SunIcon], ["dark", "Dark", MoonIcon], ["auto", "Auto", AutoIcon]];
+const STEPS: [Theme, string, typeof SunIcon][] = [["light", "Light", SunIcon], ["dark", "Dark", MoonIcon], ["auto", "Auto", AutoIcon]];
 
-// Light · Dark · Auto: three small icon buttons, one pressed.
-export function ThemeSwitch({ className = "" }: { className?: string }) {
+// One button that steps through Light, Dark and Auto (the system's), showing the one in use.
+export function ThemeCycle() {
   const [theme, setTheme] = useTheme();
+  const at = Math.max(0, STEPS.findIndex(([t]) => t === theme));
+  const [, label, Icon] = STEPS[at];
+  const next = STEPS[(at + 1) % STEPS.length];
   return (
-    <div className={`theme-switch ${className}`} role="group" aria-label="Theme">
-      {OPTIONS.map(([t, label, Icon]) => (
-        <button key={t} type="button" className="theme-opt" aria-pressed={theme === t} aria-label={label} title={label} onClick={() => setTheme(t)}>
-          <Icon size={16} />
-        </button>
-      ))}
-    </div>
+    <button type="button" role="menuitem" className="daymenu-item theme-cycle" onClick={() => setTheme(next[0])}
+      aria-label={`Theme: ${label}. Switch to ${next[1]}`}>
+      <Icon size={16} /> {label}
+    </button>
   );
 }

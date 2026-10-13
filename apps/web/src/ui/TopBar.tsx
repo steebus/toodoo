@@ -1,41 +1,45 @@
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFitText } from "../lib/useFitText";
-import { CheckIcon, TimerIcon } from "./icons";
+import { go, type Room } from "../lib/useRoute";
+import { CheckIcon, ChevronIcon, TimerIcon } from "./icons";
 import { RoomNav } from "./RoomNav";
+import { ThemeCycle } from "./ThemeSwitch";
 
 type Props = {
-  date: string; headline: string; done: number; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
-  celebrate?: boolean; offline?: boolean; unsaved?: boolean; rooms?: boolean;
+  date: string; headline: string; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
+  celebrate?: boolean; offline?: boolean; unsaved?: boolean;
+  room?: Room; // the room nav, and which room is lit; none in the fixture
   onFocus?: () => void; // Focus on the task in hand; missing when there is nothing on the line now or next
+  onSignOut?: () => void;
 };
 
-export function TopBar({ date, headline, done, total, presets, activePreset, onPreset, onFocus, celebrate = false, offline = false, unsaved = false, rooms = false }: Props) {
+// The one header row, the same in every room: wordmark and rooms, the date (its chevron opens the day menu:
+// theme, share, sign out) over the day's line, Focus, and the Plan · Capture presets.
+export function TopBar({ date, headline, total, presets, activePreset, onPreset, onFocus, onSignOut, celebrate = false, offline = false, unsaved = false, room }: Props) {
   const line = useRef<HTMLParagraphElement>(null);
   useFitText(line, headline, 0.6);
   return (
     <header className="topbar">
       <p className="r-wordmark wordmark">toodoo</p>
-      {rooms && <RoomNav room="day" />}
+      {room && <RoomNav room={room} />}
       {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : "offline"}</span>}
-      <h1 className="r-date date">{date}</h1>
+      <h1 className="r-date date">
+        {room ? <DayMenu date={date} onSignOut={onSignOut} /> : date}
+      </h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
       <p ref={line} className="r-headline headline" title={headline || undefined}>
         <span key={headline} className="headline-line">{headline}</span>
       </p>
-      <p className="r-progress progress">
-        <span>{`${done} of ${total} done`}</span>
-        <span className="progress-track" aria-hidden>
-          <m.span className="progress-fill" initial={false} animate={{ scaleX: total ? done / total : 0 }} />
-        </span>
+      <p className="r-progress focus-slot">
+        <button type="button" className="focus-button" disabled={!onFocus} onClick={onFocus}
+          title={onFocus ? "Focus on the task in hand (f)" : "Nothing on the line now or next"}>
+          <TimerIcon size={19} /> Focus
+        </button>
       </p>
       <AnimatePresence>{celebrate && <AllBumped key="bumped" total={total} />}</AnimatePresence>
       <span className="topbar-sep" aria-hidden />
       <nav className="r-presets presets" aria-label="Mode">
-        <button type="button" className="preset preset-focus" disabled={!onFocus} onClick={onFocus}
-          title={onFocus ? "Focus on the task in hand (f)" : "Nothing on the line now or next"}>
-          <TimerIcon size={17} /> Focus
-        </button>
         {presets.map((p, i) => (
           <span key={p} className="preset-slot">
             {i > 0 && <span className="preset-dot" aria-hidden>·</span>}
@@ -47,6 +51,39 @@ export function TopBar({ date, headline, done, total, presets, activePreset, onP
       </nav>
       <div className="r-topbar-rule topbar-rule" aria-hidden />
     </header>
+  );
+}
+
+// The date, and a chevron for the day menu: the theme (one button that steps Light, Dark, Auto), Share to toodoo,
+// Sign out. A popover like the view menu: Escape or a click away closes it.
+function DayMenu({ date, onSignOut }: { date: string; onSignOut?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  return (
+    <span className="daymenu" ref={root}>
+      <button type="button" className="daymenu-button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {date}
+        <ChevronIcon size={18} className={`daymenu-chevron${open ? " is-open" : ""}`} />
+      </button>
+      {open && (
+        <span className="daymenu-pop" role="menu" aria-label="Day menu">
+          <ThemeCycle />
+          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("share"); }}>Share to toodoo</button>
+          {onSignOut && <button type="button" role="menuitem" className="daymenu-item" onClick={onSignOut}>Sign out</button>}
+        </span>
+      )}
+    </span>
   );
 }
 

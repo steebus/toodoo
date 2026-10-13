@@ -1,6 +1,9 @@
 import { toMin } from "@shared/planning.ts";
 import type { BoardData } from "../ui/types";
 
+// Focus pressed in the Board or Epics room: the Day view opens it when it mounts (within a few seconds).
+export const focusIntent = { at: 0 };
+
 export type FocusBlock = { id: string; startM: number; endM: number; state: "now" | "next" };
 
 // The task Focus is about: the open task whose block on today's line covers now, else the next one to start

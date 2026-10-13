@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
-import { byEpicRank, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
+import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
 import { buildSnapshot, type FullTask, type State } from "../shared/snapshot.ts";
 import {
   type AddResult, InputError, parseDay, parseEpic, parseEpicPatch, preparePatch, prepareTasks,
@@ -55,6 +55,20 @@ async function epicRef(db: R, userId: string, id: string | null) {
   return doc._id;
 }
 
+// An epic by name: the open epic with that exact title (any case), else the one it starts, else the one whose
+// words it names. Unknown names are an error that lists the epics there are, so the caller can correct itself.
+export async function epicByName(db: R, userId: string, name: string) {
+  const all = (await listEpics(db, userId)).filter((e) => e.status !== "done");
+  const q = name.trim().toLowerCase();
+  const hit = all.find((e) => e.title.toLowerCase() === q)
+    ?? all.find((e) => e.title.toLowerCase().startsWith(q))
+    ?? all.find((e) => epicWords(e.title).some((w) => epicWords(q).includes(w)));
+  if (!hit) {
+    throw new InputError(`epic not found: ${name} (open epics: ${all.map((e) => e.title).join(", ") || "none"})`);
+  }
+  return hit.id as Id<"epics">;
+}
+
 export async function listEpics(db: R, userId: string): Promise<Epic[]> {
   return (await db.query("epics").withIndex("by_user", (q) => q.eq("user_id", userId)).collect()).map(toEpic).sort(byEpicRank);
 }
@@ -95,9 +109,9 @@ export async function addTasks(db: W, userId: string, inputs: unknown[], t: stri
   const { rows, skipped, errors } = prepareTasks(inputs, t);
   const created: AddResult["created"] = [];
   const now = Date.now();
-  for (const [i, { index, ...r }] of rows.entries()) {
+  for (const [i, { index, epic: epicName, ...r }] of rows.entries()) {
     let epic_id: Id<"epics"> | null;
-    try { epic_id = await epicRef(db, userId, r.epic_id); } catch (e) {
+    try { epic_id = epicName ? await epicByName(db, userId, epicName) : await epicRef(db, userId, r.epic_id); } catch (e) {
       if (!(e instanceof InputError)) throw e;
       errors.push({ index, error: e.message });
       continue;
@@ -125,6 +139,10 @@ export async function updateTask(
     : await db.query("tasks").withIndex("by_user_source_ext", (q) =>
         q.eq("user_id", userId).eq("source", find.source).eq("external_id", find.external_id)).first();
   if (!doc) throw new InputError("task not found");
+  if (typeof p.epic === "string") {
+    if (p.epic_id === undefined) p.epic_id = await epicByName(db, userId, p.epic);
+    delete p.epic;
+  }
   if (p.epic_id !== undefined) p.epic_id = await epicRef(db, userId, p.epic_id as string | null);
   await db.patch(doc._id, { ...(p as Partial<Doc<"tasks">>), updated_at: Date.now() });
   const d = (await db.get(doc._id))!;
