@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { Epic } from "@shared/epics.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
 import type { NewTask } from "../lib/useActions";
@@ -44,11 +44,6 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
     setLine((l) => l.replace(/#\S*$/, `#${offer} `));
     input.current?.focus();
   };
-  // Chips pop in (CSS) as they are understood; the ones there at first paint just sit there.
-  const live = useRef(false);
-  useEffect(() => {
-    live.current = true;
-  }, []);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -60,7 +55,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
     setLine("");
     setInvalid(false);
     void onAdd?.({
-      title: parsed.title, due: parsed.due ?? today, time: parsed.time, priority: parsed.priority,
+      title: parsed.title, due: parsed.due, time: parsed.time, priority: parsed.priority,
       tags: parsed.tags, estimate_mins: parsed.estimate_mins, source: "you", ...(parsed.epic_id ? { epic_id: parsed.epic_id } : null),
     }, typed).then((ok) => ok || setLine((cur) => cur || typed));
   };
@@ -107,7 +102,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
             ))}
         </div>
       )}
-      <ul className="r-chips chips" aria-label="Parsed">
+      <ParsedChips parsed={parsed} epics={epics} className="r-chips chips">
         {offer && (
           <li className="chip chip-offer">
             <button type="button" aria-label={`Use tag ${offer}`} onPointerDown={(e) => e.preventDefault()} onClick={takeOffer}>
@@ -115,22 +110,38 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
             </button>
           </li>
         )}
-        {parsed.chips.map((c, i) => {
-          const high = c.kind === "priority" && parsed.priority === "high";
-          return (
-            <li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}${live.current ? " chip-pop" : ""}`}>
-              {c.kind === "date" && <CalendarIcon className="chip-icon" />}
-              {(c.kind === "time" || c.kind === "estimate") && <ClockIcon className="chip-icon" />}
-              {c.kind === "priority" && <span className="chip-bang" aria-hidden>!</span>}
-              {c.kind === "epic" && (
-                <span className="chip-epic" aria-hidden
-                  style={{ ["--epic" as string]: `var(--epic-${epics.find((e) => e.id === parsed.epic_id)?.colour ?? "slate"})` }} />
-              )}
-              {c.kind === "priority" ? c.text.replace(/^!/, "") || "high" : c.text}
-            </li>
-          );
-        })}
-      </ul>
+      </ParsedChips>
     </form>
+  );
+}
+
+// What a line parsed into, as chips. Every add line shows them (the Day's, the Board's, an epic's).
+export function ParsedChips({ parsed, epics = [], className = "chips", children }: {
+  parsed: ReturnType<typeof parseQuickAdd>; epics?: Pick<Epic, "id" | "colour">[]; className?: string; children?: ReactNode;
+}) {
+  // Chips pop in (CSS) as they are understood; the ones there at first paint just sit there.
+  const live = useRef(false);
+  useEffect(() => {
+    live.current = true;
+  }, []);
+  return (
+    <ul className={className} aria-label="Parsed">
+      {children}
+      {parsed.chips.map((c, i) => {
+        const high = c.kind === "priority" && parsed.priority === "high";
+        return (
+          <li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}${live.current ? " chip-pop" : ""}`}>
+            {c.kind === "date" && <CalendarIcon className="chip-icon" />}
+            {(c.kind === "time" || c.kind === "estimate") && <ClockIcon className="chip-icon" />}
+            {c.kind === "priority" && <span className="chip-bang" aria-hidden>!</span>}
+            {c.kind === "epic" && (
+              <span className="chip-epic" aria-hidden
+                style={{ ["--epic" as string]: `var(--epic-${epics.find((e) => e.id === parsed.epic_id)?.colour ?? "slate"})` }} />
+            )}
+            {c.kind === "priority" ? c.text.replace(/^!/, "") || "high" : c.text}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

@@ -17,7 +17,7 @@ vi.mock("convex/react", async () => {
     useConvexConnectionState: () => ({ hasEverConnected: true, isWebSocketConnected: true }),
     // The board answers for whatever date was asked, so navigation can be followed.
     useQuery: (_ref: unknown, args: any) => {
-      state.args.push(args);
+      if (args && "now" in args) state.args.push(args); // the board's asks, not the wordmark's tidy count
       const b = state.board as BoardData;
       return b && { ...b, date: args?.date ?? b.date };
     },

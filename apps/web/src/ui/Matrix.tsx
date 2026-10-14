@@ -16,9 +16,9 @@ import { TaskView } from "./TaskView";
 import { SettingsMenu, SettingsPick } from "./ViewMenu";
 import { Toast } from "./Toast";
 
-type Status = "open" | "todo" | "doing" | "blocked" | "done" | "all";
+type Status = "open" | "backlog" | "todo" | "doing" | "blocked" | "done" | "all";
 type Prefs = { status: Status; epic: string; tag: string; source: string };
-const STATUSES: [Status, string][] = [["open", "Open"], ["todo", "To do"], ["doing", "Doing"], ["blocked", "Blocked"], ["done", "Done"], ["all", "All"]];
+const STATUSES: [Status, string][] = [["open", "Open"], ["backlog", "Backlog"], ["todo", "To do"], ["doing", "Doing"], ["blocked", "Blocked"], ["done", "Done"], ["all", "All"]];
 const KEY = "toodoo.matrixView";
 const FRESH: Prefs = { status: "open", epic: "", tag: "", source: "" };
 function loadPrefs(): Prefs {
@@ -77,16 +77,16 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
     const [jx, jy] = jitter(t.id);
     // +high (a high task in a high epic) rides at the very top of the high band
     const top = plusHigh(t, t.epic_id ? epics.get(t.epic_id) : undefined);
-    return { t, x: urgencyX(t.due, today) + jx, y: bandY(t.priority) + (top ? -0.08 + jy / 4 : jy), r: radius(t.estimate_mins, work.spent?.[t.id]), turn: Math.round((jx / 0.03 + 0.5) * 360) };
+    return { t, x: urgencyX(t.due ?? addDays(today, 365), today) + jx, y: bandY(t.priority) + (top ? -0.08 + jy / 4 : jy), r: radius(t.estimate_mins, work.spent?.[t.id]), turn: Math.round((jx / 0.03 + 0.5) * 360) };
   }).sort((a, b) => b.r - a.r), [tasks, today, work.spent, epics]);
 
   // A drop (or an arrow key) asks for this due date and priority; only what changed is written, with Undo.
-  const place = (t: FullTask, due: string, priority: Priority | null) => {
+  const place = (t: FullTask, due: string | null, priority: Priority | null) => {
     const patch: Partial<FullTask> = {};
     if (due !== t.due) patch.due = due;
     if (priority !== t.priority) patch.priority = priority;
     if (!Object.keys(patch).length) return;
-    actions.move(t.id, patch, `${[patch.due && `Due ${compactDate(due)}`, "priority" in patch && word(priority)].filter(Boolean).join(" · ")}: ${t.title}`);
+    actions.move(t.id, patch, `${[patch.due && `Due ${compactDate(due!)}`, "priority" in patch && word(priority)].filter(Boolean).join(" · ")}: ${t.title}`);
   };
   const at = (e: PointerEvent) => {
     const r = plot.current!.getBoundingClientRect();
@@ -120,8 +120,8 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
   const onKey = (t: FullTask, e: KeyboardEvent) => {
     const i = BANDS.indexOf(t.priority);
     const step: Record<string, () => void> = {
-      ArrowLeft: () => place(t, addDays(t.due, -1), t.priority),
-      ArrowRight: () => place(t, addDays(t.due, 1), t.priority),
+      ArrowLeft: () => place(t, addDays(t.due ?? today, -1), t.priority),
+      ArrowRight: () => place(t, addDays(t.due ?? today, 1), t.priority),
       ArrowUp: () => place(t, t.due, BANDS[Math.max(0, i - 1)]),
       ArrowDown: () => place(t, t.due, BANDS[Math.min(BANDS.length - 1, i + 1)]),
     };
@@ -172,7 +172,7 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
             const e = t.epic_id ? epics.get(t.epic_id) : undefined;
             return (
               <m.button key={t.id} type="button" className={`mx-dot${t.done ? " is-done" : ""}${lifted ? " is-held" : ""}`}
-                aria-label={`${t.title}, due ${compactDate(t.due)}, ${word(t.priority)}`}
+                aria-label={`${t.title}, ${t.due ? `due ${compactDate(t.due)}` : "no due date"}, ${word(t.priority)}`}
                 data-r={r} style={{ width: `calc(${r * 2}px * var(--mx-k, 1))`, height: `calc(${r * 2}px * var(--mx-k, 1))`, ["--dot" as string]: e?.colour ? `var(--epic-${e.colour})` : "var(--ink-3)" }}
                 initial={false}
                 animate={{ left: `${(lifted ? drag!.x : x) * 100}%`, top: `${(lifted ? drag!.y : y) * 100}%` }}

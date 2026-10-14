@@ -54,11 +54,11 @@ export function TaskView({
   }, [editTitle]);
 
   const high = !t.done && effectivePriority(t, epic) === "high";
-  const late = !t.done && t.due < today;
-  const n = late ? waitingDays(t.due, today) : 0;
+  const late = !t.done && t.due !== null && t.due < today;
+  const n = late ? waitingDays(t.due!, today) : 0;
   const when = t.done
     ? `DONE ${t.done_on ? dayWord(t.done_on, today).toUpperCase() : ""}`.trim()
-    : late ? `${n} ${n === 1 ? "DAY" : "DAYS"} OVER` : t.due === today || dayWord(t.due, today) === "tomorrow" ? dayWord(t.due, today).toUpperCase() : shortDate(t.due);
+    : !t.due ? "" : late ? `${n} ${n === 1 ? "DAY" : "DAYS"} OVER` : t.due === today || dayWord(t.due, today) === "tomorrow" ? dayWord(t.due, today).toUpperCase() : shortDate(t.due);
   const act = (fn?: () => void) => fn && (() => { fn(); onClose(); });
   const save = (patch: Record<string, unknown>) => (offline ? Promise.resolve(false) : onSave(patch));
   const open = epics.filter((e) => e.status !== "done" || e.id === t.epic_id);
@@ -77,8 +77,8 @@ export function TaskView({
       <article className={`ticket${t.done ? " is-done" : ""}${high ? " is-high" : ""}`}>
         <button type="button" className="tk-close" aria-label="Close" onClick={onClose}><CloseIcon size={18} /></button>
         <div className="tk-head">
-          <Field label="Date" kind="date" value={t.due} display={<span className={late ? "tk-late" : undefined}>{when}</span>}
-            onSave={(v) => (v ? save({ due: v }) : Promise.resolve(true))} />
+          <Field label="Date" kind="date" value={t.due ?? ""} display={when && <span className={late ? "tk-late" : undefined}>{when}</span>} placeholder="+ DATE"
+            onSave={(v) => save({ due: v || null })} />
           <span className="tk-head-end">
             <Field label="Time" kind="time" value={t.time ?? ""} display={t.time ? fmtTime(t.time).toUpperCase() : ""} placeholder="+ TIME"
               onSave={(v) => save({ time: v || null })} />
@@ -147,7 +147,7 @@ export function TaskView({
             </button>
           )}
           {onPlan && !t.done && <button type="button" className="tk-act" disabled={offline} onClick={act(onPlan)}>Plan it</button>}
-          {onTomorrow && !t.done && t.due <= today && <button type="button" className="tk-act" disabled={offline} onClick={act(onTomorrow)}>Tomorrow</button>}
+          {onTomorrow && !t.done && t.due !== null && t.due <= today && <button type="button" className="tk-act" disabled={offline} onClick={act(onTomorrow)}>Tomorrow</button>}
           {onDelete && (
             <button type="button" className="tk-act tk-delete" disabled={offline} onClick={() => {
               // Its docket goes with it: focus goes on to the quick add (where there is one) rather than nowhere.

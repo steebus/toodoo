@@ -6,9 +6,9 @@ export type EpicStatus = (typeof EPIC_STATUSES)[number];
 export const EPIC_STATUS_LABEL: Record<EpicStatus, string> = { planned: "Planned", active: "Active", on_hold: "On hold", done: "Done" };
 
 // Where an open task sits on the Kanban board. Done is the task's own done flag, not a status.
-export const TASK_STATUSES = ["todo", "doing", "blocked"] as const;
+export const TASK_STATUSES = ["backlog", "todo", "doing", "blocked"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
-export const TASK_STATUS_LABEL: Record<TaskStatus, string> = { todo: "To do", doing: "Doing", blocked: "Blocked" };
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = { backlog: "Backlog", todo: "To do", doing: "Doing", blocked: "Blocked" };
 
 // Categorical, never signals: no reds or greens (those mean high/carried and done). Hues live in tokens.css.
 export const EPIC_COLOURS = [
@@ -43,7 +43,7 @@ type P = Priority | "none";
 export const TASK_WEIGHT: Record<P, number> = { high: 2.5, med: 1, none: 0, low: -0.5 };
 export const EPIC_WEIGHT: Record<P, number> = { high: 1.25, med: 0.5, none: 0, low: -0.25 };
 export const ON_HOLD_WEIGHT = -2;
-export const STATUS_WEIGHT: Record<TaskStatus, number> = { todo: 0, doing: 1, blocked: -1.5 };
+export const STATUS_WEIGHT: Record<TaskStatus, number> = { backlog: -1, todo: 0, doing: 1, blocked: -1.5 };
 
 type Pick2 = Pick<Epic, "priority" | "status"> | null | undefined;
 

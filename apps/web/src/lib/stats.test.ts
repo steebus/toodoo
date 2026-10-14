@@ -3,7 +3,7 @@ import { budget, burndown, dayRange, haystack, leadDays, matches, plannedByDay, 
 
 const task = (o: Partial<StatTask>): StatTask => ({
   id: "t", title: "T", due: "2026-10-10", time: null, priority: null, estimate_mins: null, done: false, done_on: null,
-  sort_order: 0, source: "you", external_id: null, tags: [], link: null, note: null, description: null, created_on: "2026-10-01", ...o,
+  sort_order: 0, source: "you", external_id: null, tags: [], link: null, note: null, description: null, created_on: "2026-10-01", touched_on: "2026-10-01", ...o,
 });
 
 it("burns down: open is made by then and not done by then; scope is all made", () => {

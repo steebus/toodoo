@@ -37,7 +37,7 @@ describe("TaskPatch", () => {
 });
 
 describe("prepareTasks", () => {
-  it("normalises, defaults due to today and reports per-item errors", () => {
+  it("normalises, leaves due unset by default and reports per-item errors", () => {
     const r = prepareTasks([
       { title: "Reply to Sam", priority: "Medium", tags: "#Work", estimate_mins: "1h 30m", link: "mail.google.com/mail/u/0/#inbox/abc" },
       { title: "Bad", link: "javascript:alert(1)" },
@@ -45,7 +45,7 @@ describe("prepareTasks", () => {
     ], "2026-10-12");
     expect(r.rows).toEqual([{
       index: 0, epic_id: null, title: "Reply to Sam", description: null, note: null, link: "https://mail.google.com/mail/u/0/#inbox/abc",
-      source: "you", external_id: null, due: "2026-10-12", time: null, priority: "med", estimate_mins: 90, tags: ["work"],
+      source: "you", external_id: null, due: null, time: null, priority: "med", estimate_mins: 90, tags: ["work"],
     }]);
     expect(r.errors.map((e) => e.index)).toEqual([1, 2]);
   });

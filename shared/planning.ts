@@ -13,7 +13,7 @@ export type Priority = "high" | "med" | "low";
 export interface Task {
   id: string;
   title: string;
-  due: string;
+  due: string | null; // null: no due date (the default)
   time: string | null;
   priority: Priority | null;
   estimate_mins: number | null;
@@ -121,7 +121,11 @@ export function suggestions(o: {
     let score = 0;
     const reasons: string[] = [];
     if (prevDate && prevIds.has(task.id)) { score += 3; reasons.push(`unfinished from ${dayWord(prevDate, t)}'s plan`); }
-    if (task.due < t) {
+    // No due date: like a far-off one, suggested only when high or left over from the last plan.
+    if (task.due === null) {
+      if (!prevIds.has(task.id) && effectivePriority(task, epic) !== "high") continue;
+      score -= 1;
+    } else if (task.due < t) {
       const n = daysBetween(task.due, t);
       score += 2 + Math.min(n, 7) / 7;
       reasons.push(n === 1 ? "due yesterday" : `overdue ${n}d`);
@@ -139,7 +143,7 @@ export function suggestions(o: {
     }
     if (task.status && task.status !== "todo") {
       score += STATUS_WEIGHT[task.status];
-      reasons.push(task.status === "doing" ? "in progress" : "blocked");
+      reasons.push(task.status === "doing" ? "in progress" : task.status);
     }
     const e = eff.get(task.id);
     if (task.estimate_mins && e && e.planned >= task.estimate_mins) { score -= 1.5; reasons.push("estimate already planned"); }

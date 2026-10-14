@@ -80,8 +80,13 @@
 }
 /* Something held over the lane: its edge goes provisional (dashed), as the line's drop target does. */
 .lane.is-over, .epic-head.is-over { border: 1px dashed var(--ink-3); }
+/* The add line's chips: what it has understood, in a row under it (a lane is too narrow to share the line). */
+.lane-add { --u: 0.8px; margin-bottom: 12px; }
+.lane-add .chips { flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.lane-add .chips:empty { display: none; }
+.lane-add .chip { height: 26px; }
 .lane-add input {
-  width: 100%; height: 38px; margin-bottom: 12px; padding: 0 12px; box-sizing: border-box;
+  width: 100%; height: 38px; margin: 0; padding: 0 12px; box-sizing: border-box;
   font-family: var(--font-print); font-size: 15px; color: var(--ink); caret-color: var(--red);
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
@@ -168,7 +173,9 @@
 }
 .room .epic-toggle { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 0; padding: 4px 6px; border-radius: var(--radius); text-align: left; }
 .epic-meta { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; padding-left: 32px; }
-.epic-progress { margin-right: auto; }
+.epic-sum { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0 auto 0 6px; font-family: var(--font-print); font-size: 13px; color: var(--ink-2); }
+.epic-sum .is-high, .epic-sum .is-late { color: var(--red-ink); }
+.epic-sum-soft { color: var(--ink-3); }
 .epic-chevron { flex: none; color: var(--ink-2); transform: rotate(-90deg); transition: transform 0.22s ease; }
 .epic-toggle[aria-expanded="true"] .epic-chevron { transform: none; }
 .epic-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: 22px; line-height: 1.1; }
@@ -185,7 +192,7 @@
 .epic-body { padding: 0 12px 14px; animation: fade-in 0.2s ease-out both; }
 .epic-desc { margin: 0 0 12px; max-width: 70ch; font-size: 16px; line-height: 1.4; color: var(--ink-2); white-space: pre-line; }
 .epic-empty { margin: 4px 0 6px; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
-.epic-body .lane-add input { margin: 12px 0 0; }
+.epic-body .lane-add { margin: 12px 0 0; }
 .lane.strips { gap: 11px; padding: 12px 10px 10px; min-height: 44px; }
 
 /* a strip: one printed line, the grip at its left and the cross at its right */
@@ -781,3 +788,60 @@
 @keyframes room-in { from { opacity: 0; transform: translateX(7%); } }
 @keyframes room-out-back { to { opacity: 0; transform: translateX(5%); } }
 @keyframes room-in-back { from { opacity: 0; transform: translateX(-7%); } }
+
+/* ---------- Tidy up: piles of tasks, one card at a time ---------- */
+.tidy-piles { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 0 auto 26px; }
+.room .tidy-pile {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+  font-family: var(--font-print); font-size: 14px; color: var(--ink-2); border: 1px solid var(--rule-soft);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.room .tidy-pile:hover { color: var(--ink); background: var(--well); }
+.room .tidy-pile[aria-selected="true"] { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.room .tidy-pile[aria-selected="true"] .count-chip { background: color-mix(in srgb, var(--paper) 22%, transparent); color: var(--paper); }
+.tidy-stage { position: relative; display: grid; justify-items: center; align-content: start; min-height: 420px; }
+.tidy-card {
+  position: relative; width: min(560px, 100%); box-sizing: border-box; padding: 22px 26px 24px;
+  background: var(--paper); color: var(--paper-ink); border-radius: 4px;
+  box-shadow: 0 1px 0 var(--rule), 0 14px 32px -12px rgb(0 0 0 / 0.28), 6px 8px 0 -2px color-mix(in srgb, var(--paper) 80%, var(--rule)), 12px 15px 0 -4px color-mix(in srgb, var(--paper) 65%, var(--rule));
+}
+.tidy-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; border-radius: 4px 0 0 4px; background: var(--epic, transparent); }
+.tidy-kicker { display: flex; justify-content: space-between; margin: 0 0 14px; font-family: var(--font-print); font-size: 12px; letter-spacing: 0.08em; color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
+.tidy-title { margin: 0; font-family: var(--font-ui); font-weight: 700; font-size: clamp(24px, 4vw, 32px); line-height: 1.12; overflow-wrap: anywhere; }
+.tidy-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 12px 0 0; font-family: var(--font-print); font-size: 13px; color: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }
+.tidy-meta .is-high { color: var(--red-ink); }
+.tidy-desc { margin: 12px 0 0; font-size: 15px; line-height: 1.4; color: color-mix(in srgb, var(--paper-ink) 78%, var(--paper)); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tidy-field { margin: 22px 0 0; }
+.tidy-input { position: relative; display: block; }
+.tidy-input input {
+  width: 100%; box-sizing: border-box; height: 52px; padding: 0 16px; font-family: var(--font-print); font-size: 20px;
+  color: var(--paper-ink); caret-color: var(--biro); background: color-mix(in srgb, var(--paper) 92%, var(--paper-ink));
+  border: 2px solid color-mix(in srgb, var(--paper-ink) 25%, var(--paper)); border-radius: 6px;
+}
+.tidy-input input:focus-visible { outline: none; border-color: var(--biro); }
+.tidy-input input[aria-invalid] { border-color: var(--red-soft); }
+.tidy-read { position: absolute; right: 14px; top: 50%; translate: 0 -50%; font-family: var(--font-print); font-size: 16px; color: var(--biro); pointer-events: none; }
+.tidy-keys { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.tidy-card > .tidy-keys { margin-top: 24px; }
+.room .tidy-key {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; font-family: var(--font-print); font-size: 14px;
+  color: var(--paper-ink); border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, var(--paper));
+  transition: transform 0.15s var(--spring), background 0.15s ease;
+}
+.room .tidy-key:hover:not(:disabled) { background: color-mix(in srgb, var(--paper) 88%, var(--paper-ink)); transform: translateY(-1px); }
+.room .tidy-key:active:not(:disabled) { transform: translateY(1px) scale(0.97); }
+.tidy-key kbd { font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 3px; color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); border: 1px solid color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); }
+.room .tidy-key.is-delete { color: var(--red-ink); }
+.room .tidy-key.is-skip { margin-left: auto; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); border-style: dashed; }
+.tidy-clear { display: grid; justify-items: center; gap: 16px; padding-top: 60px; }
+.tidy-clear-word { margin: 0; font-family: var(--font-print); font-size: 28px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+@media (max-width: 640px) { .tidy-card { padding: 18px 18px 20px; } .tidy-key kbd { display: none; } }
+
+/* The wordmark's count of tasks to tidy: a small stamp up by the name. */
+.tidy-badge {
+  display: inline-grid; place-items: center; min-width: 1.5em; height: 1.5em; padding: 0 0.35em; box-sizing: border-box; margin-left: 0.15em;
+  align-self: flex-start; font-family: var(--font-print); font-size: max(10px, 0.42em); font-weight: 700; letter-spacing: 0; line-height: 1;
+  color: var(--paper); background: var(--red); border-radius: 999px; animation: tidy-badge 0.5s var(--spring) both;
+}
+@keyframes tidy-badge { from { transform: scale(0.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tidy-badge { animation: none; } }

@@ -32,7 +32,7 @@ describe("columns", () => {
   it("files open tasks by status in manual order, and done newest first", () => {
     const c = columns(w, { epic: "", sort: "manual" });
     expect(Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v.map((t) => t.id)])))
-      .toEqual({ todo: ["b", "a"], doing: ["c"], blocked: ["d"], done: ["f", "e"] });
+      .toEqual({ backlog: [], todo: ["b", "a"], doing: ["c"], blocked: ["d"], done: ["f", "e"] });
   });
   it("filters by epic, or by no epic", () => {
     expect(columns(w, { epic: "hot", sort: "manual" }).doing.map((t) => t.id)).toEqual(["c"]);
@@ -70,7 +70,7 @@ it("the Board's ] key moves a card to the next column and Enter opens it", async
   expect(a.save).toHaveBeenLastCalledWith("a", { status: "blocked" });
 });
 
-it("the Epics screen hides done epics until asked, and unfiles a task with its cross", async () => {
+it("the Epics screen hides done epics until filtered in, and unfiles a task with its cross", async () => {
   const a = actions();
   render(<Epics work={work([task("a", { title: "In hot", epic_id: "hot" }), task("b", { title: "Loose" })])} actions={a} />);
   expect(screen.getByRole("heading", { name: "Hot" })).toBeTruthy();
@@ -80,7 +80,8 @@ it("the Epics screen hides done epics until asked, and unfiles a task with its c
   await userEvent.click(screen.getByRole("button", { name: /^Hot$/ }));
   await userEvent.click(screen.getByRole("button", { name: "Take In hot out of Hot" }));
   expect(a.move).toHaveBeenCalledWith("a", { epic_id: null }, "Out of Hot: In hot");
-  await userEvent.click(screen.getByRole("button", { name: /Show done/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Sort and filter" }));
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Status" }), "all");
   expect(screen.getByRole("heading", { name: "Old" })).toBeTruthy();
   const hot = screen.getByRole("heading", { name: "Hot" }).closest("section")!;
   await userEvent.selectOptions(within(hot).getByRole("combobox", { name: "Status of Hot" }), "on_hold");

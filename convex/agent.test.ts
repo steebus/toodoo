@@ -63,11 +63,11 @@ it("plans only on commit, and unplans", async () => {
 
 it("snapshot shows today's tasks, the day and the plan", async () => {
   const t = setup();
-  await t.mutation(api.agent.addTasks, { tasks: [{ title: "Today thing" }] });
+  await t.mutation(api.agent.addTasks, { tasks: [{ title: "Undated thing" }] });
   await t.mutation(api.agent.setDay, { day: { date: "2026-10-12", headline: "Clear arvo", events: [{ start: "9:15", end: "09:30", title: "Standup" }] } });
   const s = await t.query(api.agent.getSnapshot, {});
   expect(s.today).toBe("2026-10-12");
-  expect(s.tasks.due.map((x) => x.title)).toEqual(["Today thing"]);
+  expect(s.tasks.undated.map((x) => x.title)).toEqual(["Undated thing"]);
   expect(s.day).toMatchObject({ headline: "Clear arvo", events: [{ start: "09:15", title: "Standup" }] });
 });
 
@@ -161,7 +161,7 @@ it("keeps a task's checklist, tidied, and reports it to the agent", async () => 
   const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Pack", checklist: ["Passports", " ", { text: "Chargers", done: true }] }] });
   const id = created[0].id;
   const snap = await t.query(api.agent.getSnapshot, { now: Date.parse("2026-10-12T02:00:00Z") });
-  expect(snap.tasks.due[0]).toMatchObject({ checklist: [{ text: "Passports", done: false }, { text: "Chargers", done: true }] });
+  expect(snap.tasks.undated[0]).toMatchObject({ checklist: [{ text: "Passports", done: false }, { text: "Chargers", done: true }] });
   const up = await t.mutation(api.agent.updateTask, { id, patch: { checklist: [{ text: "Passports", done: true }] } });
   expect(up.checklist).toEqual([{ text: "Passports", done: true }]);
   await expect(t.mutation(api.agent.updateTask, { id, patch: { checklist: Array(51).fill("x") } })).rejects.toThrow(/checklist/);

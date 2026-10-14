@@ -58,7 +58,7 @@ it("runs tools as the signed-in user", async () => {
   const added: any = await call("add_tasks", { tasks: [{ title: "Via MCP" }] });
   expect(JSON.parse(added.result.content[0].text).created).toHaveLength(1);
   const snap: any = await call("get_snapshot", {});
-  expect(JSON.parse(snap.result.content[0].text).tasks.due.map((x: any) => x.title)).toContain("Via MCP");
+  expect(JSON.parse(snap.result.content[0].text).tasks.undated.map((x: any) => x.title)).toContain("Via MCP");
   const bad: any = await call("update_task", { id: "garbage", patch: { done: true } });
   expect(bad.result.isError).toBe(true);
 });

@@ -17,7 +17,7 @@ export default defineSchema({
     link: str,
     source: v.string(),
     external_id: str,
-    due: v.string(),
+    due: str, // null: no due date
     time: str,
     priority,
     estimate_mins: v.union(v.number(), v.null()),
@@ -29,7 +29,7 @@ export default defineSchema({
     updated_at: v.number(),
     // Optional so rows from before epics and Kanban still validate.
     epic_id: v.optional(v.union(v.id("epics"), v.null())),
-    status: v.optional(v.union(v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
+    status: v.optional(v.union(v.literal("backlog"), v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
     checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))),
   })
     .index("by_user_done", ["user_id", "done"])

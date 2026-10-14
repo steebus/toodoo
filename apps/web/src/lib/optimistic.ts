@@ -26,7 +26,7 @@ export const addTasks = (store: Store, { tasks }: { tasks: unknown[] }) =>
     tasks: [
       ...b.tasks,
       ...(tasks as Partial<FullTask>[]).map((t, i): FullTask => ({
-        id: `optimistic-${++optimisticId}`, title: t.title ?? "", due: t.due ?? b.today, time: t.time ?? null,
+        id: `optimistic-${++optimisticId}`, title: t.title ?? "", due: t.due ?? null, time: t.time ?? null,
         priority: t.priority ?? null, estimate_mins: typeof t.estimate_mins === "number" ? t.estimate_mins : null,
         done: false, done_on: null, sort_order: 1e9 + i, source: t.source ?? "you", external_id: t.external_id ?? null,
         tags: Array.isArray(t.tags) ? t.tags : [], link: t.link ?? null, note: t.note ?? null, description: t.description ?? null,

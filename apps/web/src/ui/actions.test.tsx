@@ -72,10 +72,10 @@ it("quick add submits the parsed payload and clears the input", async () => {
   expect(input()).toHaveValue("");
 });
 
-it("quick add defaults the due date to today", async () => {
+it("quick add leaves the due date unset", async () => {
   await userEvent.type(input(), "Water plants");
   await userEvent.click(screen.getByRole("button", { name: "Add" }));
-  expect(fn("addTasks").mock.calls[0][0].tasks[0]).toMatchObject({ title: "Water plants", due: T, source: "you" });
+  expect(fn("addTasks").mock.calls[0][0].tasks[0]).toMatchObject({ title: "Water plants", due: null, source: "you" });
 });
 
 it("quick add rejects an empty title", async () => {

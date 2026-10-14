@@ -4,6 +4,7 @@ import { useState, type CSSProperties, type FormEvent, type KeyboardEvent } from
 import { effectivePriority, plusHigh, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { dayWord, formatDuration } from "@shared/planning.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
+import { ParsedChips } from "./QuickAdd";
 import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { waitingDays } from "@shared/board.ts";
 import type { WorkTask } from "../lib/useWork";
@@ -22,6 +23,7 @@ export const epicStyle = (e?: { colour?: string | null } | null) =>
 // When, as a docket prints it: carried tasks count their days in red, near ones say the day.
 export function when(t: FullTask, today: string) {
   if (t.done) return { text: t.done_on ? `DONE ${dayWord(t.done_on, today).toUpperCase()}` : "DONE", late: false };
+  if (!t.due) return { text: "", late: false };
   if (t.due < today) {
     const n = waitingDays(t.due, today);
     return { text: `${n} ${n === 1 ? "DAY" : "DAYS"}`, late: true };
@@ -125,20 +127,21 @@ export function LaneAdd({ today, label, extra, onAdd, disabled, epics }: {
   epics?: Epic[]; // given, +epic files the task (the lane's own epic otherwise)
 }) {
   const [line, setLine] = useState("");
+  const p = parseQuickAdd(line, today, 0, epics);
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const p = parseQuickAdd(line, today, 0, epics);
     if (!p.title.trim()) return;
     const typed = line;
     setLine("");
     void onAdd({
-      title: p.title, due: p.due ?? today, time: p.time, priority: p.priority, tags: p.tags, estimate_mins: p.estimate_mins, ...extra,
+      title: p.title, due: p.due, time: p.time, priority: p.priority, tags: p.tags, estimate_mins: p.estimate_mins, ...extra,
       ...(p.epic_id ? { epic_id: p.epic_id } : null),
     }).then((ok) => ok || setLine((cur) => cur || typed));
   };
   return (
     <form className="lane-add" onSubmit={submit}>
-      <input value={line} onChange={(e) => setLine(e.target.value)} placeholder={epics ? QUICKADD_HINT : QUICKADD_HINT.replace(/ \+epic$/, "")} aria-label={label} disabled={disabled} autoComplete="off" />
+      <input value={line} onChange={(e) => setLine(e.target.value)} placeholder={epics ? QUICKADD_HINT : QUICKADD_HINT.replace(/ \+epic$/, "")} aria-label={label} disabled={disabled} autoComplete="off" spellCheck={false} />
+      <ParsedChips parsed={p} epics={epics} />
     </form>
   );
 }

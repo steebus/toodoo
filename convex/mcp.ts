@@ -8,13 +8,13 @@ const obj = (properties: Record<string, unknown>, required: string[] = []) =>
 
 export const TOOL_DEFS = [
   { name: "get_snapshot", annotations: { readOnlyHint: true },
-    description: "Start here. Tasks (carried/due/upcoming/done), the day's events+headline and next day's, week (events for the 3 days after), the day's plan, top suggestions, app_url. date defaults to today (Australia/Brisbane); query filters by text or #tag.",
+    description: "Start here. Tasks (carried/due/upcoming/undated/done), the day's events+headline and next day's, week (events for the 3 days after), the day's plan, top suggestions, app_url. date defaults to today (Australia/Brisbane); query filters by text or #tag.",
     inputSchema: obj({ date, query: { type: "string", maxLength: 100 } }) },
   { name: "add_tasks",
-    description: "Add tasks in one batch (max 100). Each: {title, source?, external_id?, due?, time? HH:MM, priority? high|med|low, estimate_mins? (number or '1h 30m'), tags?, link?, note?, description?, epic? (an epic's name) or epic_id?, status? todo|doing|blocked (also 'To Do', 'In Progress', 'On hold'), checklist? [text or {text, done}]}. Every fact goes in its own field: priority, status, epic, estimate, due and tags are never written into note or description. Existing source+external_id are skipped, never changed.",
+    description: "Add tasks in one batch (max 100). Each: {title, source?, external_id?, due?, time? HH:MM, priority? high|med|low, estimate_mins? (number or '1h 30m'), tags?, link?, note?, description?, epic? (an epic's name) or epic_id?, status? backlog|todo|doing|blocked (also 'To Do', 'In Progress', 'On hold'), checklist? [text or {text, done}]}. Every fact goes in its own field: priority, status, epic, estimate, due and tags are never written into note or description. Existing source+external_id are skipped, never changed.",
     inputSchema: obj({ tasks: { type: "array", minItems: 1, maxItems: 100, items: { type: "object" } } }, ["tasks"]) },
   { name: "update_task",
-    description: "Patch one task by id: done (sets done_on), due, time, priority, estimate_mins, tags, title, note, description, link, epic (a name) or epic_id (null removes it from its epic), status todo|doing|blocked (the Kanban column; 'In Progress' etc. are understood), checklist [{text, done}] (replaces the whole list). Use the fields, never note, for priority, status and epic.",
+    description: "Patch one task by id: done (sets done_on), due, time, priority, estimate_mins, tags, title, note, description, link, epic (a name) or epic_id (null removes it from its epic), status backlog|todo|doing|blocked (the Kanban column; 'In Progress' etc. are understood), checklist [{text, done}] (replaces the whole list). Use the fields, never note, for priority, status and epic.",
     inputSchema: obj({ id: { type: "string" }, patch: { type: "object" } }, ["id", "patch"]) },
   { name: "set_day",
     description: "Upsert a day's headline and/or events [{start HH:MM, end HH:MM, title, where?, allDay?}]. Events replace the day's list, except when the user has a calendar feed: then events come only from it and are ignored here.",

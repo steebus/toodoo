@@ -139,3 +139,11 @@ it("puts the week ahead in Coming up and everything after in Later, each by due 
   expect(titles(g.find((x) => x.key === "comingup")!.tasks)).toEqual(["Tomorrow", "Next week"]);
   expect(titles(g.find((x) => x.key === "later")!.tasks)).toEqual(["In eight days", "In a month"]);
 });
+
+it("puts tasks with no due date in Later, after the dated ones, and last when sorted by due", () => {
+  const ts = [task({ title: "Undated", due: null }), task({ title: "Far", due: "2026-04-01" }), task({ title: "Soon", due: "2026-03-12" })];
+  const g = groupTasks(ts, T, view());
+  expect(titles(g.find((x) => x.key === "later")!.tasks)).toEqual(["Far", "Undated"]);
+  expect(titles(g.find((x) => x.key === "comingup")!.tasks)).toEqual(["Soon"]);
+  expect(titles(sortTasks(ts, "due"))).toEqual(["Soon", "Far", "Undated"]);
+});

@@ -71,11 +71,11 @@ it("renders the header from the board", () => {
   expect(screen.getByRole("button", { name: /Focus/ })).toBeDisabled();
 });
 
-it("the wordmark's chevron opens the menu: theme, all tasks, stats, share, calendars and sign out", async () => {
+it("the wordmark's chevron opens the menu: theme, all tasks, tidy up, stats, share, calendars and sign out", async () => {
   show();
   await userEvent.click(screen.getByRole("button", { name: "Menu" }));
   const menu = screen.getByRole("menu", { name: "Menu" });
-  expect(within(menu).getAllByRole("menuitem").map((x) => x.textContent?.trim())).toEqual(["Auto", "All tasks", "Stats", "Share to toodoo", "Calendars", "Sign out"]);
+  expect(within(menu).getAllByRole("menuitem").map((x) => x.textContent?.trim())).toEqual(["Auto", "All tasks", "Tidy up", "Stats", "Share to toodoo", "Calendars", "Sign out"]);
   const theme = within(menu).getByRole("menuitem", { name: /^Theme: Auto/ });
   await userEvent.click(theme);
   expect(within(menu).getByRole("menuitem", { name: /^Theme: Light/ })).toBeInTheDocument();

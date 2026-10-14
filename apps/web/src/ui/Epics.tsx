@@ -1,6 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { nullsLast } from "@shared/board.ts";
 import { useMemo, useState, type HTMLAttributes, type ReactNode, type Ref } from "react";
 import { byEpicRank, effectivePriority, EPIC_STATUSES, EPIC_STATUS_LABEL, epicMap, nextColour, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { addDays, byOrder, formatDuration } from "@shared/planning.ts";
@@ -14,20 +15,45 @@ import { justDropped, LaneDnd, LaneList } from "./LaneDnd";
 import { epicStyle, LaneAdd, when } from "./Slip";
 import { fitOf, listLine } from "./build";
 import { TaskView } from "./TaskView";
+import { compactDate } from "./format";
+import { SettingsMenu, SettingsPick } from "./ViewMenu";
 import { Toast } from "./Toast";
 
 const NONE = "__none"; // the lane of tasks with no epic
 const PRIORITY_LABEL = { high: "High", med: "Medium", low: "Low" } as const;
 
 const KEY = "toodoo.epicsView";
-type Prefs = { showDone: boolean; open: Record<string, boolean> };
+const SORTS = [["rank", "Status & priority"], ["due", "Next due"], ["work", "Most work left"], ["progress", "Furthest along"], ["name", "A–Z"]] as const;
+const SHOWS: [string, string][] = [["open", "Not done"], ["all", "All"], ...EPIC_STATUSES.map((s): [string, string] => [s, EPIC_STATUS_LABEL[s]])];
+const PRIORITIES: [string, string][] = [["", "Any"], ["high", "High"], ["med", "Medium"], ["low", "Low"], ["none", "No priority"]];
+type Sort = (typeof SORTS)[number][0];
+type Prefs = { sort: Sort; show: string; priority: string; open: Record<string, boolean> };
 function loadPrefs(): Prefs {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<Prefs> | null;
-    return { showDone: raw?.showDone === true, open: raw?.open && typeof raw.open === "object" ? raw.open : {} };
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? "null") as (Partial<Prefs> & { showDone?: boolean }) | null;
+    return {
+      sort: SORTS.find(([v]) => v === raw?.sort)?.[0] ?? "rank",
+      show: SHOWS.some(([v]) => v === raw?.show) ? raw!.show! : raw?.showDone ? "all" : "open",
+      priority: PRIORITIES.some(([v]) => v === raw?.priority) ? raw!.priority! : "",
+      open: raw?.open && typeof raw.open === "object" ? raw.open : {},
+    };
   } catch {
-    return { showDone: false, open: {} };
+    return { sort: "rank", show: "open", priority: "", open: {} };
   }
+}
+
+// What an epic's open tasks add up to: the work left, how many, the high, stuck and late ones, and the next date.
+export function summary(tasks: FullTask[], today: string, epic?: Epic) {
+  const dues = tasks.map((t) => t.due).filter((d): d is string => d !== null).sort();
+  return {
+    mins: tasks.reduce((n, t) => n + (t.estimate_mins ?? 0), 0),
+    unsized: tasks.filter((t) => !t.estimate_mins).length,
+    high: tasks.filter((t) => effectivePriority(t, epic) === "high").length,
+    doing: tasks.filter((t) => t.status === "doing").length,
+    blocked: tasks.filter((t) => t.status === "blocked").length,
+    late: dues.filter((d) => d < today).length,
+    next: dues.find((d) => d >= today) ?? null,
+  };
 }
 // Every epic starts folded (its name, colour, progress and controls still show); opened ones stay open.
 const openByDefault = (_e?: Epic) => false;
@@ -42,9 +68,6 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
   const [viewing, setViewing] = useState<string | null>(null);
   const off = actions.offline;
 
-  const ranked = useMemo(() => [...work.epics].sort(byEpicRank), [work.epics]);
-  const shown = prefs.showDone ? ranked : ranked.filter((e) => e.status !== "done");
-  const hiddenDone = ranked.length - shown.length;
   const epics = useMemo(() => epicMap(work.epics), [work.epics]);
   const byId = useMemo(() => new Map(work.tasks.map((t) => [t.id, t])), [work.tasks]);
   // Each epic lists its open tasks in manual order; tasks in a hidden (done) epic stay where they are.
@@ -54,6 +77,21 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
     for (const l of m.values()) l.sort(byOrder);
     return m;
   }, [work]);
+  const sums = useMemo(() => new Map(work.epics.map((e) => [e.id, summary(lists.get(e.id)!, work.today, e)])), [work, lists]);
+  const shown = useMemo(() => {
+    const progress = (e: Epic) => { const d = work.done_counts[e.id] ?? 0, n = d + lists.get(e.id)!.length; return n ? d / n : 0; };
+    const by: Record<Sort, (a: Epic, b: Epic) => number> = {
+      rank: () => 0,
+      due: (a, b) => nullsLast(sums.get(a.id)!.next, sums.get(b.id)!.next),
+      work: (a, b) => sums.get(b.id)!.mins - sums.get(a.id)!.mins,
+      progress: (a, b) => progress(b) - progress(a),
+      name: (a, b) => a.title.localeCompare(b.title),
+    };
+    return work.epics
+      .filter((e) => (prefs.show === "all" ? true : prefs.show === "open" ? e.status !== "done" : e.status === prefs.show))
+      .filter((e) => !prefs.priority || (e.priority ?? "none") === prefs.priority)
+      .sort((a, b) => by[prefs.sort](a, b) || byEpicRank(a, b));
+  }, [work, lists, sums, prefs.show, prefs.priority, prefs.sort]);
   const lanes: Lane[] = [...shown.map((e) => e.id), NONE].map((id) => ({ id, ids: lists.get(id)!.map((t) => t.id) }));
   const isOpen = (id: string) => prefs.open[id] ?? openByDefault(epics.get(id));
   const toggle = (id: string) => setPrefs({ ...prefs, open: { ...prefs.open, [id]: !isOpen(id) } });
@@ -84,12 +122,12 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
     <main className="room-main epics">
       <h1 className="sr-only">Epics</h1>
       <HeaderControls>
-        {(hiddenDone > 0 || prefs.showDone) && (
-          <button type="button" className="room-toggle" aria-pressed={prefs.showDone} onClick={() => setPrefs({ ...prefs, showDone: !prefs.showDone })}>
-            {prefs.showDone ? "Hide done" : `Show done`}
-            {!prefs.showDone && <span className="count-chip">{hiddenDone}</span>}
-          </button>
-        )}
+        <SettingsMenu label="Sort and filter">
+          <SettingsPick label="Sort" value={prefs.sort} options={SORTS.map(([v, l]): [string, string] => [v, l])}
+            onChange={(sort) => setPrefs({ ...prefs, sort: sort as Sort })} />
+          <SettingsPick label="Status" value={prefs.show} options={SHOWS} onChange={(show) => setPrefs({ ...prefs, show })} />
+          <SettingsPick label="Priority" value={prefs.priority} options={PRIORITIES} onChange={(priority) => setPrefs({ ...prefs, priority })} />
+        </SettingsMenu>
         <button type="button" className="room-button" disabled={off} onClick={() => setSheet("new")}>
           <PlusIcon size={15} /> New epic
         </button>
@@ -105,6 +143,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
             const open = lists.get(e.id)!;
             const done = work.done_counts[e.id] ?? 0;
             const total = open.length + done;
+            const sum = sums.get(e.id)!;
             return (
               <section key={e.id} className={`epic is-${e.status}${e.priority === "high" ? " is-high" : ""}${e.colour ? " has-epic" : ""}`}
                 style={epicStyle(e)} aria-labelledby={`epic-${e.id}`}>
@@ -119,6 +158,15 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
                     <span>{done}/{total}</span>
                     <span className="epic-track" aria-hidden><span className="epic-fill" style={{ transform: `scaleX(${total ? done / total : 0})` }} /></span>
                   </span>
+                  <p className="epic-sum">
+                    {open.length > 0 && <span>{sum.mins ? `~${formatDuration(sum.mins)} left` : "unsized"}{sum.mins > 0 && sum.unsized > 0 && <span className="epic-sum-soft"> +{sum.unsized} unsized</span>}</span>}
+                    {open.length > 0 && <span>{open.length} open</span>}
+                    {sum.doing > 0 && <span>{sum.doing} doing</span>}
+                    {sum.high > 0 && <span className="is-high">{sum.high} high</span>}
+                    {sum.blocked > 0 && <span className="is-late">{sum.blocked} blocked</span>}
+                    {sum.late > 0 && <span className="is-late">{sum.late} overdue</span>}
+                    {sum.next && <span>next {sum.next === work.today ? "today" : compactDate(sum.next)}</span>}
+                  </p>
                   <select className={`epic-pick epic-priority is-${e.priority ?? "none"}`} aria-label={`Priority of ${e.title}`} value={e.priority ?? ""} disabled={off}
                     onChange={(ev) => void actions.updateEpic(e.id, { priority: (ev.target.value || null) as Epic["priority"] }, `${e.title}: ${ev.target.value ? PRIORITY_LABEL[ev.target.value as keyof typeof PRIORITY_LABEL].toLowerCase() : "no"} priority`)}>
                     <option value="">No priority</option>
@@ -144,7 +192,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
               </section>
             );
           })}
-          {!shown.length && <p className="epic-empty">No epics yet.</p>}
+          {!shown.length && <p className="epic-empty">{work.epics.length ? "No epics match." : "No epics yet."}</p>}
           <section className="epic is-none" aria-labelledby="epic-none">
             <EpicHead lane={NONE} droppable={!isOpen(NONE)}>
               <button type="button" className="epic-toggle" aria-expanded={isOpen(NONE)} aria-controls="epic-body-none" onClick={() => toggle(NONE)}>

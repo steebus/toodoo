@@ -11,6 +11,7 @@ import { go, useRoute } from "./lib/useRoute";
 import { useEverything, useWorkActions, useWorkspace } from "./lib/useWork";
 import { AllTasks } from "./ui/AllTasks";
 import { Stats } from "./ui/Stats";
+import { Tidy } from "./ui/Tidy";
 import { Epics } from "./ui/Epics";
 import { Hero, HeroShell } from "./ui/Hero";
 import { Kanban } from "./ui/Kanban";
@@ -88,7 +89,7 @@ function WorkRoom({ room }: { room: "board" | "epics" | "matrix" }) {
 }
 
 // Stats and All tasks: the whole account. All tasks edits through the Board's actions (a task's ticket, as there).
-function AccountRoom({ room }: { room: "stats" | "tasks" }) {
+function AccountRoom({ room }: { room: "stats" | "tasks" | "tidy" }) {
   const out = useSignOut();
   const board = useTodayBoard();
   const all = useEverything();
@@ -97,7 +98,7 @@ function AccountRoom({ room }: { room: "stats" | "tasks" }) {
   return (
     <RoomShell room={room} board={board} offline={actions.offline} onSignOut={out}>
       {!all ? <main className="room-main is-loading" aria-busy><div className="room-head"><span className="skel skel-line" style={{ width: 120, height: 26 }} /></div></main>
-        : room === "stats" ? <Stats all={all} /> : <AllTasks all={all} actions={actions} />}
+        : room === "stats" ? <Stats all={all} /> : room === "tidy" ? <Tidy all={all} actions={actions} /> : <AllTasks all={all} actions={actions} />}
     </RoomShell>
   );
 }
@@ -109,7 +110,7 @@ function Rooms({ cached }: { cached?: string }) {
     if (room !== "share" && pendingShare()) go("share");
   }, [room]);
   if (room === "share" || room === "calendars") return <SideRoom key={room} room={room} />;
-  if (room === "stats" || room === "tasks") return <AccountRoom key={room} room={room} />;
+  if (room === "stats" || room === "tasks" || room === "tidy") return <AccountRoom key={room} room={room} />;
   return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
 }
 

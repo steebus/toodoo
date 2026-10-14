@@ -34,7 +34,7 @@ export function ShareForm({ shared, epics, offline, add }: { shared: Pending; ep
   const read: ShareRead = useMemo(() => readShare(shared, today, epics), [shared, today, epics]);
   const t = read.task;
   const [f, setF] = useState({
-    title: t.title, description: t.description ?? "", link: t.link ?? "", due: t.due ?? today, time: t.time ?? "",
+    title: t.title, description: t.description ?? "", link: t.link ?? "", due: t.due ?? "", time: t.time ?? "",
     priority: t.priority ?? "", estimate: t.estimate_mins ? formatDuration(t.estimate_mins) : "", tags: t.tags.join(", "),
     epic: t.epic_id ?? "",
   });
@@ -53,7 +53,7 @@ export function ShareForm({ shared, epics, offline, add }: { shared: Pending; ep
     setBusy(true);
     try {
       const r = await add([{
-          title, description: f.description.trim() || null, link: f.link.trim() || null, due: f.due || today, time: f.time || null,
+          title, description: f.description.trim() || null, link: f.link.trim() || null, due: f.due || null, time: f.time || null,
           priority: f.priority || null, estimate_mins: est || null, tags: f.tags.split(",").map((x) => x.trim()).filter(Boolean),
           epic_id: f.epic || null, source: t.source, external_id: t.external_id,
       }]);

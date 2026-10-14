@@ -107,7 +107,7 @@ it("an epic's priority reaches the board's suggestions and the agent's snapshot"
   const hot = await t.mutation(api.epics.create, { epic: { title: "Hot", priority: "high", status: "active" } });
   const held = await t.mutation(api.epics.create, { epic: { title: "Held", priority: "high", status: "on_hold" } });
   await t.mutation(api.agent.addTasks, {
-    tasks: [{ title: "Plain" }, { title: "Lifted", epic_id: hot.id }, { title: "Sunk", epic_id: held.id }],
+    tasks: [{ title: "Plain", due: "2026-10-12" }, { title: "Lifted", epic_id: hot.id, due: "2026-10-12" }, { title: "Sunk", epic_id: held.id, due: "2026-10-12" }],
   });
   const board = await t.query(api.agent.board, { now });
   expect(board.epics.map((e) => e.title)).toEqual(["Hot", "Held"]);

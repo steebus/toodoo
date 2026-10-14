@@ -57,9 +57,10 @@ export function buildSnapshot(o: { date: string; today: string; nowM: number; qu
     week: Array.from({ length: WEEK_AHEAD }, (_, i) => addDays(o.date, i + 2))
       .map((d) => ({ date: d, events: dayOf(d)?.events ?? [] })).filter((d) => d.events.length),
     tasks: {
-      carried: open.filter((t) => t.due < o.today).map(row),
-      due: open.filter((t) => t.due >= o.today && t.due <= o.date).map(row),
-      upcoming: open.filter((t) => t.due > o.date && t.due >= o.today).map(row),
+      carried: open.filter((t) => t.due !== null && t.due < o.today).map(row),
+      due: open.filter((t) => t.due !== null && t.due >= o.today && t.due <= o.date).map(row),
+      upcoming: open.filter((t) => t.due !== null && t.due > o.date && t.due >= o.today).map(row),
+      undated: open.filter((t) => t.due === null).map(row),
       done: o.tasks.filter((t) => t.done && t.done_on === o.date && match(t)).map((t) => ({ id: t.id, title: t.title })),
     },
     plan,

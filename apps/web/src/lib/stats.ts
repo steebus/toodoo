@@ -2,7 +2,7 @@ import { addDays, effortMap, type Block } from "@shared/planning.ts";
 import type { Epic } from "@shared/epics.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 
-export type StatTask = FullTask & { created_on: string };
+export type StatTask = FullTask & { created_on: string; touched_on: string };
 export type Everything = { today: string; nowM: number; epics: Epic[]; tasks: StatTask[]; blocks: Block[] };
 
 export const dayRange = (from: string, to: string) => {

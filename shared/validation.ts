@@ -14,7 +14,8 @@ export const parseTags = (v: unknown): string[] => {
 // The Kanban column, from the words people and trackers use: "To Do", "In Progress", "On hold"...
 export const normStatus = (v: unknown): TaskStatus | null => {
   const s = String(v ?? "").toLowerCase().replace(/[^a-z]+/g, " ").trim();
-  if (["todo", "to do", "open", "backlog", "new", "not started", "selected for development", "ready"].includes(s)) return "todo";
+  if (["todo", "to do", "open", "new", "not started", "selected for development", "ready"].includes(s)) return "todo";
+  if (["backlog", "icebox"].includes(s)) return "backlog";
   if (["doing", "in progress", "started", "active", "working", "in review", "review"].includes(s)) return "doing";
   if (["blocked", "on hold", "waiting", "stuck", "paused"].includes(s)) return "blocked";
   return null;
@@ -50,7 +51,7 @@ const Fields = z.object({
     if (l === undefined) { ctx.addIssue({ code: "custom", message: "not a web address" }); return z.NEVER; }
     return l;
   }).optional(),
-  due: dateStr.optional(),
+  due: dateStr.nullish(), // null clears it
   time: hmStr.nullish().transform((v) => (v ? v.padStart(5, "0") : null)),
   priority: z.unknown().transform(normPriority).optional(),
   estimate_mins: z.union([z.number(), z.string()]).nullish().transform((v, ctx) => {
@@ -70,7 +71,7 @@ const Fields = z.object({
   status: z.unknown().transform((v, ctx) => {
     const s = normStatus(v);
     if (s === null && v != null && String(v).trim() !== "") {
-      ctx.addIssue({ code: "custom", message: "status must be todo, doing or blocked" });
+      ctx.addIssue({ code: "custom", message: "status must be backlog, todo, doing or blocked" });
       return z.NEVER;
     }
     return s ?? undefined;
@@ -127,7 +128,7 @@ export interface AddResult {
 
 export interface TaskRow {
   title: string; description: string | null; note: string | null; link: string | null;
-  source: string; external_id: string | null; due: string; time: string | null;
+  source: string; external_id: string | null; due: string | null; time: string | null;
   priority: Priority | null; estimate_mins: number | null; tags: string[];
   epic_id: string | null; epic?: string; status?: TaskStatus; checklist?: { text: string; done: boolean }[];
 }
@@ -151,7 +152,7 @@ export function prepareTasks(inputs: unknown[], today: string) {
     }
     rows.push({
       index, title: v.title, description: v.description ?? null, note: v.note ?? null, link: v.link ?? null,
-      source, external_id, due: v.due ?? today, time: v.time ?? null, priority: v.priority ?? null,
+      source, external_id, due: v.due ?? null, time: v.time ?? null, priority: v.priority ?? null,
       estimate_mins: v.estimate_mins ?? null, tags: v.tags ?? [], epic_id: v.epic_id ?? null,
       ...(v.epic && !v.epic_id ? { epic: v.epic } : {}),
       ...(v.status ? { status: v.status } : {}),

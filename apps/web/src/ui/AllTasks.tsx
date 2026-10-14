@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { addDays } from "@shared/planning.ts";
 import { epicMap, TASK_STATUS_LABEL, type TaskStatus } from "@shared/epics.ts";
-import { NO_EPIC, NO_TAG } from "@shared/board.ts";
+import { NO_EPIC, NO_TAG, nullsLast } from "@shared/board.ts";
 import { haystack, matches, type Everything, type StatTask } from "../lib/stats";
 import type { WorkActions } from "../lib/useWork";
 import { epicStyle, when } from "./Slip";
@@ -21,7 +21,7 @@ function loadPrefs(): Prefs {
     return FRESH;
   }
 }
-const STATUSES: [Status, string][] = [["all", "Any status"], ["open", "Open"], ["todo", "To do"], ["doing", "Doing"], ["blocked", "Blocked"], ["done", "Done"]];
+const STATUSES: [Status, string][] = [["all", "Any status"], ["open", "Open"], ["backlog", "Backlog"], ["todo", "To do"], ["doing", "Doing"], ["blocked", "Blocked"], ["done", "Done"]];
 const PRIORITIES: [string, string][] = [["", "Any priority"], ["high", "High"], ["med", "Medium"], ["low", "Low"], ["none", "None"]];
 const SORTS: [Sort, string][] = [["made", "Newest"], ["done", "Recently done"], ["due", "Due"], ["title", "A–Z"]];
 const PAGE = 150; // ponytail: rows drawn at once; virtualise if a few hundred at a time ever drags
@@ -29,7 +29,7 @@ const PAGE = 150; // ponytail: rows drawn at once; virtualise if a few hundred a
 const SORT: Record<Sort, (a: StatTask, b: StatTask) => number> = {
   made: (a, b) => b.created_on.localeCompare(a.created_on) || b.sort_order - a.sort_order,
   done: (a, b) => (b.done_on ?? "").localeCompare(a.done_on ?? "") || b.created_on.localeCompare(a.created_on),
-  due: (a, b) => a.due.localeCompare(b.due),
+  due: (a, b) => nullsLast(a.due, b.due), // the undated last
   title: (a, b) => a.title.localeCompare(b.title),
 };
 

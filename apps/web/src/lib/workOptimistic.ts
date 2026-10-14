@@ -45,7 +45,7 @@ export const addTasks = (store: WorkStore, a: { tasks: unknown[] }) => {
     tasks: [
       ...w.tasks,
       ...(a.tasks as Partial<FullTask>[]).map((t, i): FullTask => ({
-        id: `optimistic-w${++n}`, title: t.title ?? "", due: t.due ?? w.today, time: t.time ?? null, priority: t.priority ?? null,
+        id: `optimistic-w${++n}`, title: t.title ?? "", due: t.due ?? null, time: t.time ?? null, priority: t.priority ?? null,
         estimate_mins: typeof t.estimate_mins === "number" ? t.estimate_mins : null, done: false, done_on: null,
         sort_order: typeof t.sort_order === "number" ? t.sort_order : 1e9 + i, source: t.source ?? "you", external_id: null,
         tags: Array.isArray(t.tags) ? t.tags : [], link: null, note: null, description: null,

@@ -125,7 +125,7 @@ function Live({ board, groups, manual, compact, actions, children, moves }: Prop
     if (to === "done") return actions.tick(id, true);
     const reopen = t.done ? { done: false } : {};
     if (to === "today") return actions.shift(id, { ...reopen, due: board.today, ...order }, `Today: ${t.title}`);
-    const later = t.due > board.today ? t.due : addDays(board.today, 1);
+    const later = t.due && t.due > board.today ? t.due : addDays(board.today, 1);
     actions.shift(id, { ...reopen, due: later, ...order }, `Coming up: ${t.title}`);
   };
   const onCancel = () => {

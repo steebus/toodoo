@@ -1,7 +1,10 @@
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
+import { useQuery } from "convex/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { api } from "@convex/_generated/api";
 import { addDays } from "@shared/planning.ts";
 import { useFitText } from "../lib/useFitText";
+import { compactDate, longDate } from "./format";
 import { go, type Room } from "../lib/useRoute";
 import { CaptureModeIcon, CheckIcon, ChevronIcon, PlanModeIcon, TimerIcon } from "./icons";
 import { RoomNav } from "./RoomNav";
@@ -27,8 +30,8 @@ export function TopBar({ date, dateShort, headline, total, presets, activePreset
       <p className="r-wordmark wordmark">{room ? <AppMenu onSignOut={onSignOut} /> : "toodoo"}</p>
       {room && <RoomNav room={room} />}
       {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : reconnecting ? "reconnecting" : "offline"}</span>}
-      <h1 className="r-date date" aria-label={date}>
-        {nav ? <DayNav {...nav} label={date} short={dateShort} /> : <DateText date={date} short={dateShort} />}
+      <h1 className="r-date date" aria-label={nav ? longDate(nav.date) : date}>
+        {nav ? <DayNav {...nav} /> : <DateText date={date} short={dateShort} />}
       </h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
       <p ref={line} className="r-headline headline" title={headline || undefined}>
@@ -76,7 +79,10 @@ const ROLL = {
 };
 
 // ‹ date ›: the date opens the calendar; away from today, a way back.
-function DayNav({ date, today, onDate, label, short }: { date: string; today: string; onDate: (d: string) => void; label: string; short?: string }) {
+// The label is the nav's own date, not the board's: the board lags a click behind while the day loads, and a roll
+// keyed on one date showing another just jumps.
+function DayNav({ date, today, onDate }: { date: string; today: string; onDate: (d: string) => void }) {
+  const label = longDate(date);
   const picker = useRef<HTMLInputElement>(null);
   const was = useRef(date);
   const dir = date < was.current ? -1 : 1;
@@ -99,7 +105,7 @@ function DayNav({ date, today, onDate, label, short }: { date: string; today: st
           <AnimatePresence initial={false} mode="popLayout" custom={dir}>
             <m.span key={date} className="daynav-roll" custom={dir} variants={ROLL} initial="in" animate="at" exit="out"
               transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}>
-              <DateText date={label} short={short} />
+              <DateText date={label} short={compactDate(date)} />
             </m.span>
           </AnimatePresence>
         </button>
@@ -117,6 +123,8 @@ function DayNav({ date, today, onDate, label, short }: { date: string; today: st
 function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
+  const counted = useQuery(api.stats.tidyCount, {});
+  const tidy = typeof counted === "number" ? counted : 0;
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false); };
@@ -132,12 +140,16 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
     <span className="daymenu" ref={root}>
       <button type="button" className="daymenu-button" aria-haspopup="menu" aria-expanded={open} aria-label="Menu" onClick={() => setOpen((o) => !o)}>
         toodoo
+        {tidy > 0 && <span key={tidy} className="tidy-badge" aria-label={`${tidy} to tidy`}>{tidy > 99 ? "99+" : tidy}</span>}
         <ChevronIcon size={18} className={`daymenu-chevron${open ? " is-open" : ""}`} />
       </button>
       {open && (
         <span className="daymenu-pop" role="menu" aria-label="Menu">
           <ThemeCycle />
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("tasks"); }}>All tasks</button>
+          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("tidy"); }}>
+            Tidy up{tidy > 0 && <span className="count-chip">{tidy}</span>}
+          </button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("stats"); }}>Stats</button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("share"); }}>Share to toodoo</button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("calendars"); }}>Calendars</button>

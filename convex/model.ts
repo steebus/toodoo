@@ -3,6 +3,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
+import { piles, QUIET_DAYS, tidyCount } from "../shared/tidy.ts";
 import { buildSnapshot, WEEK_AHEAD, type FullTask, type State } from "../shared/snapshot.ts";
 import {
   type AddResult, InputError, parseDay, parseEpic, parseEpicPatch, preparePatch, prepareTasks,
@@ -366,6 +367,16 @@ export async function workspace(db: R, userId: string, now: Date) {
 
 // Every task ever (with the day it was made), every epic and every block: Stats charts it, All tasks searches it.
 // ponytail: one unpaged read of everything; page it (or keep running totals) if an account outgrows a few thousand tasks
+// How many open tasks want tidying (quiet, undated or unsized): the count on the wordmark.
+export async function tidyCountOf(db: R, userId: string, now: Date) {
+  const { t } = clock(now);
+  const tasks = await db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", userId).eq("done", false)).collect();
+  const blocks = await db.query("plan_blocks")
+    .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", addDays(t, -QUIET_DAYS))).collect();
+  return tidyCount(piles(tasks.map((d) => ({ ...toTask(d), touched_on: ymd(new Date(d.updated_at)) })),
+    blocks.map((b) => ({ task_id: b.task_id as string, date: b.date })), t));
+}
+
 export async function everything(db: R, userId: string, now: Date) {
   const { t, nowM } = clock(now);
   const tasks = await db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", userId)).collect();
@@ -373,7 +384,7 @@ export async function everything(db: R, userId: string, now: Date) {
   return {
     today: t, nowM,
     epics: await listEpics(db, userId),
-    tasks: tasks.map((d) => ({ ...toTask(d), created_on: ymd(new Date(d.created_at)) })),
+    tasks: tasks.map((d) => ({ ...toTask(d), created_on: ymd(new Date(d.created_at)), touched_on: ymd(new Date(d.updated_at)) })),
     blocks: blocks.map((b) => ({ id: b._id as string, task_id: b.task_id as string, date: b.date, start: b.start, mins: b.mins })),
   };
 }

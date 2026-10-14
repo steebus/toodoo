@@ -21,7 +21,7 @@ const PRIORITY_LABEL: Record<Priority | "none", string> = { high: "High", med: "
 const rank = (p: Priority | null) => PRIORITY_RANK[p ?? "none"];
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const firstTag = (t: FullTask) => [...t.tags].sort()[0] ?? null;
-const nullsLast = (a: string | null, b: string | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : cmp(a, b));
+export const nullsLast = (a: string | null, b: string | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : cmp(a, b));
 
 export const waitingDays = (due: string, today: string) => Math.max(0, daysBetween(due, today));
 
@@ -39,7 +39,7 @@ export function sortTasks(tasks: FullTask[], sort: SortBy, epics?: Epic[]): Full
   const eff = (t: FullTask) => rank(effectivePriority(t, epicOf(t))) - (plusHigh(t, epicOf(t)) ? 0.5 : 0); // +high ahead of high
   const by: Record<SortBy, (a: FullTask, b: FullTask) => number> = {
     manual: () => 0,
-    due: (a, b) => cmp(a.due, b.due),
+    due: (a, b) => nullsLast(a.due, b.due),
     priority: (a, b) => eff(a) - eff(b),
     time: (a, b) => nullsLast(a.time, b.time),
     tag: (a, b) => nullsLast(firstTag(a), firstTag(b)),
@@ -63,13 +63,14 @@ export function groupTasks(tasks: FullTask[], today: string, view: View, epics?:
     // Coming up is the week ahead, Later everything after; both by day (the sort is stable, so the chosen order
     // holds within a day).
     const week = addDays(today, LATER_AFTER);
-    const ahead = open.filter((t) => t.due > today).sort((a, b) => cmp(a.due, b.due));
+    // No due date counts as Later, after the dated ones.
+    const ahead = open.filter((t) => t.due === null || t.due > today).sort((a, b) => nullsLast(a.due, b.due));
     return [
-      { key: "carried", label: "Carried over", tasks: open.filter((t) => t.due < today) },
+      { key: "carried", label: "Carried over", tasks: open.filter((t) => t.due !== null && t.due < today) },
       { key: "today", label: "Today", tasks: open.filter((t) => t.due === today) },
       { key: "done", label: "Done today", tasks: doneToday },
-      { key: "comingup", label: "Coming up", tasks: ahead.filter((t) => t.due <= week) },
-      { key: "later", label: "Later", tasks: ahead.filter((t) => t.due > week) },
+      { key: "comingup", label: "Coming up", tasks: ahead.filter((t) => t.due !== null && t.due <= week) },
+      { key: "later", label: "Later", tasks: ahead.filter((t) => t.due === null || t.due > week) },
     ];
   }
   const visible = rows.filter((t) => !t.done || t.done_on === today);

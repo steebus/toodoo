@@ -35,7 +35,7 @@ export const fitOf = (title: string): 0 | 1 | 2 => (title.length <= 24 ? 0 : tit
 
 // The rows print what the paper doesn't already show: the time and duration are in its head, the epic is its colour.
 export function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spent?: number): DocketData {
-  const carried = !t.done && t.due < today;
+  const carried = !t.done && t.due !== null && t.due < today;
   const high = effectivePriority(t, epic) === "high";
   const list = checklistProgress(t.checklist);
   const listRow: MetaRow[] = list ? [{ label: "LIST", value: listLine(list) }] : [];
@@ -46,18 +46,18 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
     fit: fitOf(t.title), progress: t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
   };
   if (carried) {
-    const n = waitingDays(t.due, today);
+    const n = waitingDays(t.due!, today);
     return {
       // The red slot over the title is the data itself (how long it has waited), not a kicker.
       ...common, variant: "carried", time: "", duration: est(t), source: sourceLabel(t), tag: `${n} ${n === 1 ? "DAY" : "DAYS"}`,
       lines: [t.title.toUpperCase()],
-      rows: [{ label: "DUE", value: shortDate(t.due) }, ...listRow, ...tagRow].slice(0, 3),
+      rows: [{ label: "DUE", value: shortDate(t.due!) }, ...listRow, ...tagRow].slice(0, 3),
       footer: null,
     };
   }
   const rows: MetaRow[] = [
     ...listRow,
-    ...(t.due !== today ? [{ label: "DUE", value: shortDate(t.due) }] : []),
+    ...(t.due && t.due !== today ? [{ label: "DUE", value: shortDate(t.due) }] : []),
     ...tagRow,
   ].slice(0, 3); // the paper has room for three
   const flags = [t.done ? "DONE" : "", high ? (plusHigh(t, epic) ? "! +HIGH" : "! HIGH") : "", sourceLabel(t)].filter(Boolean);
@@ -111,7 +111,7 @@ function whenOf(t: FullTask, b: BoardData): string {
     return d > 0 ? `Starts in ${formatDuration(d)}` : `Planned ${clock12(block.start)}`;
   }
   if (t.time) return `At ${clock12(t.time)}`;
-  return `Due ${dayWord(t.due, b.today)}`;
+  return t.due ? `Due ${dayWord(t.due, b.today)}` : "";
 }
 
 export function buildPass(b: BoardData, view: View): PassModel {

@@ -14,7 +14,7 @@ export type ToastData = { id: number; kind: "undo" | "error"; message: string; u
 
 export type NewTask = {
   title: string;
-  due: string;
+  due: string | null;
   time: string | null;
   priority: "high" | "med" | "low" | null;
   tags: string[];

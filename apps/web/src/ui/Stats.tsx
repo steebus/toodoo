@@ -67,7 +67,7 @@ export function Stats({ all }: { all: Everything }) {
       planned: plannedByDay(blocks, dayRange(from, addDays(today, 6)), today, nowM),
       status: [...TASK_STATUSES.map((k) => [TASK_STATUS_LABEL[k], open.filter((t) => (t.status ?? "todo") === k).length] as const), ["Done", doneIn.length] as const],
       priority: PRIORITY.map(([k, l]) => [l, open.filter((t) => (t.priority ?? "none") === k).length] as const),
-      overdue: open.filter((t) => t.due < today).length,
+      overdue: open.filter((t) => t.due !== null && t.due < today).length,
       thisWeek: done.filter((t) => t.done_on! >= weekOf(today)).length,
       streak: streak(new Set(perDay.keys()), today),
       budget: { est, act, n: sizedDone.length, worst: [...sized].filter((x) => x.actual > 0).sort((a, b) => Math.abs(b.actual - b.est) - Math.abs(a.actual - a.est)).slice(0, 8) },

@@ -91,5 +91,5 @@ test("add appends optimistic tasks with defaults", () => {
   addTasks(store, { tasks: [{ title: "New", tags: "junk", estimate_mins: "30m" }] });
   const added = q[1].value!.tasks[2];
   expect(isOptimistic(added.id)).toBe(true);
-  expect(added).toMatchObject({ title: "New", due: "2026-10-12", tags: [], estimate_mins: null, done: false, source: "you" });
+  expect(added).toMatchObject({ title: "New", due: null, tags: [], estimate_mins: null, done: false, source: "you" });
 });
