@@ -1,14 +1,10 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { requireUser } from "./lib/user";
-import { icsEvents, type FeedEvent } from "../shared/ics.ts";
-import { addDays, today } from "../shared/planning.ts";
+import { addDays } from "../shared/planning.ts";
 
 const MAX_FEEDS = 5;
-const MAX_BYTES = 5_000_000;
-const BACK = 1, AHEAD = 21; // days synced either side of today
 
 // What a feed is called on screen: the calendar's id for Google (an address, not the secret), else the host.
 export function feedLabel(url: string) {
@@ -30,7 +26,9 @@ export const feeds = query({
   handler: async (ctx) => {
     const user_id = await requireUser(ctx);
     const rows = await ctx.db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", user_id)).collect();
-    return rows.map((r) => ({ id: r._id, label: feedLabel(r.url), synced_at: r.synced_at ?? null, error: r.error ?? null }));
+    return rows.map((r) => ({
+      id: r._id, label: feedLabel(r.url), synced_at: r.synced_at ?? null, tried_at: r.tried_at ?? null, error: r.error ?? null,
+    }));
   },
 });
 
@@ -43,7 +41,7 @@ export const addFeed = mutation({
     if (rows.some((r) => r.url === url)) return;
     if (rows.length >= MAX_FEEDS) throw new ConvexError({ code: "input", message: `${MAX_FEEDS} calendars at most` });
     await ctx.db.insert("calendar_feeds", { user_id, url });
-    await ctx.scheduler.runAfter(0, internal.calendar.syncUser, { user_id });
+    await ctx.scheduler.runAfter(0, internal.calendarSync.syncUser, { user_id });
   },
 });
 
@@ -54,7 +52,7 @@ export const removeFeed = mutation({
     const row = await ctx.db.get(a.id);
     if (!row || row.user_id !== user_id) return;
     await ctx.db.delete(a.id);
-    await ctx.scheduler.runAfter(0, internal.calendar.syncUser, { user_id });
+    await ctx.scheduler.runAfter(0, internal.calendarSync.syncUser, { user_id });
   },
 });
 
@@ -64,7 +62,7 @@ export const syncAll = internalMutation({
   args: {},
   handler: async (ctx) => {
     const users = new Set((await ctx.db.query("calendar_feeds").collect()).map((r) => r.user_id));
-    for (const user_id of users) await ctx.scheduler.runAfter(0, internal.calendar.syncUser, { user_id });
+    for (const user_id of users) await ctx.scheduler.runAfter(0, internal.calendarSync.syncUser, { user_id });
   },
 });
 
@@ -73,33 +71,16 @@ export const feedsOf = internalQuery({
   handler: (ctx, a) => ctx.db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", a.user_id)).collect(),
 });
 
-export const syncUser = internalAction({
-  args: { user_id: v.string() },
-  handler: async (ctx, { user_id }) => {
-    const rows = await ctx.runQuery(internal.calendar.feedsOf, { user_id });
-    const t = today();
-    const from = addDays(t, -BACK), until = addDays(t, AHEAD);
-    const byDate: Record<string, FeedEvent[]> = {};
-    const results: { id: Id<"calendar_feeds">; error?: string }[] = [];
-    for (const r of rows) {
-      try {
-        const res = await fetch(r.url, { headers: { accept: "text/calendar" } });
-        if (!res.ok) throw new Error(`calendar said ${res.status}`);
-        const text = await res.text();
-        if (text.length > MAX_BYTES) throw new Error("calendar too big");
-        for (const [d, list] of Object.entries(icsEvents(text, from, until))) (byDate[d] ??= []).push(...list);
-        results.push({ id: r._id });
-      } catch (e) {
-        results.push({ id: r._id, error: e instanceof Error ? e.message.slice(0, 200) : "sync failed" });
-      }
-    }
-    // A feed that failed would read as an empty calendar: keep the last good events until every feed comes back.
-    const ok = results.every((r) => !r.error);
-    await ctx.runMutation(internal.calendar.writeSync, { user_id, from, until, days: ok ? byDate : null, results });
+const ev = v.object({ start: v.string(), end: v.string(), title: v.string(), where: v.optional(v.string()), allDay: v.optional(v.boolean()) });
+
+// A sync starting: each feed notes when, so one that never finishes (the action died) shows as stuck, not syncing.
+export const startSync = internalMutation({
+  args: { ids: v.array(v.id("calendar_feeds")) },
+  handler: async (ctx, a) => {
+    const now = Date.now();
+    for (const id of a.ids) if (await ctx.db.get(id)) await ctx.db.patch(id, { tried_at: now });
   },
 });
-
-const ev = v.object({ start: v.string(), end: v.string(), title: v.string(), where: v.optional(v.string()), allDay: v.optional(v.boolean()) });
 
 export const writeSync = internalMutation({
   args: {

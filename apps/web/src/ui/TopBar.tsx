@@ -139,8 +139,10 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
   return (
     <span className="daymenu" ref={root}>
       <button type="button" className="daymenu-button" aria-haspopup="menu" aria-expanded={open} aria-label="Menu" onClick={() => setOpen((o) => !o)}>
-        toodoo
-        {tidy > 0 && <span key={tidy} className="tidy-badge" aria-label={`${tidy} to tidy`}>{tidy > 99 ? "99+" : tidy}</span>}
+        <span className="daymenu-name">
+          toodoo
+          {tidy > 0 && <span key={tidy} className="tidy-badge" aria-label={`${tidy} to tidy`}>{tidy > 99 ? "99+" : tidy}</span>}
+        </span>
         <ChevronIcon size={18} className={`daymenu-chevron${open ? " is-open" : ""}`} />
       </button>
       {open && (

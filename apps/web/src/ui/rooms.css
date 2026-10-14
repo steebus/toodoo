@@ -837,10 +837,13 @@
 .tidy-clear-word { margin: 0; font-family: var(--font-print); font-size: 28px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 @media (max-width: 640px) { .tidy-card { padding: 18px 18px 20px; } .tidy-key kbd { display: none; } }
 
-/* The wordmark's count of tasks to tidy: a small stamp up by the name. */
+/* The wordmark's count of tasks to tidy: a small stamp hung on the name's last letter. It takes no room, so the
+   header's spacing (which knows the wordmark's width) holds with or without it. */
+.daymenu-name { position: relative; }
 .tidy-badge {
-  display: inline-grid; place-items: center; min-width: 1.5em; height: 1.5em; padding: 0 0.35em; box-sizing: border-box; margin-left: 0.15em;
-  align-self: flex-start; font-family: var(--font-print); font-size: max(10px, 0.42em); font-weight: 700; letter-spacing: 0; line-height: 1;
+  position: absolute; left: calc(100% - 0.3em); top: -0.38em; z-index: 1;
+  display: grid; place-items: center; min-width: 1.5em; height: 1.5em; padding: 0 0.35em; box-sizing: border-box;
+  box-shadow: 0 0 0 2px var(--ground); font-family: var(--font-print); font-size: max(10px, 0.42em); font-weight: 700; letter-spacing: 0; line-height: 1;
   color: var(--paper); background: var(--red); border-radius: 999px; animation: tidy-badge 0.5s var(--spring) both;
 }
 @keyframes tidy-badge { from { transform: scale(0.4); opacity: 0; } }

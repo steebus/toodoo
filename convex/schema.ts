@@ -51,7 +51,8 @@ export default defineSchema({
     .index("by_user_date", ["user_id", "date"]),
   // A user's calendar feeds (secret iCal addresses): synced into days.events on a cron, never sent back whole.
   calendar_feeds: defineTable({
-    user_id: v.string(), url: v.string(), synced_at: v.optional(v.number()), error: v.optional(v.string()),
+    user_id: v.string(), url: v.string(), synced_at: v.optional(v.number()), tried_at: v.optional(v.number()),
+    error: v.optional(v.string()),
   }).index("by_user", ["user_id"]),
   plan_blocks: defineTable({
     user_id: v.string(), date: v.string(), task_id: v.id("tasks"), start: v.string(), mins: v.number(),

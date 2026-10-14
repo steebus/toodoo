@@ -4,6 +4,11 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CloseIcon, PlusIcon } from "./icons";
 
+// A sync takes seconds; one tried this long ago with nothing to show never finished.
+const STUCK_MS = 3 * 60_000;
+const stuck = (f: { synced_at: number | null; tried_at: number | null }) =>
+  !!f.tried_at && (!f.synced_at || f.tried_at > f.synced_at) && Date.now() - f.tried_at > STUCK_MS;
+
 const ago = (t: number) => {
   const m = Math.round((Date.now() - t) / 60000);
   return m < 1 ? "just now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`;
@@ -41,8 +46,8 @@ export function CalendarsRoom({ offline = false }: { offline?: boolean }) {
             {feeds.map((f) => (
               <li key={f.id} className="cal-feed">
                 <span className="cal-feed-name">{f.label}</span>
-                <span className={`cal-feed-state${f.error ? " is-bad" : ""}`}>
-                  {f.error ?? (f.synced_at ? ago(f.synced_at) : "syncing")}
+                <span className={`cal-feed-state${f.error || stuck(f) ? " is-bad" : ""}`}>
+                  {f.error ?? (stuck(f) ? "sync didn't finish" : f.synced_at ? ago(f.synced_at) : "syncing")}
                 </span>
                 <button type="button" className="cal-feed-x" aria-label={`Remove ${f.label}`} disabled={offline}
                   onClick={() => remove({ id: f.id as Id<"calendar_feeds"> })}>

@@ -298,9 +298,9 @@
   background: var(--rack); border-radius: calc(6 * var(--u)); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.06);
   overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
-.grp { position: relative; padding-right: 0.6cqw; }
+.grp { position: relative; } /* no side padding: the rails run the rack edge to edge; the head and tickets keep theirs */
 .grp + .grp { margin-top: calc(10 * var(--u)); }
-.grp-head { display: flex; align-items: center; justify-content: space-between; height: calc(32 * var(--u)); padding-left: 0.6cqw; }
+.grp-head { display: flex; align-items: center; justify-content: space-between; height: calc(32 * var(--u)); padding: 0 0.6cqw; }
 /* A foldable rail: the whole head, label to chevron, is the button. */
 .grp-label:has(.grp-toggle) { flex: 1; align-self: stretch; }
 .pass .grp-toggle {
@@ -320,7 +320,7 @@
   --dk-w: calc(186 * var(--u)); --dk-h: calc(214 * var(--u)); --gap-x: calc(16 * var(--u)); --gap-y: calc(40 * var(--u));
   --band: calc(22 * var(--u)); --pad-top: calc(14 * var(--u));
   --pitch: calc(var(--dk-h) + var(--gap-y)); --rail-at: calc(var(--pad-top) - var(--band) * 0.5);
-  position: relative; margin: 0; padding: var(--pad-top) 0.4cqw calc(18 * var(--u)) 0.6cqw; list-style: none;
+  position: relative; margin: 0; padding: var(--pad-top) 1cqw calc(18 * var(--u)) 0.6cqw; list-style: none;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--dk-w), 1fr)); grid-auto-rows: var(--dk-h);
   column-gap: var(--gap-x); row-gap: var(--gap-y); min-height: calc(var(--pad-top) + var(--band));
 }
@@ -339,7 +339,7 @@
 
 /* Folded, or a column of stubs: one bar under the label. */
 .rail-bar {
-  display: block; height: calc(14 * var(--u)); margin: calc(2 * var(--u)) 0.4cqw 0 0.6cqw; border-radius: 2px;
+  display: block; height: calc(14 * var(--u)); margin: calc(2 * var(--u)) 0 0;
   background: linear-gradient(to bottom,
     var(--rail-ink) 0 2px, var(--rail-hi) 2px calc(2px + 3 * var(--u)), var(--rail-fill) calc(2px + 3 * var(--u)) calc(100% - 4 * var(--u)),
     var(--rail-lo) calc(100% - 4 * var(--u)) calc(100% - 2px), var(--rail-ink) calc(100% - 2px));

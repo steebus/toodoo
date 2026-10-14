@@ -31,7 +31,7 @@ it("a feed owns the day's events: synced in, kept through a failed fetch, never 
   const fetchMock = vi.fn(async () => new Response(ICS));
   vi.stubGlobal("fetch", fetchMock);
   const users = await t.run((ctx) => ctx.db.query("calendar_feeds").collect());
-  await t.action(internal.calendar.syncUser, { user_id: users[0].user_id });
+  await t.action(internal.calendarSync.syncUser, { user_id: users[0].user_id });
   expect(fetchMock).toHaveBeenCalledWith("https://calendar.google.com/calendar/ical/steve%40example.com/private-s3cret/basic.ics", expect.anything());
   let snap = await t.query(api.agent.getSnapshot, {});
   expect(snap.calendar_feed).toBe(true);
@@ -40,7 +40,7 @@ it("a feed owns the day's events: synced in, kept through a failed fetch, never 
 
   await t.mutation(api.agent.setDay, { day: { date: "2026-10-12", headline: "New", events: [{ start: "12:30", end: "13:15", title: "Haircut" }] } });
   vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 404 })));
-  await t.action(internal.calendar.syncUser, { user_id: users[0].user_id });
+  await t.action(internal.calendarSync.syncUser, { user_id: users[0].user_id });
   snap = await t.query(api.agent.getSnapshot, {});
   expect(snap.day).toMatchObject({ headline: "New", events: [{ title: "Dentist" }] });
   expect(await t.query(api.calendar.feeds, {})).toMatchObject([{ error: "calendar said 404" }]);

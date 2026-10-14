@@ -10,6 +10,7 @@
 
 import type * as agent from "../agent.js";
 import type * as calendar from "../calendar.js";
+import type * as calendarSync from "../calendarSync.js";
 import type * as crons from "../crons.js";
 import type * as epics from "../epics.js";
 import type * as http from "../http.js";
@@ -31,6 +32,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   calendar: typeof calendar;
+  calendarSync: typeof calendarSync;
   crons: typeof crons;
   epics: typeof epics;
   http: typeof http;
