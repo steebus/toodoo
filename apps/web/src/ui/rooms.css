@@ -1,11 +1,13 @@
 /* The rooms beyond the day (Board, Epics) and the door (sign in): the Pass's tokens, type and paper on pages
    that flow and scroll. Sizes are plain px here: these pages reflow, they are not the scaled comp. */
 
-/* ---------- room nav: Day · Board · Epics, in the Pass's top bar and the rooms' ---------- */
-.rooms { display: flex; align-items: center; font-family: var(--font-ui); line-height: 1; white-space: nowrap; color: var(--ink-2); }
+/* ---------- room nav: a sketch of each room, in the Pass's top bar and the rooms' ---------- */
+.rooms { display: flex; align-items: center; gap: 12px; font-family: var(--font-ui); line-height: 1; white-space: nowrap; color: var(--ink-3); }
 .room-slot { display: inline-flex; align-items: center; }
-.room-dot { margin: 0 0.7em; }
-.room-link { position: relative; padding: 6px 0; color: inherit; text-decoration: none; }
+.room-link { position: relative; display: grid; place-items: center; padding: 4px; color: inherit; text-decoration: none; border-radius: 4px; }
+.room-icon { width: 24px; height: 24px; }
+/* the name is for screen readers and the phone's bar; the hover title says it on a desktop */
+.room-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .room-link:hover { color: var(--ink); }
 .room-link[aria-current="page"] { color: var(--ink); font-weight: 700; }
 .room-link[aria-current="page"]::after {
@@ -13,8 +15,10 @@
 }
 .room-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
 /* On the Pass it sits in the comp's open run of top bar between the wordmark and the headline. */
-.pass .rooms { position: absolute; left: 10.2%; top: 2.54%; height: 3.52%; font-size: calc(20 * var(--u)); margin-top: calc(-3 * var(--u)); }
-.pass .room-link[aria-current="page"]::after { bottom: calc(-10 * var(--u)); }
+.pass .rooms { position: absolute; left: 10.2%; top: 1.44%; height: 3.52%; gap: calc(12 * var(--u)); font-size: calc(20 * var(--u)); margin-top: calc(-3 * var(--u)); }
+.pass .room-link { padding: calc(4 * var(--u)); }
+.pass .room-icon { width: calc(25 * var(--u)); height: calc(25 * var(--u)); }
+.pass .room-link[aria-current="page"]::after { bottom: calc(-6 * var(--u)); }
 
 /* ---------- a room: the page ---------- */
 .room {
@@ -93,7 +97,7 @@
 /* the sawtooth: a row of paper teeth standing on the slip's top edge */
 .slip::before {
   content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 5px;
-  background: conic-gradient(from 135deg at 50% 0, var(--paper) 90deg, transparent 0) 0 0 / 10px 5px repeat-x;
+  background: conic-gradient(from 135deg at 50% 0, var(--tk-paper) 90deg, transparent 0) 0 0 / 10px 5px repeat-x;
 }
 .slip:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .slip:hover { filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.16)); }
@@ -237,8 +241,10 @@
   .pass .room-link[aria-current="page"]::after { bottom: -5px; }
 }
 
-/* ---------- epic colour: a quiet band down the left edge (slips), a hairline down an epic's ---------- */
-.slip.has-epic { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--epic) 70%, transparent); }
+/* ---------- epic colour: a band down the left edge and a wash (slips, the ticket), a hairline down an epic's ---------- */
+.slip.has-epic { box-shadow: inset 6px 0 0 var(--epic); background-image: linear-gradient(color-mix(in srgb, var(--epic) 13%, transparent) 0 0); }
+.sheet.sheet-ticket.has-epic { --tk-paper: color-mix(in srgb, var(--epic) 20%, var(--paper)); } /* the whole slip in its epic's colour */
+.sheet-ticket > * { --paper: var(--tk-paper); } /* and everything printed on it mixes from that paper */
 .epic.is-done.has-epic .epic-toggle::before, .epic.is-on_hold.has-epic .epic-toggle::before { opacity: 0.45; }
 .epic-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
 .epic-swatches legend { margin-bottom: 6px; padding: 0; font-size: calc(14 * var(--u)); color: var(--ink-3); }
@@ -276,13 +282,13 @@
 
 /* ---------- a task, read: a long slip of thermal paper with a perforated edge ---------- */
 .sheet.sheet-ticket {
-  --u: 1px; width: min(440px, 100vw); overflow: visible; background: var(--paper); color: var(--paper-ink); border-left: 0;
+  --tk-paper: var(--paper); --u: 1px; width: min(440px, 100vw); overflow: visible; background: var(--tk-paper); color: var(--paper-ink); border-left: 0;
   box-shadow: -14px 0 30px rgb(0 0 0 / 0.18);
 }
 /* the torn-off edge: paper teeth down the left side, nothing between them */
 .sheet-ticket::before {
   content: ""; position: absolute; top: 0; bottom: 0; left: -6px; width: 6px; pointer-events: none;
-  background: conic-gradient(from 45deg at 0 50%, var(--paper) 90deg, transparent 0) 0 0 / 6px 12px repeat-y;
+  background: conic-gradient(from 45deg at 0 50%, var(--tk-paper) 90deg, transparent 0) 0 0 / 6px 12px repeat-y;
 }
 .ticket {
   position: relative; height: 100%; box-sizing: border-box; overflow-y: auto; padding: 26px 26px 28px 28px;
@@ -316,7 +322,7 @@
 .tk-progress { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; font-size: 13px; }
 .tk-progress .pen-progress { height: 7px; }
 .tk-body { white-space: pre-line; overflow-wrap: anywhere; }
-.tk-note { font-style: italic; }
+.tk-note { font-family: var(--font-hand); font-weight: 500; font-size: 22px; line-height: 1.15; color: var(--biro); } /* written by hand */
 .tk-link a { color: var(--biro); overflow-wrap: anywhere; }
 .tk-tags { font-size: 14px; color: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }
 .tk-status { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -389,14 +395,22 @@
 
 /* ---------- checklists: pen boxes on the ticket, editable lines in the edit sheet ---------- */
 .checklist { display: grid; gap: 4px; }
-.cl-count { margin: 0; font-family: var(--font-print); font-size: 13px; letter-spacing: 0.05em; opacity: 0.75; }
+.cl-count { display: flex; align-items: center; justify-content: space-between; min-height: 26px; margin: 0; font-family: var(--font-print); font-size: 13px; letter-spacing: 0.05em; color: color-mix(in srgb, currentColor 75%, transparent); }
+/* Copy: an icon at the far right of the count, there when the pointer is on the head (always on a touch screen). */
+:is(.pass, .room) .cl-copy {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 2px; color: inherit;
+  opacity: 0; transition: opacity 0.14s ease-out;
+}
+.cl-count:hover .cl-copy, .cl-copy:focus-visible { opacity: 0.7; }
+:is(.pass, .room) .cl-copy:hover { opacity: 1; background: color-mix(in srgb, currentColor 8%, transparent); }
+@media (hover: none) { :is(.pass, .room) .cl-copy { opacity: 0.6; } }
 .cl-items { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .cl-item { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 :is(.pass, .room) .cl-box {
   position: relative; flex: none; display: grid; place-items: center; width: 20px; height: 20px; padding: 0;
   border: 1.5px solid currentColor; border-radius: 2px; color: inherit; opacity: 0.85;
 }
-.cl-tick { position: absolute; left: -2px; top: -9px; width: 30px; color: var(--biro); overflow: visible; pointer-events: none; }
+.cl-tick { position: absolute; left: -2px; top: 1px; width: 30px; color: var(--biro); overflow: visible; pointer-events: none; }
 .cl-text { flex: 1; min-width: 0; font-family: var(--font-print); font-size: 15px; overflow-wrap: anywhere; }
 .cl-item.is-done .cl-text-ink {
   opacity: 0.7;
@@ -451,7 +465,7 @@
 /* ---------- the shared header row in the Board, Epics and Share rooms ---------- */
 /* The Day view's own top bar, laid out on a full-height (transparent, click-through) frame so its measured
    positions hold, and shown as a sticky strip the height of the Day view's header. */
-.room-top { position: sticky; top: 0; z-index: 10; height: 7.42dvh; background: var(--ground); }
+.room-top { position: sticky; top: 0; z-index: 10; height: 6.3dvh; background: var(--ground); }
 .pass.pass-top { height: 100dvh; background: transparent; overflow: visible; pointer-events: none; }
 .pass-top .topbar { pointer-events: auto; }
 @media (max-width: 819px) {
@@ -476,6 +490,20 @@
 }
 .pass .daymenu-item:hover { color: var(--ink); background: var(--well); }
 @media (prefers-reduced-motion: reduce) { .daymenu-pop { animation: none; } .daymenu-chevron { transition: none; } }
+/* On the wordmark: its own type, and the menu drops from the left edge. */
+.wordmark .daymenu-button { font: inherit; letter-spacing: inherit; gap: calc(3 * var(--u)); margin-left: calc(-4 * var(--u)); }
+.wordmark .daymenu-pop { left: 0; translate: 0 0; transform-origin: top left; }
+
+/* ---------- the header's date steps through days: ‹ date ›, and Today beside it when away ---------- */
+.daynav-roll { display: block; white-space: nowrap; }
+.date .daynav { position: relative; gap: calc(4 * var(--u)); font: inherit; color: inherit; }
+/* As wide as the widest date ("Wednesday 28 May"), so ‹ and › stay put from day to day. */
+.pass .date .daynav-date { position: relative; overflow: hidden; min-width: 0; width: 10.6em; padding: calc(3 * var(--u)) calc(6 * var(--u)); font: inherit; letter-spacing: inherit; }
+.pass .date .daynav-step { color: var(--ink-3); }
+/* Out to the side, so ‹ and › never move as you go. */
+.pass .date .daynav-today {
+  position: absolute; left: 100%; margin: 0 0 0 calc(8 * var(--u)); font-family: var(--font-print); font-size: calc(14 * var(--u));
+}
 
 /* ---------- the ticket edits in place: printed values are buttons; editing swaps in a field on the paper ---------- */
 .tk-head { align-items: baseline; }
@@ -529,11 +557,19 @@
   .pass .topbar .wordmark { grid-area: 1 / 1; }
   .pass .topbar .date { grid-area: 1 / 2; justify-content: center; margin: 0; font-size: 17px; min-width: 0; }
   .pass .topbar .focus-slot { grid-area: 1 / 3; }
-  .pass .topbar .headline { grid-area: 2 / 1 / 3 / -1; margin-top: 10px; text-align: left; justify-content: flex-start; }
+  /* The day's line in a fixed two-line box, shrunk to fit (useFitText), so a long one never moves the page. */
+  .pass .topbar .headline { grid-area: 2 / 1 / 3 / -1; margin-top: 10px; text-align: left; justify-content: flex-start; align-items: flex-start; height: 41px; }
+  .topbar-end { display: contents; }
+  .pass .rooms::after { display: none; }
   .date-long { display: none; }
   .date-short { display: inline; white-space: nowrap; }
-  .daymenu-pop { left: 50%; }
-  .pass .focus-button { padding: 7px 10px; font-size: 15px; }
+  .date .daynav { gap: 0; }
+  .pass .date .daynav-step { width: 22px; height: 30px; font-size: 22px; }
+  .pass .date .daynav-date { padding: 3px 2px; width: 6.8em; } /* "Wed 28 May" */
+  /* no room beside the date on a phone: Today hangs just under it */
+  .pass .date .daynav-today { left: 50%; top: calc(100% - 4px); translate: -50% 0; margin: 0; font-size: 11px; padding: 1px 6px; }
+  .pass .focus-button { padding: 7px 9px; font-size: 15px; }
+  .focus-word { display: none; } /* the timer says Focus; the room goes to the date */
   /* the rooms bar: fixed along the bottom, a tab per room */
   .pass .rooms, .room .rooms {
     position: fixed; z-index: 15; left: 0; right: 0; top: auto; bottom: 0; width: auto; display: flex; height: auto; margin: 0;
@@ -542,13 +578,15 @@
   }
   .rooms .room-slot { flex: 1; }
   .rooms .room-dot { display: none; }
-  .rooms .room-link { display: grid; place-items: center; width: 100%; height: 56px; padding: 0; font-weight: 700; color: var(--ink-3); }
+  .rooms .room-link { display: grid; place-items: center; align-content: center; gap: 3px; width: 100%; height: 46px; padding: 0; font-weight: 700; color: var(--ink-3); }
+  .pass .rooms .room-icon, .room .rooms .room-icon { width: 21px; height: 21px; }
+  .rooms .room-name { position: static; width: auto; height: auto; clip-path: none; font-size: 10px; letter-spacing: 0.03em; }
   .rooms .room-link[aria-current="page"] { color: var(--ink); }
   .pass .rooms .room-link[aria-current="page"]::after, .room .rooms .room-link[aria-current="page"]::after {
     left: 50%; right: auto; top: -1px; bottom: auto; width: 48px; margin-left: -24px; height: 3px; border-radius: 0 0 2px 2px;
   }
-  .pass { padding-bottom: calc(57px + env(safe-area-inset-bottom)); }
-  .room-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .pass { padding-bottom: calc(47px + env(safe-area-inset-bottom)); }
+  .room-main { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 819px) { .pass.pass-top { padding-bottom: 0; } }
 
@@ -601,3 +639,61 @@
   box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.07), 0 2px 0 var(--rail-lo); caret-color: var(--biro);
 }
 .lane-add input::placeholder { color: color-mix(in srgb, var(--paper-ink) 48%, var(--paper)); }
+
+/* ---------- the Matrix: every task a dot, urgent to the left, important at the top ---------- */
+.matrix { min-height: 0; }
+.mx-frame { position: relative; flex: 1; min-height: 420px; padding: 24px 0 26px 26px; }
+.mx-plot {
+  position: absolute; inset: 24px 0 26px 26px; border: 1px solid var(--rule); border-radius: 6px;
+  background:
+    linear-gradient(var(--rule), var(--rule)) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--rule), var(--rule)) 0 50% / 100% 1px no-repeat,
+    linear-gradient(color-mix(in srgb, var(--red) 6%, transparent) 0 0) 0 0 / 50% 50% no-repeat,
+    linear-gradient(color-mix(in srgb, var(--ink) 3%, transparent) 0 0) 100% 100% / 50% 50% no-repeat,
+    var(--surface);
+}
+.mx-q, .mx-mark, .mx-axis { font-family: var(--font-print); letter-spacing: 0.08em; color: var(--ink-3); pointer-events: none; user-select: none; }
+.mx-q { position: absolute; font-size: 12px; font-weight: 700; opacity: 0.8; }
+.mx-q-do { left: 12px; top: 10px; color: var(--red-ink); }
+.mx-q-plan { right: 12px; top: 10px; }
+.mx-q-pass { left: 12px; bottom: 10px; }
+.mx-q-drop { right: 12px; bottom: 10px; }
+/* day marks: a faint dashed line up the plot, its name under it */
+.mx-mark {
+  position: absolute; top: 0; bottom: -20px; width: 0; display: flex; align-items: flex-end; justify-content: center;
+  border-left: 1px dashed color-mix(in srgb, var(--rule) 70%, transparent); font-size: 11px; white-space: nowrap;
+}
+.mx-axis { position: absolute; display: flex; justify-content: space-between; font-size: 11px; }
+.mx-axis b { font-weight: 700; }
+.mx-axis-x { left: 26px; right: 0; top: 2px; }
+.mx-axis-y { left: 0; top: 24px; bottom: 26px; width: 18px; writing-mode: vertical-rl; rotate: 180deg; }
+
+.room .mx-dot {
+  position: absolute; translate: -50% -50%; padding: 0; border-radius: 50%; cursor: grab; touch-action: none;
+  background: color-mix(in srgb, var(--dot) 82%, transparent); border: 2px solid color-mix(in srgb, var(--dot) 75%, #000);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.16); transition: scale 0.14s ease-out, box-shadow 0.14s ease-out;
+}
+.room .mx-dot:hover, .room .mx-dot:focus-visible { z-index: 5; scale: 1.12; }
+.room .mx-dot.is-held { z-index: 10; cursor: grabbing; scale: 1.18; box-shadow: 0 6px 16px rgb(0 0 0 / 0.22); }
+.room .mx-dot.is-done { background: transparent; opacity: 0.5; }
+/* Hovered (or tapped on a phone): its ticket as it hangs on the Day, over the dot, or under it near the top. */
+.mx-card {
+  --tx: -50%; --ty: calc(-100% - var(--r) - 12px);
+  position: absolute; z-index: 12; width: 200px; height: 214px; translate: var(--tx) var(--ty); pointer-events: none;
+  animation: mx-card-in 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.mx-card.is-below { --ty: calc(var(--r) + 12px); }
+.mx-card.is-left { --tx: -14%; }
+.mx-card.is-right { --tx: -86%; }
+.mx-card.is-stub { width: min(330px, 86vw); height: 52px; pointer-events: auto; cursor: pointer; }
+@keyframes mx-card-in { from { opacity: 0; scale: 0.94; } }
+/* where a drop would land it */
+.mx-ask {
+  position: absolute; z-index: 13; translate: calc(var(--r) + 10px) -50%; padding: 3px 7px; border: 1px solid var(--rule); border-radius: 3px;
+  background: var(--surface); font-family: var(--font-print); font-size: 12px; white-space: nowrap; pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) { .room .mx-dot { transition: none; } .mx-card { animation: none; } }
+@media (max-width: 819px) {
+  .mx-frame { min-height: 68dvh; --mx-k: 0.62; } /* dots in proportion to the smaller plot */
+  .matrix .room-pick select { max-width: 130px; }
+}

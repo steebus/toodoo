@@ -6,6 +6,8 @@ import type { BoardData } from "./types";
 
 const auth = vi.hoisted(() => ({ signIn: vi.fn(), signOut: vi.fn() }));
 const state = vi.hoisted(() => ({ board: null as unknown, fns: {} as Record<string, any>, inflight: false }));
+const motion = vi.hoisted(() => ({ reduced: true })); // a tick is sent at once, unless a test watches the pen
+vi.mock("./motion", async (orig) => ({ ...(await orig<typeof import("./motion")>()), reducedMotion: () => motion.reduced }));
 vi.mock("@workos-inc/authkit-react", () => ({ useAuth: () => auth }));
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
@@ -99,6 +101,17 @@ it("ticking updates the task, and Undo reverses it", async () => {
   expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { done: false } });
 });
 
+it("a ticked docket holds while the pen draws its tick, then the tick is sent", async () => {
+  motion.reduced = false;
+  try {
+    await userEvent.click(screen.getByRole("button", { name: "Mark done: WRITE REPORT" }));
+    expect(fn("updateTask")).not.toHaveBeenCalled();
+    await waitFor(() => expect(fn("updateTask")).toHaveBeenCalledWith({ id: report.id, patch: { done: true } }));
+  } finally {
+    motion.reduced = true;
+  }
+});
+
 it("x on a focused docket ticks it", async () => {
   screen.getByRole("button", { name: "Open WRITE REPORT" }).focus();
   await userEvent.keyboard("x");
@@ -162,7 +175,7 @@ it("the ticket edits in place: a title, a tag taken off, a tag put on, each save
   expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { title: "Write the report" } });
   await userEvent.click(within(ticket).getByRole("button", { name: "Remove tag q1" }));
   expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { tags: ["work"] } });
-  await userEvent.type(within(ticket).getByRole("textbox", { name: "Add a tag" }), "q2{Enter}");
+  await userEvent.type(within(ticket).getByRole("combobox", { name: "Add a tag" }), "q2{Enter}");
   expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { tags: ["work", "q1", "q2"] } });
   expect(screen.getByRole("dialog")).toBeInTheDocument();
 });

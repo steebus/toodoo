@@ -2,11 +2,11 @@ import { useIsOffline } from "../lib/offline";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { m } from "motion/react";
-import { useState, type CSSProperties, type HTMLAttributes, type Ref } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type Ref } from "react";
 import biroRing from "../assets/plates/biro-ring.webp";
 import { isOptimistic } from "../lib/useActions";
 import { PenLoop, PenProgress, PenTick } from "./icons";
-import { useLayoutDependency } from "./motion";
+import { reducedMotion, useLayoutDependency } from "./motion";
 import { Swipe } from "./Swipe";
 import type { DocketData, MetaRow } from "./types";
 
@@ -20,6 +20,8 @@ const DASHES = "-".repeat(60); // cut to the paper's width by CSS
 // A docket ticked on this device moves to Done today as a new element; it draws its tick there on arrival.
 const ticked = new Map<string, number>();
 const tickedJustNow = (id: string) => Date.now() - (ticked.get(id) ?? 0) < 600;
+// Ticked here, it holds its place while the pen draws the tick, then goes.
+const TICK_HOLD = 380;
 
 // A ticked docket leaves its rail, so focus would fall to the page. It goes on to the next open docket
 // instead, or (none left, or reopening) follows the ticked docket to its new place.
@@ -79,12 +81,25 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
   const busy = isOptimistic(d.id);
   const layoutDependency = useLayoutDependency();
   const [drawTick] = useState(() => d.done && !ghost && tickedJustNow(d.id));
+  const [inked, setInked] = useState(false); // ticked, the tick drawing, not yet sent
+  const hold = useRef<{ timer: ReturnType<typeof setTimeout>; send: () => void } | null>(null);
+  useEffect(() => () => { // leaving mid-draw still sends the tick: never lose it
+    const h = hold.current;
+    if (h) { clearTimeout(h.timer); h.send(); }
+  }, []);
   const tick = (done: boolean) => {
-    if (offline) return;
-    if (done) ticked.set(d.id, Date.now());
-    onTick?.(d.id, done);
-    if (onTick && !ghost) focusAfterTick(d.id, done);
+    if (offline || hold.current) return;
+    const send = () => {
+      hold.current = null;
+      if (done) ticked.set(d.id, Date.now());
+      onTick?.(d.id, done);
+      if (onTick && !ghost) focusAfterTick(d.id, done);
+    };
+    if (!done || ghost || reducedMotion()) return send();
+    setInked(true);
+    hold.current = { timer: setTimeout(() => { send(); setInked(false); }, TICK_HOLD), send };
   };
+  const done = d.done || inked;
   const cls = `docket docket-${d.variant} fit-${d.fit ?? 0}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}${d.colour ? " has-epic" : ""}`;
   const open = (children: React.ReactNode) => (
     <button type="button" className="dk-open" disabled={busy} aria-label={`Open ${d.title}`} onClick={(e) => !afterKeyDrag(e) && onOpen?.(d.id)}
@@ -134,8 +149,9 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             </>
           ) : d.variant === "carried" ? (
             <>
-              <p className="dk-tag">{d.tag}</p>
+              <p className="dk-tag">{d.tag}{d.duration && <span className="dk-dur">{d.duration}</span>}</p>
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
+              {d.note && <p className="dk-note">{d.note}</p>}
               <Rows rows={d.rows} />
               <p className="dk-dashes" aria-hidden>{DASHES}</p>
               {d.footer && <Rows rows={[d.footer]} />}
@@ -148,6 +164,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
                 <span className="dk-dur">{d.duration}</span>
               </p>
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
+              {d.note && <p className="dk-note">{d.note}</p>}
               {d.source && <p className="dk-source">{d.source}</p>}
               <p className="dk-dashes" aria-hidden>{DASHES}</p>
               <Rows rows={d.rows} />
@@ -164,8 +181,8 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
               onClick={() => tick(!d.done)}
             >
               {/* In pen: a loop waiting to be ticked, then a scrawled tick. */}
-              {!d.done && <PenLoop className="dk-loop" />}
-              <PenTick on={d.done} draw={drawTick} className="dk-tick" />
+              {!done && <PenLoop className="dk-loop" />}
+              <PenTick on={done} draw={drawTick} className="dk-tick" />
             </button>
           )}
         </article>

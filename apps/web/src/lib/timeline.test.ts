@@ -99,6 +99,11 @@ describe.each([0.57, 0.94, 1])("at scale %s", (k) => {
     expect(dragBlock({ start: 600, mins: 30, mode: "resize" }, -hour * 2, k)).toEqual({ start: 600, mins: 5 });
     expect(dragBlock({ start: 1380, mins: 30, mode: "resize" }, hour * 3, k)).toEqual({ start: 1380, mins: 60 });
   });
+  it("a pull on the top moves the start and keeps the end, at least 5m, not before midnight", () => {
+    expect(dragBlock({ start: 600, mins: 30, mode: "top" }, -hour, k)).toEqual({ start: 540, mins: 90 });
+    expect(dragBlock({ start: 600, mins: 30, mode: "top" }, hour, k)).toEqual({ start: 625, mins: 5 });
+    expect(dragBlock({ start: 30, mins: 30, mode: "top" }, -hour, k)).toEqual({ start: 0, mins: 60 });
+  });
   it("a click picks the slot under it, within the day", () => {
     const at = (m: number, startM: number) => (minToPx(m, startM) - BLOCK_LEAD + 1) * k;
     expect(slotAt(at(14 * 60 + 30, 360), k, 360)).toBe(14 * 60 + 30);

@@ -49,10 +49,11 @@ describe("groupTasks by other keys", () => {
     task({ title: "d", done: true, done_on: T, priority: "med", tags: ["work"] }),
     task({ title: "old", done: true, done_on: "2026-03-01" }),
   ];
-  it("groups by due date ascending and drops old history", () => {
-    const g = groupTasks(tasks, T, view({ group: "due" }));
-    expect(g.map((x) => x.key)).toEqual(["2026-03-08", "2026-03-10", "2026-03-12"]);
-    expect(titles(g[2].tasks)).toEqual(["a", "c"]);
+  it("groups by Kanban column, done today last, and drops old history", () => {
+    const g = groupTasks([...tasks, task({ title: "e", status: "blocked" }), task({ title: "f", status: "doing" })], T, view({ group: "column" }));
+    expect(g.map((x) => x.label)).toEqual(["To do", "Doing", "Blocked", "Done today"]);
+    expect(titles(g[0].tasks)).toEqual(["a", "b", "c"]);
+    expect(titles(g[3].tasks)).toEqual(["d"]);
   });
   it("groups by priority high to none", () => {
     const g = groupTasks(tasks, T, view({ group: "priority" }));

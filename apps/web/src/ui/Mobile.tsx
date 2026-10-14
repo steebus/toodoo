@@ -36,6 +36,40 @@ export function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   );
 }
 
+// A sideways swipe across the page goes between Plan and Today, as if they sat side by side. Not one that starts on
+// a card (its own swipe ticks it), a plan block, something to type in, or a strip that scrolls sideways.
+const NOT_A_PAGE_SWIPE = "[data-docket], .plan-block, input, textarea, select, .nextup, .chips, .qa-tools, dialog";
+export function useSwipeTabs(on: boolean, tab: Tab, onTab: (t: Tab) => void) {
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const onTabRef = useRef(onTab);
+  onTabRef.current = onTab;
+  useEffect(() => {
+    if (!on) return;
+    let start: { x: number; y: number; t: number } | null = null;
+    const down = (e: TouchEvent) => {
+      const el = e.target as Element | null;
+      start = e.touches.length === 1 && !el?.closest(NOT_A_PAGE_SWIPE) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+    };
+    const end = (e: TouchEvent) => {
+      const s = start;
+      start = null;
+      if (!s) return;
+      const p = e.changedTouches[0];
+      const dx = p.clientX - s.x, dy = p.clientY - s.y;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.8 || Date.now() - s.t > 600) return;
+      const next: Tab = dx < 0 ? "today" : "plan"; // swipe left to the right-hand tab
+      if (next !== tabRef.current) onTabRef.current(next);
+    };
+    document.addEventListener("touchstart", down, { passive: true });
+    document.addEventListener("touchend", end, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", down);
+      document.removeEventListener("touchend", end);
+    };
+  }, [on]);
+}
+
 // Thumb-reach add: a blank ticket over the bottom-right corner, a pen cross on it, torn along its foot.
 export function AddButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
@@ -54,11 +88,12 @@ type SheetProps = {
   onClose: () => void;
   onFailed: (line: string) => void; // the add did not take: open again with what was typed
   epics?: Epic[];
+  tags?: string[];
 };
 
 // The quick add in a bottom sheet. Enter files the line and the sheet drops away, so the new docket can fly
 // from where the input was to its rail.
-export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, epics }: SheetProps) {
+export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, epics, tags }: SheetProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = dialog.current!;
@@ -80,7 +115,7 @@ export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, epics
       }}
       onClick={(e) => e.target === dialog.current && onClose()}
     >
-      <QuickAdd today={today} nowM={nowM} initial={initial} epics={epics}
+      <QuickAdd today={today} nowM={nowM} initial={initial} epics={epics} tags={tags} tools
         onAdd={(t, line) => {
           onClose();
           return onAdd(t).then((ok) => {

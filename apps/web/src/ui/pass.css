@@ -25,6 +25,13 @@
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
+/* Tightened from the comp: the bar rides higher, the panels start just under it and run on to the foot of the
+   window (the comp's vertical gaps grew with tall windows). Overrides of styles/layout.css, which is generated. */
+.pass {
+  --r-wordmark-y: 1.35%; --r-date-y: 0.6%; --r-progress-y: 1.63%; --r-presets-y: 1.44%;
+  --r-topbar-rule-y: 6.3%; --r-panel-divider-y: 6.69%; --r-panel-divider-h: 93.31%;
+  --r-quickadd-y: 7.7%; --r-add-button-y: 7.7%;
+}
 .pass ::selection { background: var(--red-soft); color: var(--ink); }
 :is(.pass, .room) :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
 :is(.pass, .room) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
@@ -48,7 +55,7 @@
 /* One line in the gap between the room nav and the count: a long day is cut short, never laid over them. */
 /* The day's line: up to two lines in the gap between the room nav and the count, shrunk to fit (useFitText)
    rather than cut off. */
-.pass .r-headline { left: 23.4%; width: 47.2%; top: 3.95%; height: 3.4%; }
+.pass .r-headline { left: 23.4%; width: 47.2%; top: 2.85%; height: 3.4%; }
 .headline {
   display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; text-align: center;
   font-size: calc(21 * var(--u)); line-height: 1.12; white-space: normal; overflow-wrap: anywhere; color: var(--ink);
@@ -57,20 +64,28 @@
   display: flex; align-items: center; justify-content: center;
   font-size: calc(22 * var(--u)); line-height: 1; white-space: nowrap; letter-spacing: 0.04em; word-spacing: 0.08em; padding-left: calc(9 * var(--u));
 }
-.topbar-sep {
-  position: absolute; left: 81.2%; top: 2.5%; width: 1px; height: 3%;
-  background: var(--rule-soft);
+/* The header's rules: one after the rooms (Day · Board · Epics), one between Focus and the presets, each
+   --hdr-gap from what it divides. */
+.pass { --hdr-gap: calc(22 * var(--u)); }
+.topbar-end {
+  position: absolute; right: calc(100% - var(--r-presets-x) - var(--r-presets-w)); top: var(--r-presets-y); height: var(--r-presets-h);
+  display: flex; align-items: center; gap: var(--hdr-gap);
 }
+.topbar-end > .focus-slot, .topbar-end > .presets { position: static; width: auto; height: auto; margin-top: 0; padding-left: 0; }
+.topbar-sep, .pass .rooms::after { width: 1px; height: calc(30 * var(--u)); background: var(--rule-soft); }
+.pass .rooms::after { content: ""; position: absolute; left: calc(100% + var(--hdr-gap)); top: 50%; translate: 0 -50%; }
 .presets {
   display: flex; align-items: center; justify-content: flex-end;
   font-size: calc(20 * var(--u)); line-height: 1; color: var(--ink-2); padding-left: calc(6 * var(--u)); margin-top: calc(-3 * var(--u));
 }
 .preset-slot { display: inline-flex; align-items: center; }
-.preset-dot { margin: 0 0.85em; color: var(--ink-2); }
-.preset { position: relative; padding: calc(6 * var(--u)) 0; }
+.presets { gap: calc(12 * var(--u)); }
+.preset-dot { display: none; }
+.preset { position: relative; display: grid; place-items: center; padding: calc(4 * var(--u)); color: var(--ink-3); border-radius: var(--radius); }
+.preset svg { width: calc(25 * var(--u)); height: calc(25 * var(--u)); }
 .preset[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
 .preset[aria-pressed="true"]::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: calc(-10 * var(--u)); height: 2.5px; background: var(--ink); border-radius: 1px;
+  content: ""; position: absolute; left: 0; right: 0; bottom: calc(-6 * var(--u)); height: 2.5px; background: var(--ink); border-radius: 1px;
 }
 .preset:hover { color: var(--ink); }
 .topbar-rule::after {
@@ -87,10 +102,10 @@
 /* ---------- day plan ---------- */
 .dayplan::before {
   /* hairline under the "Day plan" title */
-  content: ""; position: absolute; left: 1%; width: calc(var(--split) * 1% - 1.65%); top: 13.5%; height: 1px; background: var(--rule-soft);
+  content: ""; position: absolute; left: 1%; width: calc(var(--split) * 1% - 1.65%); top: 7.6%; height: 1px; background: var(--rule-soft);
 }
 .plan-scroll {
-  position: absolute; left: 0.52cqw; width: calc(var(--split) * 1cqw - 1.04cqw); top: 13.48cqh; height: 78.12cqh;
+  position: absolute; left: 0.52cqw; width: calc(var(--split) * 1cqw - 1.04cqw); top: 7.6cqh; height: 91.1cqh;
   overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
 .plan-grid { position: relative; --lane-left: 19.4%; --lane-w: 76.2%; }
@@ -109,7 +124,7 @@
 .hour-lines, .hour-labels { pointer-events: none; }
 /* Header row beside the title: all-day chips give way to the day nav. */
 .dayplan-head {
-  position: absolute; left: 9cqw; width: calc(var(--split) * 1cqw - 9.65cqw); top: 9.38cqh; height: 2.93cqh;
+  position: absolute; left: 1cqw; width: calc(var(--split) * 1cqw - 2cqw); top: 7.6cqh; height: 2.93cqh;
   display: flex; align-items: center; justify-content: flex-end; gap: calc(10 * var(--u)); min-width: 0;
 }
 .allday {
@@ -131,11 +146,12 @@
 }
 /* Events are the day's furniture: quiet. Tasks are the work: paper, a firmer edge, a little lift. */
 .plan-event { background: var(--well); color: var(--ink-2); border-color: var(--rule-soft); box-shadow: none; }
-.plan-task { background: var(--paper); color: var(--paper-ink); border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); box-shadow: 0 2px 5px rgb(0 0 0 / 0.12); }
+.plan-task { --block-bg: var(--paper); background: var(--block-bg); color: var(--paper-ink); border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); box-shadow: 0 2px 5px rgb(0 0 0 / 0.12); }
 .plan-block.is-current { border-left: calc(3 * var(--u)) solid var(--ink); padding-left: calc(17 * var(--u)); }
 .plan-time { width: calc(71 * var(--u)); flex: none; }
-.plan-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.plan-title { min-width: 0; overflow: hidden; white-space: normal; overflow-wrap: anywhere; line-height: 1.1; } /* long titles wrap */
 .plan-title .sep { margin: 0 0.6em; }
+.plan-meta { display: block; margin-top: calc(5 * var(--u)); font-size: 0.8em; letter-spacing: 0.02em; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .nowline { position: absolute; left: 0; right: 0; height: calc(22 * var(--u)); margin: 0; color: var(--red); pointer-events: none; }
 .now-marker { position: absolute; left: calc(4 * var(--u)); top: calc(3 * var(--u)); color: var(--red); }
@@ -204,7 +220,12 @@
 }
 @media (prefers-reduced-motion: reduce) { .qa-feed { display: none; } .add-button { transition: none; } }
 @media (max-width: 819px) { .qa-feed { display: none; } }
-.pass .chips { width: calc(57.3cqw * var(--kt, 1)); }
+/* What the line parsed into: chips inside the input's right end (no row of their own), the text giving them room. */
+.pass .chips {
+  left: auto; right: calc(100% - var(--r-quickadd-x) - var(--r-quickadd-w) + 10 * var(--u)); width: auto; max-width: calc(var(--r-quickadd-w) * 0.55);
+  top: calc(var(--r-quickadd-y) + 0.75cqh); height: calc(var(--r-quickadd-h) - 1.5cqh); justify-content: flex-end; gap: calc(8 * var(--u)); z-index: 1; pointer-events: none;
+}
+.pass .quickadd:has(.chips li) .quickadd-input { padding-right: calc(var(--r-quickadd-w) * 0.56); }
 .chips { display: flex; overflow: hidden; gap: calc(12 * var(--u)); margin: 0; padding: 0; list-style: none; }
 .chip {
   display: inline-flex; align-items: center; gap: calc(10 * var(--u)); height: 100%; padding: 0 calc(14 * var(--u)) 0 calc(13 * var(--u));
@@ -212,6 +233,10 @@
   font-family: var(--font-print); font-size: calc(17.5 * var(--u)); line-height: 1; white-space: nowrap; color: var(--ink-2);
 }
 .chip-icon { color: var(--ink-2); }
+/* A tag being typed, finished: Tab, → or a tap takes it. Dashed, as it isn't written yet. */
+.chip-offer { padding: 0; border-style: dashed; pointer-events: auto; }
+.pass .chip-offer button { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); height: 100%; padding: 0 calc(12 * var(--u)); font: inherit; color: var(--ink-2); }
+.chip-offer kbd { font: inherit; font-size: 0.8em; color: var(--ink-3); }
 .chip-high { color: var(--red-ink); border-color: var(--red-soft); gap: calc(14 * var(--u)); padding: 0 calc(12 * var(--u)) 0 calc(16 * var(--u)); }
 .chip-bang { font-family: var(--font-ui); font-weight: 700; font-size: calc(22 * var(--u)); color: var(--red); }
 
@@ -221,11 +246,17 @@
 }
 /* ---------- Next up: at the head of the Day plan, three lines to pick from ---------- */
 .dayplan .nextup {
-  position: absolute; left: 1cqw; width: calc(var(--split) * 1cqw - 2cqw); top: 13.9cqh; box-sizing: border-box;
+  position: absolute; left: 1cqw; width: calc(var(--split) * 1cqw - 2cqw); top: calc(7.7cqh + var(--ad-h, 0cqh)); box-sizing: border-box;
   padding: calc(10 * var(--u)) calc(14 * var(--u)) calc(8 * var(--u));
   background: var(--well); border: 1px solid var(--rule-soft); border-radius: calc(5 * var(--u));
 }
 .nextup-head { display: flex; align-items: center; justify-content: space-between; height: calc(20 * var(--u)); }
+/* Its label folds it: the head alone stays. */
+.pass .nextup-toggle { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font: inherit; letter-spacing: inherit; }
+.pass .nextup-toggle:hover { color: var(--ink); }
+.nextup-chevron { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: var(--ink-3); transition: transform 0.2s ease; }
+.nextup-chevron.is-open { transform: rotate(180deg); }
+.nextup.is-folded { padding-bottom: calc(10 * var(--u)); }
 .nextup .section-label { font-size: calc(15 * var(--u)); }
 .nextup-list { margin: calc(4 * var(--u)) 0 0; padding: 0; list-style: none; }
 .nextup-item {
@@ -238,8 +269,9 @@
 .nextup-why { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; text-align: right; font-size: calc(13.5 * var(--u)); color: var(--ink-2); }
 .nextup-why .sep { margin: 0 0.5em; }
 /* With Next up above it, the line starts lower: --nu is how many lines it has (0 hides it). */
-.dayplan .plan-scroll { top: calc(13.48cqh + var(--nu-h, 0cqh)); height: calc(78.12cqh - var(--nu-h, 0cqh)); }
-.dayplan::before { top: calc(13.5% + var(--nu-h, 0%)); }
+/* All-day chips (--ad-h) and Next up (--nu-h) above it push the line down. */
+.dayplan .plan-scroll { top: calc(7.6cqh + var(--ad-h, 0cqh) + var(--nu-h, 0cqh)); height: calc(91.1cqh - var(--ad-h, 0cqh) - var(--nu-h, 0cqh)); }
+.dayplan::before { top: calc(7.6% + var(--ad-h, 0%) + var(--nu-h, 0%)); }
 
 .rail-label {
   display: flex; align-items: center; gap: calc(14 * var(--u));
@@ -253,18 +285,23 @@
 
 /* ---------- the To do side: rails stacked down a scroll area ---------- */
 .todo-scroll {
-  position: absolute; left: calc((var(--split) + 0.85 * var(--kt, 1)) * 1cqw); width: calc(65.3cqw * var(--kt, 1)); top: 24.2cqh; height: 69.6cqh;
+  position: absolute; left: calc((var(--split) + 0.85 * var(--kt, 1)) * 1cqw); width: calc(65.3cqw * var(--kt, 1)); top: 13.9cqh; height: 84.9cqh;
   background: var(--rack); border-radius: calc(6 * var(--u)); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.06);
   overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
 }
 .grp { position: relative; padding-right: 0.6cqw; }
 .grp + .grp { margin-top: calc(10 * var(--u)); }
 .grp-head { display: flex; align-items: center; justify-content: space-between; height: calc(32 * var(--u)); padding-left: 0.6cqw; }
-.grp-chevron { width: calc(30 * var(--u)); height: calc(30 * var(--u)); border-radius: var(--radius); }
-.grp-chevron:hover { background: var(--well); }
-.grp-chevron svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); transition: transform 0.22s ease; }
-.grp-chevron.is-open svg { transform: rotate(180deg); }
-@media (prefers-reduced-motion: reduce) { .grp-chevron svg { transition: none; } }
+/* A foldable rail: the whole head, label to chevron, is the button. */
+.grp-label:has(.grp-toggle) { flex: 1; align-self: stretch; }
+.pass .grp-toggle {
+  display: flex; align-items: center; gap: calc(14 * var(--u)); width: 100%; height: 100%; padding-right: calc(4 * var(--u));
+  font: inherit; letter-spacing: inherit; text-align: left; border-radius: var(--radius);
+}
+.pass .grp-toggle:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.grp-chevron { width: calc(22 * var(--u)); height: calc(22 * var(--u)); margin-left: auto; transition: transform 0.22s ease; }
+.grp-chevron.is-open { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .grp-chevron { transition: none; } }
 
 /* A rail, 2D: a flat bar with a dark outline, a highlight along the top, a shade along the foot and bolts.
    The tickets hang from it, their tops tucked under it, as on a real pass. One rail runs across the top of
@@ -350,10 +387,17 @@
 .docket:not(.docket-compact) .dk-title .dk-open {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--clamp); white-space: normal; overflow-wrap: anywhere; height: auto;
 }
+/* A note in pen, where the paper has room: it gives way first (to nothing) when the paper is full. */
+.dk-note {
+  flex: 0 1 auto; min-height: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  font-family: var(--font-hand); font-weight: 500; font-size: calc(17 * var(--u)); line-height: 1.05; color: var(--biro); overflow-wrap: anywhere;
+}
 .docket-carried .dk-tag { flex: none; display: flex; align-items: center; height: calc(18 * var(--u)); font-size: calc(15 * var(--u)); color: var(--paper-red); letter-spacing: 0.02em; }
 .docket-carried .dk-title { margin-top: calc(2 * var(--u)); }
 .docket-today .dk-head { flex: none; display: flex; justify-content: space-between; align-items: center; height: calc(20 * var(--u)); padding-right: calc(28 * var(--u)); font-size: calc(18 * var(--u)); }
-.docket-today .dk-dur { font-size: calc(15.5 * var(--u)); }
+/* the duration, pencilled into the head */
+.docket:not(.docket-compact) .dk-dur { font-family: var(--font-hand); font-weight: 500; font-size: calc(21 * var(--u)); color: var(--biro); }
+.docket-carried .dk-tag { justify-content: space-between; padding-right: calc(28 * var(--u)); }
 .docket-today .dk-source { flex: none; font-size: calc(14 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .docket-today.is-high .dk-head, .docket-today.is-high .dk-title, .docket-today.is-high .dk-source { color: var(--paper-red); }
 .docket-carried.is-high .dk-title { color: var(--paper-red); }
@@ -362,11 +406,11 @@
 .pen-progress { display: block; flex: none; width: 100%; height: calc(6 * var(--u)); overflow: visible; }
 .pen-progress-track { stroke: color-mix(in srgb, var(--paper-ink) 28%, transparent); stroke-width: 1; stroke-dasharray: 0.012 0.018; fill: none; }
 .pen-progress-ink { stroke: var(--biro); stroke-width: 2; stroke-linecap: round; fill: none; transition: stroke-dashoffset 0.6s var(--spring); }
-.pen-progress path { vector-effect: non-scaling-stroke; }
+.pen-progress-track { vector-effect: non-scaling-stroke; } /* the ink scales: non-scaling broke its pathLength dash into pieces */
 .pen-progress.is-over .pen-progress-ink { stroke: var(--paper-red); }
 @media (prefers-reduced-motion: reduce) { .pen-progress-ink { transition: none; } }
 
-.biro-ring { position: absolute; z-index: 2; max-width: none; /* wider than its docket, as drawn */ left: -8%; top: -4%; width: 92%; height: 52%; pointer-events: none; user-select: none; }
+.biro-ring { position: absolute; z-index: 2; max-width: none; /* round the time and title, inside the paper */ left: 2%; top: 2%; width: 86%; height: 46%; pointer-events: none; user-select: none; }
 /* Done: struck through by hand (a wavy biro line along each line of print), the print gone quiet. */
 .docket.is-done .dk-print > :not(.dk-bump) { opacity: 0.6; }
 .pen-struck, .docket.is-done .dk-title-text {
@@ -377,13 +421,15 @@
 
 .chevron { display: grid; place-items: center; color: var(--ink-2); }
 
-/* ---------- view menu: a quiet mono control beside the span ---------- */
-.viewmenu { position: absolute; right: 12.4cqw; top: 9.57cqh; height: 2.73cqh; display: flex; align-items: center; z-index: 5; }
+/* ---------- view menu: group, sort and filters behind one icon ---------- */
+/* In the top rail's head, at its far right. */
+.viewmenu { position: relative; display: flex; align-items: center; margin-right: calc(4 * var(--u)); z-index: 5; }
+.grp:has(.viewmenu) { z-index: 4; } /* its popover over the rails below */
 .viewmenu-button {
-  display: inline-flex; align-items: center; gap: calc(4 * var(--u)); padding: 2px calc(4 * var(--u));
+  display: grid; place-items: center; width: calc(30 * var(--u)); height: calc(30 * var(--u)); border-radius: var(--radius);
   font-family: var(--font-print); font-size: calc(19 * var(--u)); line-height: 1; color: var(--ink-2);
 }
-.viewmenu-button:hover, .viewmenu-button[aria-expanded="true"] { color: var(--ink); }
+.viewmenu-button:hover, .viewmenu-button[aria-expanded="true"] { color: var(--ink); background: var(--well); }
 .viewmenu-chevron { width: calc(16 * var(--u)); height: calc(16 * var(--u)); transition: transform 0.2s ease; }
 .viewmenu-chevron.is-open { transform: rotate(180deg); }
 .viewmenu-pop {
@@ -503,7 +549,7 @@
 .toast.is-paused .toast-ring-drain { animation-play-state: paused; }
 .sheet-cell { display: grid; gap: calc(5 * var(--u)); min-width: 0; }
 
-/* ---------- day nav: quiet mono controls in the Day plan header ---------- */
+/* ---------- day nav: quiet controls round the header's date ---------- */
 .daynav {
   flex: none; display: flex; align-items: center; gap: 2px; white-space: nowrap;
   font-family: var(--font-print); font-size: calc(16 * var(--u)); line-height: 1; color: var(--ink-2);
@@ -522,6 +568,9 @@
 
 /* Changing day: the line slides the way you travelled (a View Transition; instant without one). */
 .plan-scroll { view-transition-name: dayplan; }
+/* Only the line is captured; the rest of the page stays live and clicks go through the slide, so ‹ › can be tapped in a run. */
+:root { view-transition-name: none; }
+::view-transition { pointer-events: none; }
 ::view-transition-old(dayplan) { animation: day-out-next 0.2s ease-in both; }
 ::view-transition-new(dayplan) { animation: day-in-next 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
 :root[data-day-dir="prev"]::view-transition-old(dayplan) { animation-name: day-out-prev; }
@@ -549,11 +598,13 @@
 }
 .plan-slots:focus-visible ~ .plan-cursor, .plan-grid:has(.slotpick) .plan-cursor { opacity: 1; }
 
-.plan-block.is-live { padding-left: 0; transition: opacity 0.16s ease-out; }
+/* Live blocks let their tick, unplan and grips stand out past a short block; the printed face clips itself. */
+.plan-block.is-live { padding-left: 0; overflow: visible; transition: opacity 0.16s ease-out; }
+.plan-block.is-live:is(:hover, :focus-within, .is-revealed) { z-index: 3; }
 .plan-block.is-live.is-current { padding-left: 0; }
 .pass .plan-body {
   flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; padding-left: calc(19 * var(--u)); text-align: left;
-  white-space: nowrap; cursor: grab; touch-action: pan-y; user-select: none; -webkit-touch-callout: none;
+  overflow: hidden; border-radius: inherit; white-space: nowrap; cursor: grab; touch-action: pan-y; user-select: none; -webkit-touch-callout: none;
 }
 /* Lifted by a long press: the finger owns it now. */
 .plan-block.is-pressed { z-index: 2; box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) rgb(0 0 0 / 0.16); }
@@ -572,16 +623,19 @@
 .plan-block.is-done .plan-time { color: var(--ink-3); }
 
 /* Tick and unplan float over the block's right end, so the printed line keeps its full width. */
+/* On a block too short for them they keep their size, centred on it and standing out past its edges. */
 .plan-acts {
-  position: absolute; top: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: calc(4 * var(--u)); padding: 0 calc(8 * var(--u)) 0 calc(22 * var(--u));
-  background: linear-gradient(to right, transparent, var(--surface) calc(18 * var(--u)));
+  position: absolute; top: 50%; right: 0; height: max(100%, calc(28 * var(--u))); translate: 0 -50%; box-sizing: border-box;
+  display: flex; align-items: center; gap: calc(4 * var(--u)); padding: 0 calc(8 * var(--u)) 0 calc(22 * var(--u)); border-radius: var(--radius);
+  background: linear-gradient(to right, transparent, var(--block-bg, var(--surface)) calc(18 * var(--u)));
   opacity: 0; transition: opacity 0.14s ease-out;
 }
 .plan-block:hover .plan-acts, .plan-block:focus-within .plan-acts, .plan-block.is-done .plan-acts { opacity: 1; }
+/* a done block shows its tick at rest: inside its own edges, so it never sits over a neighbour */
+.plan-block.is-done:not(:hover, :focus-within, .is-revealed) .plan-acts { height: 100%; overflow: hidden; }
 /* No hover on touch: a tap on the block shows them. */
 @media (hover: none) {
   .plan-block:not(.is-revealed, .is-done) .plan-acts { opacity: 0; pointer-events: none; }
-  .plan-resize { height: calc(14 * var(--u)); }
 }
 .plan-tick { position: relative; width: calc(22 * var(--u)); height: calc(22 * var(--u)); display: grid; place-items: center; cursor: pointer; }
 .plan-tick input {
@@ -593,12 +647,30 @@
 .plan-tick input:checked + .plan-tick-mark { opacity: 1; }
 .pass .plan-x { width: calc(22 * var(--u)); height: calc(22 * var(--u)); display: grid; place-items: center; font-size: calc(18 * var(--u)); color: var(--ink-3); border-radius: var(--radius); }
 .pass .plan-x:hover { color: var(--red-ink); background: var(--well); }
-.plan-resize { position: absolute; left: 0; right: 0; bottom: 0; height: calc(7 * var(--u)); cursor: ns-resize; touch-action: none; }
+/* Grips on both edges, half in and half out of the block: the foot pulls the end, the head pulls the start. */
+.plan-resize { position: absolute; left: 0; right: 0; bottom: calc(-4 * var(--u)); height: calc(9 * var(--u)); cursor: ns-resize; touch-action: none; }
+.plan-resize-top { top: calc(-4 * var(--u)); bottom: auto; }
 .plan-resize::after {
-  content: ""; position: absolute; left: 50%; bottom: 2px; width: calc(22 * var(--u)); height: 2px; margin-left: calc(-11 * var(--u));
-  border-radius: 1px; background: var(--rule); opacity: 0; transition: opacity 0.14s ease-out;
+  content: ""; position: absolute; left: 50%; top: 50%; width: calc(22 * var(--u)); height: 3px; translate: -50% -50%;
+  border-radius: 2px; background: var(--ink-3); opacity: 0; transition: opacity 0.14s ease-out;
 }
-.plan-block:hover .plan-resize::after { opacity: 1; }
+.plan-block:hover .plan-resize::after { opacity: 0.7; }
+/* A finger: the grips wake on the tapped block only (so a swipe over the line still scrolls it), big enough to take a thumb. */
+@media (hover: none) {
+  .plan-block:not(.is-revealed) .plan-resize { pointer-events: none; }
+  .plan-block.is-revealed .plan-resize { height: 30px; bottom: -15px; }
+  .plan-block.is-revealed .plan-resize-top { top: -15px; bottom: auto; }
+  .plan-block.is-revealed .plan-resize::after { width: 34px; height: 5px; opacity: 1; background: var(--ink-2); box-shadow: 0 0 0 2px var(--surface); }
+}
+/* The zoom: − and + beside the title (and Ctrl + wheel, or a pinch, on the line itself). */
+.plan-zoom { flex: none; display: inline-flex; gap: calc(2 * var(--u)); }
+.pass .plan-zoom button {
+  width: calc(32 * var(--u)); height: calc(30 * var(--u)); display: grid; place-items: center; border-radius: var(--radius);
+  font-family: var(--font-print); font-size: calc(24 * var(--u)); line-height: 1; color: var(--ink-2);
+}
+.pass .plan-zoom button:hover:not(:disabled) { color: var(--ink); background: var(--well); }
+.pass .plan-zoom button:disabled { color: var(--ink-3); opacity: 0.5; cursor: default; }
+.plan-scroll { touch-action: pan-y; } /* two fingers on the line zoom it rather than the page */
 
 .plan-ghost {
   position: absolute; left: var(--lane-left); width: var(--lane-w); margin: 0; z-index: 3; pointer-events: none;
@@ -726,7 +798,7 @@
 .bumped-slip {
   --zig: calc(8 * var(--u));
   display: flex; flex-direction: column; align-items: center; gap: calc(7 * var(--u)); padding: calc(13 * var(--u)) calc(6 * var(--u)) calc(18 * var(--u));
-  background: #fbfbf8; color: var(--paper-ink); font-family: var(--font-print); line-height: 1; white-space: nowrap;
+  background: var(--paper); color: var(--paper-ink); font-family: var(--font-print); line-height: 1; white-space: nowrap;
   transform-origin: 25% 0;
   mask:
     conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--zig) calc(var(--zig) / 2) repeat-x,
@@ -735,7 +807,7 @@
 .bumped-head { font-weight: 700; font-size: calc(15 * var(--u)); letter-spacing: 0.03em; }
 .bumped-count { font-size: calc(22 * var(--u)); }
 .bumped-dashes { max-width: 100%; overflow: hidden; font-size: calc(12 * var(--u)); letter-spacing: -0.02em; }
-.bumped-foot { font-size: calc(12 * var(--u)); letter-spacing: 0.24em; color: #6b6b6b; }
+.bumped-foot { font-size: calc(12 * var(--u)); letter-spacing: 0.24em; color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
 .bumped-tick {
   position: absolute; left: calc(var(--r-progress-x) + var(--r-progress-w) + 0.1%); top: var(--r-progress-y); height: var(--r-progress-h);
   display: grid; place-items: center; color: var(--green);
@@ -744,7 +816,7 @@
 /* ---------- Focus: the list as a narrow column of one-line stubs, hanging from one bar ---------- */
 .todo.is-compact .span, .todo.is-compact .add-button { display: none; }
 .todo.is-compact .quickadd-input { width: calc((100 - var(--split) - 1.6 - 2.35 * var(--kt)) * 1cqw); }
-.todo-scroll.is-compact { top: 23.4cqh; height: 70.4cqh; }
+.todo-scroll.is-compact { top: 13.9cqh; height: 84.9cqh; }
 .grp-compact { padding-bottom: calc(12 * var(--u)); }
 .grp-compact .grp-dockets::after { display: none; }
 .grp-compact .grp-dockets {
@@ -848,12 +920,13 @@
   .pass .plan-body { padding-left: 12px; }
   .is-current .plan-body { padding-left: 10px; }
   .plan-time { width: 58px; }
+  .pass .plan-zoom button { width: 32px; height: 30px; font-size: 20px; }
   .now-time { left: 20px; font-size: 16px; }
   .now-rule { left: 72px; }
   .plan-done { padding-left: 16px; }
 
   /* Today: Next up as a strip to thumb along, then the rails */
-  .todo .viewmenu { right: 12px; top: 14px; height: 28px; }
+
   .viewmenu-pop { width: min(300px, calc(100vw - 32px)); }
   /* Plan: Next up across the head of the line */
   .dayplan .nextup { position: static; grid-column: 1 / -1; width: auto; margin: 12px 16px 0; padding: 10px 12px 8px; }
@@ -874,7 +947,7 @@
   .grp-compact .grp-dockets { gap: 14px; margin-top: -7px; padding: 0 8px 8px; }
   .grp-dockets .docket-compact { height: 66px; -webkit-touch-callout: none; user-select: none; }
   /* The top pick keeps its biro ring on the phone: loosely round the time and the start of the title. */
-  .docket-compact .biro-ring { display: block; left: 1%; top: -16%; width: 50%; height: 134%; }
+  .docket-compact .biro-ring { display: block; left: 1%; top: 3%; width: 48%; height: 94%; }
   .docket-compact .dk-print { padding: 7px 54px 0 16px; gap: 14px; }
   .docket-compact .dk-title { font-size: 17px; line-height: 1.15; white-space: normal; letter-spacing: 0.01em; }
   .docket-compact.fit-1 .dk-title { font-size: 15.5px; }
@@ -912,7 +985,7 @@
     display: flex; flex: none; order: 1; position: relative; z-index: 3; margin: 10px 16px 0;
     background: var(--well); border: 1px solid var(--rule-soft); border-radius: 8px; padding: 3px;
   }
-  .pass .tab { position: relative; flex: 1; height: 38px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.02em; color: var(--ink-3); border-radius: 6px; }
+  .pass .tab { position: relative; flex: 1; height: 30px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.02em; color: var(--ink-3); border-radius: 6px; }
   .pass .tab[aria-selected="true"] { color: var(--ink); }
   .tab-ink { position: absolute; inset: 0; z-index: -1; background: var(--surface); border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
   .pass > .topbar { order: 0; }
@@ -930,23 +1003,34 @@
   .addsheet .r-chips { grid-column: 1 / -1; height: 36px; gap: 8px; overflow-x: auto; scrollbar-width: none; }
   .addsheet .chip { flex: none; font-size: 15px; }
   .addsheet .chips:empty { display: none; }
+  .addsheet .qa-tools { grid-column: 1 / -1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .pass .qa-tool {
+    flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; white-space: nowrap;
+    font-family: var(--font-print); font-size: 14px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 18px;
+    transition: background-color 0.15s, color 0.15s, transform 0.15s var(--spring);
+  }
+  .pass .qa-tool:active { transform: scale(0.94); }
+  .pass .qa-tool[aria-pressed="true"] { color: var(--ground); background: var(--ink); border-color: var(--ink); }
 }
 @media (max-width: 819px) and (prefers-reduced-motion: reduce) {
   .dayplan, .todo, .pass[data-tab="today"] .dayplan, .pass[data-tab="plan"] .todo { transition: none; }
 }
 
-/* ---------- epic colour: a quiet band down a task's left edge, to sort at a glance, never to shout ---------- */
+/* ---------- epic colour: a solid band down a task's left edge and a wash of its colour on the paper ---------- */
+.docket.has-epic .dk-print { background: linear-gradient(color-mix(in srgb, var(--epic) 13%, transparent) 0 0); }
 .docket.has-epic .dk-print::before {
-  content: ""; position: absolute; left: calc(7 * var(--u)); top: calc(24 * var(--u)); bottom: calc(22 * var(--u)); width: calc(3 * var(--u));
-  border-radius: 2px; background: var(--epic); opacity: 0.7; pointer-events: none;
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(6 * var(--u));
+  background: var(--epic); pointer-events: none;
 }
-.docket-carried.has-epic .dk-print::before { top: calc(28 * var(--u)); }
-.docket.is-done.has-epic .dk-print::before { opacity: 0.35; }
+.docket.is-done.has-epic .dk-print::before { opacity: 0.4; }
+.docket.is-done.has-epic .dk-print { background: none; }
+.plan-task.has-epic { --block-bg: color-mix(in srgb, var(--epic) 16%, var(--paper)); }
 .plan-task.has-epic::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(3 * var(--u)); background: var(--epic); opacity: 0.65; pointer-events: none;
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(5 * var(--u)); background: var(--epic); pointer-events: none;
+  border-radius: var(--radius) 0 0 var(--radius);
 }
 @media (max-width: 819px) {
-  .docket-compact.has-epic .dk-print::before { left: 6px; top: 12px; bottom: 8px; width: 3px; }
+  .docket-compact.has-epic .dk-print::before { width: 5px; }
 }
 .chip-epic { width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: var(--epic); }
 .quickadd-input::placeholder { color: color-mix(in srgb, var(--paper-ink) 48%, var(--paper)); }

@@ -19,8 +19,6 @@ export type PassModel = {
 };
 
 const est = (t: FullTask) => (t.estimate_mins ? `~${formatDuration(t.estimate_mins)}` : "");
-// The footer's clock form, as the comp prints it: ~1:00 for an hour or more, ~45m under.
-const estClock = (m: number | null) => (!m ? "" : m >= 60 ? `~${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : `~${m}m`);
 
 function sourceLabel(t: FullTask): string {
   if (t.source === "you") return "";
@@ -35,34 +33,31 @@ export const listLine = (p: { done: number; total: number }) =>
 // Long titles print smaller and on more lines rather than being cut off.
 export const fitOf = (title: string): 0 | 1 | 2 => (title.length <= 24 ? 0 : title.length <= 48 ? 1 : 2);
 
-function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spent?: number): DocketData {
+// The rows print what the paper doesn't already show: the time and duration are in its head, the epic is its colour.
+export function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spent?: number): DocketData {
   const carried = !t.done && t.due < today;
   const high = effectivePriority(t, epic) === "high";
-  const epicRow: MetaRow[] = epic ? [{ label: "EPIC", value: epic.title.toUpperCase() }] : [];
   const list = checklistProgress(t.checklist);
   const listRow: MetaRow[] = list ? [{ label: "LIST", value: listLine(list) }] : [];
   const tags = t.tags.slice(0, 3);
   const tagRow: MetaRow[] = tags.length ? [{ label: "TAGS", value: tags.join(" ").toUpperCase() }] : [];
   const common = {
     id: t.id, done: t.done, high, hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title), colour: epic?.colour ?? null,
-    fit: fitOf(t.title), progress: t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list,
+    fit: fitOf(t.title), progress: t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
   };
   if (carried) {
     const n = waitingDays(t.due, today);
     return {
       // The red slot over the title is the data itself (how long it has waited), not a kicker.
-      ...common, variant: "carried", time: "", duration: "", source: sourceLabel(t), tag: `${n} ${n === 1 ? "DAY" : "DAYS"}`,
+      ...common, variant: "carried", time: "", duration: est(t), source: sourceLabel(t), tag: `${n} ${n === 1 ? "DAY" : "DAYS"}`,
       lines: [t.title.toUpperCase()],
-      rows: [{ label: "DUE", value: shortDate(t.due) }, ...listRow, ...(epicRow.length ? epicRow : tagRow)].slice(0, 2),
-      footer: { label: "DURATION", value: est(t) || "--" },
+      rows: [{ label: "DUE", value: shortDate(t.due) }, ...listRow, ...tagRow].slice(0, 3),
+      footer: null,
     };
   }
   const rows: MetaRow[] = [
-    ...(hm ? [{ label: "START", value: hm }] : []),
     ...listRow,
-    ...(t.estimate_mins ? [{ label: "DURATION", value: estClock(t.estimate_mins) }] : []),
     ...(t.due !== today ? [{ label: "DUE", value: shortDate(t.due) }] : []),
-    ...epicRow,
     ...tagRow,
   ].slice(0, 3); // the paper has room for three
   const flags = [t.done ? "DONE" : "", high ? "! HIGH" : "", sourceLabel(t)].filter(Boolean);
@@ -70,6 +65,12 @@ function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spen
     ...common, variant: "today", time: clock12(hm), duration: est(t), source: flags.join(" · "), tag: "", rows, footer: null,
   };
 }
+
+// A plan block's second line: its checklist and estimate, or nothing.
+const planMeta = (t: FullTask) => {
+  const list = checklistProgress(t.checklist);
+  return [list && listLine(list), t.estimate_mins && `est ${formatDuration(t.estimate_mins)}`].filter(Boolean).join(" · ") || undefined;
+};
 
 function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTask) => string | null): PlanData {
   const isToday = b.date === b.today;
@@ -85,6 +86,7 @@ function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTas
       id: pb.id ?? `${t.id}@${pb.start}`, taskId: t.id, kind: "task", startM: s, mins: pb.mins, time: clock12(pb.start), title: t.title,
       // The heavy rule marks the top pick (the docket with the biro ring), as the comp does.
       duration: formatDuration(pb.mins), current: t.id === b.suggestions[0]?.id, done: t.done, colour: colourOf(t),
+      meta: planMeta(t),
     });
   }
   blocks.sort((x, y) => x.startM - y.startM);
@@ -133,7 +135,11 @@ export function buildPass(b: BoardData, view: View): PassModel {
     plan: planOf(b, byId, (t) => epicOf(t)?.colour ?? null),
     nextUp: b.suggestions.slice(0, 3).flatMap((s) => {
       const t = byId.get(s.id);
-      return t ? [{ id: t.id, title: s.title, when: whenOf(t, b), why: s.reasons[0] ?? "" }] : [];
+      if (!t) return [];
+      const when = whenOf(t, b);
+      // A reason that says what `when` already says ("Due today" · "due today", "At 2:00" · "at 2pm") is dropped.
+      const head = (x: string) => x.split(" ")[0].toLowerCase();
+      return [{ id: t.id, title: s.title, when, why: s.reasons.find((r) => head(r) !== head(when)) ?? "" }];
     }),
     groups: groupTasks(b.tasks, b.today, view, b.epics).map((g) => ({
       key: g.key,

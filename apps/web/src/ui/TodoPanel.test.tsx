@@ -65,16 +65,16 @@ afterEach(cleanup);
 
 it("renders the header from the board", () => {
   show();
-  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 Mar" })).toBeInTheDocument();
   expect(screen.getByText("Standup, then focus time.")).toBeInTheDocument();
   // The count has gone; Focus has its place (nothing is on the line in this board, so it waits).
   expect(screen.getByRole("button", { name: /Focus/ })).toBeDisabled();
 });
 
-it("the date's chevron opens the day menu: theme, share and sign out", async () => {
+it("the wordmark's chevron opens the menu: theme, share and sign out", async () => {
   show();
-  await userEvent.click(screen.getByRole("button", { name: /Tuesday 10 March/ }));
-  const menu = screen.getByRole("menu", { name: "Day menu" });
+  await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+  const menu = screen.getByRole("menu", { name: "Menu" });
   expect(within(menu).getAllByRole("menuitem").map((x) => x.textContent?.trim())).toEqual(["Auto", "Share to toodoo", "Sign out"]);
   const theme = within(menu).getByRole("menuitem", { name: /^Theme: Auto/ });
   await userEvent.click(theme);
@@ -134,6 +134,16 @@ it("lists next up with the first reason, and Plan all is ready", () => {
   expect(within(next).getByRole("button", { name: "Plan all" })).toBeEnabled();
 });
 
+it("next up doesn't say the same thing twice, and its label folds it", async () => {
+  show(board({ suggestions: [{ id: review.id, title: review.title, reasons: ["due today", "Keeps work moving"] }] }));
+  const next = screen.getByRole("region", { name: "NEXT UP" });
+  expect(within(next).getByText(/Due today/)).toHaveTextContent("Due today·Keeps work moving");
+  await userEvent.click(within(next).getByRole("button", { name: /NEXT UP/ }));
+  expect(within(next).queryByText("Review pull requests")).not.toBeInTheDocument();
+  await userEvent.click(within(next).getByRole("button", { name: /NEXT UP/ }));
+  expect(within(next).getByText("Review pull requests")).toBeInTheDocument();
+});
+
 it("keeps coming up collapsed until its chevron is pressed", async () => {
   show();
   const chevron = screen.getByRole("button", { name: "Show coming up" });
@@ -144,11 +154,6 @@ it("keeps coming up collapsed until its chevron is pressed", async () => {
   expect(screen.getByRole("article", { name: "PLAN HOLIDAY" })).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Hide coming up" }));
   expect(screen.queryByRole("article", { name: "PLAN HOLIDAY" })).not.toBeInTheDocument();
-});
-
-it("spans the first and last time of the dockets in view", () => {
-  show();
-  expect(screen.getByLabelText("From 9:00 to 3:30")).toBeInTheDocument();
 });
 
 it("regroups from the View menu and remembers the choice", async () => {

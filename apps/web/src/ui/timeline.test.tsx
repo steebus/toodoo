@@ -200,15 +200,14 @@ it("day navigation asks the board for the new date and remembers it in the URL",
   await userEvent.click(screen.getByRole("button", { name: "Next day" }));
   expect(state.args.at(-1).date).toBe("2026-03-11");
   expect(window.location.search).toBe("?date=2026-03-11");
-  expect(screen.getByText("Tomorrow")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Next day" }));
-  expect(screen.getByText("in 2 days")).toBeInTheDocument();
+  expect(state.args.at(-1).date).toBe("2026-03-12");
   await userEvent.click(screen.getByRole("button", { name: "Today" }));
   expect(state.args.at(-1).date).toBeUndefined();
   expect(window.location.search).toBe("");
   await userEvent.click(screen.getByRole("button", { name: "Previous day" }));
   expect(state.args.at(-1).date).toBe("2026-03-09");
-  expect(screen.getByText("Yesterday")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();
 });
 
 it("a date in the URL is the day the board opens on", () => {
@@ -300,7 +299,7 @@ it("an impossible date in the URL falls back to today and is cleaned away", () =
   show();
   expect(state.args[0].date).toBeUndefined();
   expect(window.location.search).toBe("");
-  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 Mar" })).toBeInTheDocument();
 });
 
 it("a task can sit on the line twice: each block shows and comes off on its own", async () => {
@@ -314,4 +313,18 @@ it("a task can sit on the line twice: each block shows and comes off on its own"
   expect(unplan).toHaveLength(2);
   await userEvent.click(unplan[1]);
   expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, block_id: "pm" });
+});
+
+it("Ctrl + wheel zooms the line, within its limits, and the zoom is kept", async () => {
+  localStorage.removeItem("toodoo.planZoom");
+  show();
+  const line = () => document.querySelector<HTMLElement>(".plan-scroll")!;
+  expect(line().style.getPropertyValue("--zoom")).toBe("1");
+  fireEvent.wheel(line(), { deltaY: -100, ctrlKey: true });
+  await waitFor(() => expect(Number(line().style.getPropertyValue("--zoom"))).toBeGreaterThan(1)); // after its glide
+  expect(Number(localStorage.getItem("toodoo.planZoom"))).toBeGreaterThan(1);
+  fireEvent.wheel(line(), { deltaY: 100 }); // no Ctrl: a scroll, not a zoom
+  for (let i = 0; i < 20; i++) fireEvent.wheel(line(), { deltaY: 400, ctrlKey: true });
+  await waitFor(() => expect(line().style.getPropertyValue("--zoom")).toBe("0.5"));
+  localStorage.removeItem("toodoo.planZoom");
 });

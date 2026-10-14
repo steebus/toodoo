@@ -20,16 +20,16 @@ const dayParts = (d: string, opts: Intl.DateTimeFormatOptions) =>
       .map((p) => [p.type, p.value]),
   );
 
-// "Monday 12 October"
+// "Monday 12 Oct": the month always three letters (en-AU writes June, July, Sept)
 export function longDate(d: string): string {
-  const p = dayParts(d, { weekday: "long", day: "numeric", month: "long" });
-  return `${p.weekday} ${p.day} ${p.month}`;
+  const p = dayParts(d, { weekday: "long", day: "numeric", month: "short" });
+  return `${p.weekday} ${p.day} ${p.month.slice(0, 3)}`;
 }
 
 // "Tue 13 Oct": the date where there is little room (the phone's header).
 export function compactDate(d: string): string {
   const p = dayParts(d, { weekday: "short", day: "numeric", month: "short" });
-  return `${p.weekday} ${p.day} ${p.month}`;
+  return `${p.weekday} ${p.day} ${p.month.slice(0, 3)}`;
 }
 
 // "FRI  6 OCT"

@@ -1,11 +1,12 @@
-import { byEpicRank, effectivePriority, epicMap, type Epic } from "./epics.ts";
-import { addDays, byOrder, daysBetween, dayWord, toMin, type Priority } from "./planning.ts";
+import { byEpicRank, effectivePriority, epicMap, TASK_STATUS_LABEL, TASK_STATUSES, type Epic } from "./epics.ts";
+import { addDays, byOrder, daysBetween, toMin, type Priority } from "./planning.ts";
 
 // Coming up is this many days ahead; Later is past it.
 export const LATER_AFTER = 7;
 import type { FullTask } from "./snapshot.ts";
 
-export type GroupBy = "status" | "due" | "priority" | "tag" | "source" | "epic";
+// "status" is the rails by when (shown as Due: Carried over, Today, Coming up...); "column" is the Kanban status.
+export type GroupBy = "status" | "column" | "priority" | "tag" | "source" | "epic";
 export type SortBy = "manual" | "due" | "priority" | "time" | "tag";
 // tag: "" all, a tag, or NO_TAG; epic: "" (or missing) all, an epic's id, or NO_EPIC
 export interface View { group: GroupBy; sort: SortBy; tag: string; epic?: string }
@@ -21,7 +22,6 @@ const rank = (p: Priority | null) => PRIORITY_RANK[p ?? "none"];
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const firstTag = (t: FullTask) => [...t.tags].sort()[0] ?? null;
 const nullsLast = (a: string | null, b: string | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : cmp(a, b));
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const waitingDays = (due: string, today: string) => Math.max(0, daysBetween(due, today));
 
@@ -77,8 +77,11 @@ export function groupTasks(tasks: FullTask[], today: string, view: View, epics?:
     return [...m.keys()].sort(order).map((key) => ({ key, label: label(key), tasks: m.get(key)! }));
   };
   switch (view.group) {
-    case "due":
-      return bucket((t) => [t.due], (k) => cap(dayWord(k, today)), cmp);
+    case "column": {
+      const order: string[] = [...TASK_STATUSES, "done"];
+      return bucket((t) => [t.done ? "done" : t.status ?? "todo"],
+        (k) => (k === "done" ? "Done today" : TASK_STATUS_LABEL[k as keyof typeof TASK_STATUS_LABEL]), (a, b) => order.indexOf(a) - order.indexOf(b));
+    }
     case "priority":
       return bucket((t) => [t.priority ?? "none"], (k) => PRIORITY_LABEL[k as Priority | "none"],
         (a, b) => PRIORITY_RANK[a as Priority | "none"] - PRIORITY_RANK[b as Priority | "none"]);

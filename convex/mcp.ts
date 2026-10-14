@@ -1,4 +1,5 @@
 import { ConvexError } from "convex/values";
+import { EPIC_COLOURS } from "../shared/epics.ts";
 
 const date = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" };
 const hm = { type: "string", pattern: "^\\d{1,2}:\\d{2}$" };
@@ -26,7 +27,7 @@ export const TOOL_DEFS = [
     inputSchema: obj({
       id: { type: "string" }, title: { type: "string", maxLength: 120 }, description: { type: "string", maxLength: 2000 },
       priority: { type: ["string", "null"] }, status: { type: "string", enum: ["planned", "active", "on_hold", "done"] },
-      colour: { type: "string", enum: ["blue", "violet", "amber", "teal", "plum", "slate", "ochre", "sky"] },
+      colour: { type: "string", enum: [...EPIC_COLOURS] },
     }) },
   { name: "suggest", annotations: { readOnlyHint: true },
     description: "What to do next: ranked open tasks with reasons, plus next_free (today only).",

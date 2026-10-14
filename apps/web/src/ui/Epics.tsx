@@ -172,6 +172,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
       )}
       {viewTask && (
         <TaskView key={viewTask.id} task={viewTask} today={work.today} offline={off} epics={work.epics}
+          tagPool={[...new Set(work.tasks.flatMap((t) => t.tags))].sort()}
           epic={viewTask.epic_id ? epics.get(viewTask.epic_id) : undefined}
           onClose={() => setViewing(null)}
           onTick={(done) => actions.move(viewTask.id, { done }, `${done ? "Done" : "Reopened"}: ${viewTask.title}`)}

@@ -21,6 +21,7 @@ type Props = TaskViewActions & {
   task: FullTask;
   epic?: Epic;
   epics?: Epic[]; // to move it to another
+  tagPool?: string[]; // every tag in use, offered as the tag line is typed
   today: string;
   progress?: { spent: number; est: number } | null;
   offline?: boolean;
@@ -36,7 +37,7 @@ const PRIORITIES: [Priority | null, string][] = [["high", "! HIGH"], ["med", "ME
 // is printed: click the title, the date, a tag, the description... and type; Enter (or leaving it) keeps it,
 // Escape puts it back. A native modal dialog: side sheet on desktop, bottom sheet on the phone.
 export function TaskView({
-  task: t, epic, epics = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete,
+  task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete,
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
@@ -65,15 +66,15 @@ export function TaskView({
   return (
     <dialog
       ref={dialog}
-      className={`sheet sheet-ticket${focus ? " is-focus" : ""}`}
+      className={`sheet sheet-ticket${focus ? " is-focus" : ""}${epic?.colour ? " has-epic" : ""}`}
+      style={epic?.colour ? { ["--epic" as string]: `var(--epic-${epic.colour})` } : undefined}
       aria-labelledby="ticket-title"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onKeyDown={(e) => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); } }}
       onClick={(e) => e.target === dialog.current && onClose()}
     >
       {focus && <KitchenTimer startM={focus.startM} endM={focus.endM} />}
-      <article className={`ticket${t.done ? " is-done" : ""}${high ? " is-high" : ""}`}
-        style={epic?.colour ? { ["--epic" as string]: `var(--epic-${epic.colour})` } : undefined}>
+      <article className={`ticket${t.done ? " is-done" : ""}${high ? " is-high" : ""}`}>
         <button type="button" className="tk-close" aria-label="Close" onClick={onClose}><CloseIcon size={18} /></button>
         <div className="tk-head">
           <Field label="Date" kind="date" value={t.due} display={<span className={late ? "tk-late" : undefined}>{when}</span>}
@@ -122,7 +123,7 @@ export function TaskView({
         {progress && (
           <div className="tk-progress">
             <PenProgress {...progress} />
-            <span>{formatDuration(progress.spent)} of {formatDuration(progress.est)}</span>
+            <span>{formatDuration(progress.spent)} spent of {formatDuration(progress.est)}</span>
           </div>
         )}
         <p className="tk-dashes" aria-hidden>{DASH}</p>
@@ -137,7 +138,7 @@ export function TaskView({
             check={(v) => (!v.trim() || normLink(v) !== undefined ? null : "Not a web address")}
             onSave={(v) => save({ link: v.trim() || null })} />
         </div>
-        <Tags tags={t.tags} disabled={offline} onSave={(tags) => save({ tags })} />
+        <Tags tags={t.tags} pool={tagPool} disabled={offline} onSave={(tags) => save({ tags })} />
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-actions">
           {onTick && (
@@ -228,8 +229,9 @@ function Field({ label, value, display, placeholder = "", kind = "word", classNa
   );
 }
 
-// Tags as printed, each with a cross; a line at the end adds (Enter, or a space or comma between several).
-function Tags({ tags, disabled, onSave }: { tags: string[]; disabled?: boolean; onSave: (tags: string[]) => Promise<boolean> }) {
+// Tags as printed, each with a cross; a line at the end adds (Enter, or a space or comma between several), offering
+// the tags already in use as it is typed.
+function Tags({ tags, pool, disabled, onSave }: { tags: string[]; pool: string[]; disabled?: boolean; onSave: (tags: string[]) => Promise<boolean> }) {
   const [line, setLine] = useState("");
   const add = () => {
     const more = parseTags(line).filter((x) => !tags.includes(x));
@@ -245,7 +247,10 @@ function Tags({ tags, disabled, onSave }: { tags: string[]; disabled?: boolean; 
             onClick={() => void onSave(tags.filter((y) => y !== x))}><CloseIcon size={11} /></button>
         </span>
       ))}
-      <input className="tk-tag-add" value={line} placeholder="+ tag" aria-label="Add a tag" disabled={disabled} maxLength={60}
+      <datalist id="tk-tag-pool">
+        {pool.filter((x) => !tags.includes(x)).map((x) => <option key={x} value={x} />)}
+      </datalist>
+      <input className="tk-tag-add" value={line} placeholder="+ tag" aria-label="Add a tag" disabled={disabled} maxLength={60} list="tk-tag-pool"
         onChange={(e) => setLine(e.target.value)} onBlur={add}
         onKeyDown={(e) => {
           if (e.key === "Enter") { e.preventDefault(); add(); }

@@ -1,12 +1,11 @@
 import { rectSortingStrategy, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { spanOf, type View } from "@shared/board.ts";
+import type { View } from "@shared/board.ts";
 import { isOptimistic, type NewTask } from "../lib/useActions";
 import type { PassModel } from "./build";
 import { Docket } from "./Docket";
 import { Flight, type FlightPlan } from "./Flight";
-import { clock12 } from "./format";
 import { CheckIcon } from "./icons";
 import { reducedMotion } from "./motion";
 import { launch, QuickAdd } from "./QuickAdd";
@@ -85,27 +84,6 @@ function useAddFlight(groups: GroupData[], scroll: React.RefObject<HTMLElement |
   return { view, hidden };
 }
 
-// Which dockets are inside the scroll area right now. null = unknown (no IntersectionObserver): treat all as visible.
-function useVisibleDockets(root: React.RefObject<HTMLElement | null>, deps: unknown[]) {
-  const [visible, setVisible] = useState<Set<string> | null>(null);
-  useEffect(() => {
-    const el = root.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const seen = new Map<string, boolean>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) seen.set((e.target as HTMLElement).dataset.docket!, e.isIntersecting);
-        setVisible(new Set([...seen].filter(([, v]) => v).map(([k]) => k)));
-      },
-      { root: el, threshold: 0.5 },
-    );
-    el.querySelectorAll("[data-docket]").forEach((n) => io.observe(n));
-    return () => io.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-observe when the dockets on screen change
-  }, deps);
-  return visible;
-}
-
 export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const [laterOpen, setLaterOpen] = useState(false);
@@ -113,36 +91,17 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
   const scroll = useRef<HTMLDivElement | null>(null);
 
   const groups = useMemo(
-    () => model.groups.filter((g) => g.count > 0 || g.key === "today" || g.key === "comingup"),
+    () => model.groups.filter((g) => g.count > 0 || g.key === "today" || g.key === "comingup" || g.key === "done"), // Done stays, a place to drop onto
     [model.groups],
   );
   const shown = (g: GroupData) =>
     g.dockets.length > 0 && (g.key !== "comingup" || comingOpen) && (g.key !== "later" || laterOpen) && (g.key !== "done" || doneOpen);
-  const sig = (compact ? "c|" : "") + groups.map((g) => (shown(g) ? g.dockets.map((d) => d.id).join(",") : "")).join("|");
-  const visible = useVisibleDockets(scroll, [sig]);
-
-  const span = useMemo(() => {
-    const times = groups.filter(shown).flatMap((g) =>
-      g.dockets.filter((d) => !visible || visible.has(d.id)).map((d) => d.hm),
-    );
-    return spanOf(times);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` only reads the fold states
-  }, [groups, visible, comingOpen, laterOpen, doneOpen]);
-
   const flight = useAddFlight(groups, scroll, compact);
 
   return (
     <section id="todo" className={`todo${compact ? " is-compact" : ""}`} aria-labelledby="todo-title" role={tabpanel ? "tabpanel" : undefined}>
-      <h2 id="todo-title" className="r-todo-title panel-title">To do</h2>
-      <ViewMenu view={view} tags={model.tags} epics={model.epics} onChange={onView} />
-      {span && (
-        <p className="r-span span" aria-label={`From ${clock12(span.from)} to ${clock12(span.to)}`}>
-          {clock12(span.from)}
-          <span className="span-arrow" aria-hidden>→</span>
-          {clock12(span.to)}
-        </p>
-      )}
-      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} epics={model.epics} />
+      <h2 id="todo-title" className="sr-only">To do</h2>
+      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} epics={model.epics} tags={model.tags} />
       {/* Changing between the rails and the Focus column crossfades the two forms. */}
       <AnimatePresence initial={false}>
         <m.div
@@ -157,7 +116,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
           exit={{ opacity: 0 }}
           transition={{ duration: 0.24, ease: "easeOut" }}
         >
-          {groups.map((g) => {
+          {groups.map((g, i) => {
             const open = shown(g);
             const geo: RailGeo = compact ? "compact" : !open ? "slim" : g.dockets.every((d) => d.variant === "carried") ? "carried" : "today";
             return (
@@ -170,6 +129,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
                 toggle={g.key === "comingup" ? { open: comingOpen, onToggle: () => setComingOpen((o) => !o) }
                   : g.key === "later" ? { open: laterOpen, onToggle: () => setLaterOpen((o) => !o) }
                   : g.key === "done" && g.count > 0 ? { open: doneOpen, onToggle: toggleDone } : undefined}
+                extra={i === 0 ? <ViewMenu view={view} tags={model.tags} epics={model.epics} onChange={onView} /> : undefined}
               >
                 {open && (
                   <SortableContext id={g.key} items={g.dockets.map((d) => d.id)} strategy={compact ? verticalListSortingStrategy : rectSortingStrategy}>

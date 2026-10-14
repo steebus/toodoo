@@ -29,6 +29,7 @@ export type PlanBlock = {
   current?: boolean;
   done?: boolean;
   colour?: string | null; // its epic's
+  meta?: string; // its checklist and estimate ("■■□ 2/3 · est 45m"), printed under the title when the block has room
 };
 
 export type PlanData = {
@@ -60,6 +61,7 @@ export type DocketData = {
   footer: MetaRow | null;
   colour?: string | null; // its epic's
   list?: { done: number; total: number } | null; // its checklist, when it has one
+  note?: string | null; // handwritten on the paper where there is room
   fit: 0 | 1 | 2; // how hard the title is squeezed to fit the paper: 0 as printed, 2 smallest
   progress?: { spent: number; est: number } | null; // minutes spent (planned blocks gone by) against the estimate
 };

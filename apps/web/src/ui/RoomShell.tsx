@@ -17,11 +17,13 @@ const PRESETS = ["Plan", "Capture"];
 
 // The Board or Epics before their data comes: the page's own shape (lanes of blank tickets, or epic cards),
 // shimmering, so the data fills in rather than jumps in.
-export function RoomSkeleton({ room }: { room: "board" | "epics" }) {
+export function RoomSkeleton({ room }: { room: "board" | "epics" | "matrix" }) {
   return (
-    <main className={`room-main is-loading ${room === "board" ? "kanban" : "epics"}`} aria-busy>
+    <main className={`room-main is-loading ${room === "board" ? "kanban" : room}`} aria-busy>
       <div className="room-head"><span className="skel skel-line" style={{ width: 120, height: 26 }} /></div>
-      {room === "board" ? (
+      {room === "matrix" ? (
+        <div className="mx-frame"><div className="mx-plot" /></div>
+      ) : room === "board" ? (
         <div className="kanban-cols">
           {[3, 1, 1, 2].map((n, c) => (
             <section key={c} className="kanban-col">

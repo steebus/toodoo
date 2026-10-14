@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { m } from "motion/react";
+import { animate, m } from "motion/react";
 import { layoutLanes, SLOT, toHM } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
@@ -10,12 +10,13 @@ import { buzz } from "../lib/swipe";
 import { useDropHint } from "./DndProvider";
 import { clock12, hourLabel } from "./format";
 import { CheckIcon, DrawnCheck, NowMarker } from "./icons";
-import { SNAPPY, useLayoutDependency } from "./motion";
+import { reducedMotion, SNAPPY, useLayoutDependency } from "./motion";
 import { BLOCK_LEAD, blockHeight, blockTop, gridHeight, HOUR_PX, LINE_DROP, minToPx, NOW_LEAD } from "./plan";
 import { SlotPicker } from "./SlotPicker";
 import type { BoardData, PlanBlock, PlanData } from "./types";
 
-const KEY_IDLE = 400; // arrow presses batch into one save after this pause
+const KEY_IDLE = 400;
+const ROOM_FOR_META = 40; // minutes × zoom: a block this tall has room for a second line // arrow presses batch into one save after this pause
 const DRAG_SLOP = 4;
 // On touch a block moves only after a stationary long press, so a swipe over the line still scrolls it.
 export const LONG_PRESS = 250;
@@ -23,20 +24,25 @@ const PRESS_SLOP = 5;
 const DAY = 24 * 60;
 
 type Draft = { id: string; start: number; mins: number; via: "key" | "pointer" };
-type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize"; moved: boolean; armed: boolean; k: number };
+type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize" | "top"; moved: boolean; armed: boolean; k: number };
 
 // The grid's geometry is in comp px (plan.ts); on screen it is scaled by the frame's --u, like the rest of
-// the print. px() writes a comp length for CSS; scale() (in Timeline) measures screen px per comp px.
-const px = (n: number) => `calc(${n} * var(--u))`;
+// the print, and by the line's own --zoom. px() writes a comp length for CSS; scale() (in Timeline) measures
+// screen px per comp px, so drags and drops follow the zoom without knowing about it.
+const px = (n: number) => `calc(${n} * var(--u) * var(--zoom, 1))`;
+
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 3;
+export const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 
 const clockOf = (m: number) => (m >= DAY ? "12:00" : clock12(toHM(m)));
 const range = (s: number, mins: number) => `${clockOf(s)}–${clockOf(s + mins)}`;
 
-type Props = { plan: PlanData; board?: BoardData; actions?: Actions };
+type Props = { plan: PlanData; board?: BoardData; actions?: Actions; onOpen?: (id: string) => void; zoom?: number; onZoom?: (z: number) => void };
 
 // The line: hour grid, events and planned blocks. With actions, blocks drag (body moves, bottom edge
 // resizes) and take arrow keys; an empty slot opens the SlotPicker. Without (fixture), it only draws.
-export function Timeline({ plan, board, actions }: Props) {
+export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Props) {
   const { blocks, nowM, anchorM } = plan;
   const date = board?.date ?? "";
   const live = !!(actions && board);
@@ -134,6 +140,83 @@ export function Timeline({ plan, board, actions }: Props) {
     };
   }, []);
 
+  // Zoom glides: --zoom is tweened on the line's element, outside React, so the hours, the blocks and the scroll
+  // move as one (a render per frame would set the blocks' layout springs off on their own). Each frame keeps the
+  // minute under the hand (or the middle of what's in view) where it was. A pinch follows the fingers directly.
+  const zoomRef = useRef(zoom); // the zoom asked for
+  const shown = useRef(zoom); // the zoom on screen, mid-glide
+  const zoomGlide = useRef<{ stop: () => void } | null>(null);
+  const focal = useRef<number | null>(null);
+  const direct = useRef(false);
+  const zoomTo = (z: number, y?: number, now = false) => {
+    focal.current = y ?? null;
+    direct.current = now;
+    onZoom?.(clampZoom(z));
+  };
+  useLayoutEffect(() => {
+    zoomRef.current = zoom;
+    const sc = scroller.current, g = grid.current;
+    if (!sc || !g) return;
+    if (shown.current === zoom && !zoomGlide.current) return void sc.style.setProperty("--zoom", String(zoom));
+    const view = sc.getBoundingClientRect();
+    const y = focal.current ?? (Math.max(view.top, 0) + Math.min(view.bottom, window.innerHeight)) / 2;
+    const per = (y - g.getBoundingClientRect().top) / shown.current; // that minute's offset into the grid, per unit of zoom
+    const apply = (v: number) => {
+      shown.current = v;
+      sc.style.setProperty("--zoom", String(v));
+      const delta = g.getBoundingClientRect().top + per * v - y;
+      if (sc.scrollHeight > sc.clientHeight + 1) sc.scrollTop += delta; // the line scrolls itself (desktop)
+      else window.scrollBy(0, delta); // the page does (phone)
+    };
+    zoomGlide.current?.stop();
+    zoomGlide.current = null;
+    if (direct.current || reducedMotion()) return apply(zoom);
+    zoomGlide.current = animate(shown.current, zoom, {
+      duration: 0.26, ease: [0.22, 1, 0.36, 1], onUpdate: apply, onComplete: () => { zoomGlide.current = null; },
+    });
+  }, [zoom]);
+  useEffect(() => () => zoomGlide.current?.stop(), []);
+  // Ctrl + wheel (and a trackpad pinch, which arrives as one) and a two-finger pinch zoom the line.
+  const zoomToRef = useRef(zoomTo);
+  zoomToRef.current = zoomTo;
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !onZoom) return;
+    const wheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      zoomToRef.current(zoomRef.current * Math.exp(-e.deltaY * 0.002), e.clientY);
+    };
+    let pinch: { d: number; z: number } | null = null;
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const start = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      pinch = { d: dist(e.touches), z: zoomRef.current };
+      clearTimeout(pressTimer.current); // two fingers are a pinch, never a long press
+      drag.current = null;
+    };
+    const move = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return;
+      if (e.cancelable) e.preventDefault();
+      zoomToRef.current(pinch.z * (dist(e.touches) / pinch.d), (e.touches[0].clientY + e.touches[1].clientY) / 2, true);
+    };
+    const end = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinch = null;
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    el.addEventListener("touchstart", start, { passive: true });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end);
+    el.addEventListener("touchcancel", end);
+    return () => {
+      el.removeEventListener("wheel", wheel);
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", move);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", end);
+    };
+  }, [!!onZoom]); // eslint-disable-line react-hooks/exhaustive-deps -- refs only
+
   // Escape abandons a pointer drag: no write, no ghost.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -205,7 +288,7 @@ export function Timeline({ plan, board, actions }: Props) {
       lastPointer.current = e.pointerType;
       swallowClick.current = false; // whatever the last gesture left unconsumed
       if (offline || e.button !== 0 || draftRef.current?.via === "key") return;
-      // The resize grip is a handle (touch-action: none) and takes the finger at once; the body waits for a long press.
+      // The resize grips are handles (touch-action: none) and takes the finger at once; the body waits for a long press.
       const wait = e.pointerType === "touch" && mode === "move";
       if (!wait) e.currentTarget.setPointerCapture?.(e.pointerId);
       const d: Drag = { id: b.id, x0: e.clientX, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false, armed: !wait, k: scale() };
@@ -365,6 +448,7 @@ export function Timeline({ plan, board, actions }: Props) {
                       {shownAt.mins === b.mins ? b.duration : `${shownAt.mins}m`}
                     </>
                   )}
+                  {b.meta && shownAt.mins * zoom >= ROOM_FOR_META && <span className="plan-meta">{b.meta}</span>}
                 </span>
               </>
             );
@@ -380,8 +464,10 @@ export function Timeline({ plan, board, actions }: Props) {
                     if (refocus.current === b.id) refocus.current = null;
                   }}
                   onClick={(e) => {
+                    // A click opens the ticket; on touch the first tap shows the tick and unplan, the next opens it.
                     if (swallowClick.current) e.preventDefault();
-                    else if (lastPointer.current === "touch") setRevealed((r) => (r === b.id ? null : b.id));
+                    else if (lastPointer.current === "touch" && revealed !== b.id) setRevealed(b.id);
+                    else onOpen?.(b.taskId!);
                     swallowClick.current = false;
                   }}
                   onContextMenu={(e) => lastPointer.current === "touch" && e.preventDefault()}
@@ -398,6 +484,7 @@ export function Timeline({ plan, board, actions }: Props) {
                     <span aria-hidden>×</span>
                   </button>
                 </span>
+                <span className="plan-resize plan-resize-top" aria-hidden {...pointer(b, "top")} />
                 <span className="plan-resize" aria-hidden {...pointer(b, "resize")} />
               </m.li>
             );

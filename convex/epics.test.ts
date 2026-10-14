@@ -83,6 +83,15 @@ it("the workspace has open tasks and the last fortnight's done", async () => {
   expect(ws.tasks.find((x) => x.title === "Open")).toMatchObject({ status: "todo", epic_id: null });
 });
 
+it("the workspace says how much of each estimate has been spent, for the Matrix", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Sized", estimate_mins: 120 }, { title: "Unsized" }] });
+  await t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-11", start: "09:00", mins: 60 });
+  await t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-12", start: "11:30", mins: 60 }); // half gone by 12:00
+  await t.mutation(api.agent.placeBlock, { task_id: created[1].id, date: "2026-10-11", start: "09:00", mins: 30 });
+  expect((await t.query(api.epics.workspace, { now })).spent).toEqual({ [created[0].id]: 90 });
+});
+
 it("counts an epic's done tasks however long ago they were done", async () => {
   const t = setup();
   const e = await t.mutation(api.epics.create, { epic: { title: "Long haul" } });

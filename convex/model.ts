@@ -330,7 +330,7 @@ const RECENT_DONE_DAYS = 14;
 
 // What the Kanban and Epics screens work from: every open task, the last fortnight's done, and the epics.
 export async function workspace(db: R, userId: string, now: Date) {
-  const { t } = clock(now);
+  const { t, nowM } = clock(now);
   const open = await db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", userId).eq("done", false)).collect();
   const done = await db.query("tasks")
     .withIndex("by_user_done_on", (q) => q.eq("user_id", userId).gte("done_on", addDays(t, -RECENT_DONE_DAYS))).collect();
@@ -342,10 +342,17 @@ export async function workspace(db: R, userId: string, now: Date) {
       .withIndex("by_user_epic", (q) => q.eq("user_id", userId).eq("epic_id", e.id as Id<"epics">)).collect();
     doneCounts[e.id] = all.filter((x) => x.done).length;
   }
+  // Minutes already spent (planned blocks gone by) on each open task with an estimate: the Matrix sizes by what's left.
+  const blocks = await db.query("plan_blocks")
+    .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", addDays(t, -HISTORY_DAYS))).collect();
+  const estimated = new Set(open.filter((x) => x.estimate_mins).map((x) => x._id as string));
+  const spent = Object.fromEntries([...effortMap(blocks.map((b) => ({ ...b, id: b._id, task_id: b.task_id as string })), t, nowM)]
+    .filter(([id, e]) => estimated.has(id) && e.actual > 0).map(([id, e]) => [id, e.actual]));
   return {
     today: t,
     epics,
     done_counts: doneCounts,
     tasks: [...open, ...done.filter((d) => d.done)].map(toTask),
+    spent,
   };
 }

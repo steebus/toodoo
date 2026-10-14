@@ -6,7 +6,7 @@ import * as opt from "./optimistic";
 
 // The optimistic side of the Board and Epics screens: every loaded workspace query, and any loaded day boards,
 // change at once. Pure, so they test against a fake store.
-export type WorkData = { today: string; epics: Epic[]; tasks: FullTask[]; done_counts: Record<string, number> };
+export type WorkData = { today: string; epics: Epic[]; tasks: FullTask[]; done_counts: Record<string, number>; spent?: Record<string, number> };
 type Q = typeof api.epics.workspace | typeof api.agent.board;
 export type WorkStore = {
   getAllQueries: (q: any) => { args: any; value: any }[];

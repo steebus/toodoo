@@ -27,15 +27,23 @@
   --paper-red: #b3161b;
   --paper-green: #1e8a4c;
 
-  /* epic colours: categories, not signals. Muted, and clear of the reds and greens. */
-  --epic-blue: #5876b0;
-  --epic-violet: #8667b3;
-  --epic-amber: #c08a2a;
-  --epic-teal: #3a8a91;
-  --epic-plum: #9c5786;
-  --epic-slate: #6c7889;
-  --epic-ochre: #a8743c;
-  --epic-sky: #4a95c4;
+  /* epic colours: categories, not signals. Clear of the reds and greens, strong enough to tell apart at a glance. */
+  --epic-blue: #3b6fd4;
+  --epic-violet: #7d4fd1;
+  --epic-amber: #e09a12;
+  --epic-teal: #13979f;
+  --epic-plum: #a8418f;
+  --epic-slate: #5d6d85;
+  --epic-ochre: #b8712a;
+  --epic-sky: #1ea3e6;
+  --epic-indigo: #4a48c2;
+  --epic-cyan: #0fb8cc;
+  --epic-gold: #c7a700;
+  --epic-coffee: #7a5236;
+  --epic-orchid: #c859d8;
+  --epic-denim: #2f557f;
+  --epic-copper: #d0632a;
+  --epic-lilac: #9a8ae6;
 
   /* the rails: flat, outlined, two tones and a highlight, like a 2D game's */
   --rail-ink: #2b2d31;
@@ -50,6 +58,7 @@
   --font-date: "RocknRoll One", "Carlito", system-ui, sans-serif;
   --font-ui: "Carlito", "Calibri", system-ui, sans-serif;
   --font-print: "Iosevka Charon Mono", ui-monospace, monospace;
+  --font-hand: "Caveat", "Segoe Print", cursive; /* notes, written on the paper by hand */
 
   /* spacing rhythm (comp px at 1536 wide) */
   --space-1: 4px;
@@ -82,6 +91,12 @@
   --rail-lo: #4a4f57;
   --rail-bolt: #33373d;
   --rack: #0d0d0d;
+  /* tickets go dark with the room: dim paper, light print */
+  --paper: #2a2a27;
+  --paper-ink: #ecebe5;
+  --paper-red: #ff7a70;
+  --paper-green: #5fd394;
+  --biro: #8fb0ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -107,5 +122,11 @@
     --rail-lo: #4a4f57;
     --rail-bolt: #33373d;
     --rack: #0d0d0d;
+  /* tickets go dark with the room: dim paper, light print */
+  --paper: #2a2a27;
+  --paper-ink: #ecebe5;
+  --paper-red: #ff7a70;
+  --paper-green: #5fd394;
+  --biro: #8fb0ff;
   }
 }

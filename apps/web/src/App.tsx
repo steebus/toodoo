@@ -12,6 +12,7 @@ import { useWorkActions, useWorkspace } from "./lib/useWork";
 import { Epics } from "./ui/Epics";
 import { Hero, HeroShell } from "./ui/Hero";
 import { Kanban } from "./ui/Kanban";
+import { Matrix } from "./ui/Matrix";
 import { RoomShell, RoomSkeleton } from "./ui/RoomShell";
 import { ShareRoom } from "./ui/ShareRoom";
 import { SignIn as Door } from "./ui/SignIn";
@@ -63,7 +64,7 @@ function SharedRoom() {
   return <RoomShell room="share" board={board} offline={offline} onSignOut={out}><ShareRoom offline={offline} /></RoomShell>;
 }
 
-function WorkRoom({ room }: { room: "board" | "epics" }) {
+function WorkRoom({ room }: { room: "board" | "epics" | "matrix" }) {
   const out = useSignOut();
   const { user } = useAuth();
   const work = useWorkspace(user?.id ?? lastUser());
@@ -71,7 +72,10 @@ function WorkRoom({ room }: { room: "board" | "epics" }) {
   const actions = useWorkActions(work);
   return (
     <RoomShell room={room} board={board} offline={actions.offline} onSignOut={out}>
-      {work ? (room === "board" ? <Kanban work={work} actions={actions} /> : <Epics work={work} actions={actions} />) : <RoomSkeleton room={room} />}
+      {!work ? <RoomSkeleton room={room} />
+        : room === "board" ? <Kanban work={work} actions={actions} />
+        : room === "epics" ? <Epics work={work} actions={actions} />
+        : <Matrix work={work} actions={actions} />}
     </RoomShell>
   );
 }

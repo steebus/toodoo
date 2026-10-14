@@ -1,11 +1,12 @@
 import { useCallback, useSyncExternalStore } from "react";
 
-// Three rooms on three paths. Anything else (including AuthKit's /callback) is the day.
-export type Room = "day" | "board" | "epics" | "share";
+// Four rooms on four paths. Anything else (including AuthKit's /callback) is the day.
+export type Room = "day" | "board" | "epics" | "matrix" | "share";
 export const ROOMS: { room: Room; path: string; label: string }[] = [
   { room: "day", path: "/", label: "Day" },
   { room: "board", path: "/board", label: "Board" },
   { room: "epics", path: "/epics", label: "Epics" },
+  { room: "matrix", path: "/matrix", label: "Matrix" },
 ];
 
 // Share is a room off the nav: where the share sheet and the bookmarklet land.

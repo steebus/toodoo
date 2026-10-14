@@ -81,6 +81,83 @@ export const CloseIcon = ({ size = 16, className }: P) => (
   </svg>
 );
 
+// ---------- the rooms and modes, each a sketch of its own screen ----------
+// Day: the line down the left with its blocks, the tickets beside it.
+export const DayIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M3 3v14" />
+    <rect x="5" y="4" width="4" height="3" rx="0.6" />
+    <rect x="5" y="10" width="4" height="5" rx="0.6" />
+    <rect x="12" y="3.5" width="5" height="6" rx="0.6" />
+    <rect x="12" y="11.5" width="5" height="5" rx="0.6" />
+  </svg>
+);
+// Board: three columns of cards.
+export const BoardIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="2.5" y="3" width="4" height="6" rx="0.6" />
+    <rect x="2.5" y="11" width="4" height="4" rx="0.6" />
+    <rect x="8" y="3" width="4" height="9" rx="0.6" />
+    <rect x="13.5" y="3" width="4" height="4" rx="0.6" />
+    <rect x="13.5" y="9" width="4" height="6" rx="0.6" />
+  </svg>
+);
+// Epics: a stack of bars, each part filled.
+export const EpicsIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="2.5" y="3" width="15" height="3.4" rx="1.7" />
+    <rect x="2.5" y="8.3" width="15" height="3.4" rx="1.7" />
+    <rect x="2.5" y="13.6" width="15" height="3.4" rx="1.7" />
+    <path d="M4.2 4.7h7M4.2 10h3M4.2 15.3h9.5" strokeWidth={2} />
+  </svg>
+);
+// Matrix: four quarters and dots of different sizes.
+export const MatrixIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="2.5" y="2.5" width="15" height="15" rx="1.2" />
+    <path d="M10 2.5v15M2.5 10h15" strokeWidth={1.1} />
+    <circle cx="6" cy="6.2" r="1.7" fill="currentColor" stroke="none" />
+    <circle cx="13.6" cy="5.6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="6.6" cy="13.8" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="13.8" cy="13.6" r="2.1" fill="currentColor" stroke="none" />
+  </svg>
+);
+// Plan: the timeline, hours ticked down it and blocks along it.
+export const PlanModeIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M5 2.5v15M3.5 5h1.5M3.5 10h1.5M3.5 15h1.5" />
+    <rect x="7.5" y="3.5" width="10" height="3.5" rx="0.6" />
+    <rect x="7.5" y="9.5" width="10" height="6" rx="0.6" />
+  </svg>
+);
+// Capture: the tickets, a grid of squares.
+export const CaptureModeIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="2.5" y="3" width="4" height="6" rx="0.6" />
+    <rect x="8" y="3" width="4" height="6" rx="0.6" />
+    <rect x="13.5" y="3" width="4" height="6" rx="0.6" />
+    <rect x="2.5" y="11" width="4" height="6" rx="0.6" />
+    <rect x="8" y="11" width="4" height="6" rx="0.6" />
+  </svg>
+);
+
+// View: the group, sort and filter settings, as three sliders.
+export const SlidersIcon = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M3 5h14M3 10h14M3 15h14" />
+    <circle cx="13" cy="5" r="2" fill="var(--rack, #fff)" />
+    <circle cx="7" cy="10" r="2" fill="var(--rack, #fff)" />
+    <circle cx="11.5" cy="15" r="2" fill="var(--rack, #fff)" />
+  </svg>
+);
+
+export const CopyIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="7" y="7" width="10" height="10" rx="1.5" />
+    <path d="M13 4.5V4.2c0-.9-.7-1.7-1.6-1.7H4.2c-.9 0-1.7.8-1.7 1.7v7.2c0 .9.8 1.6 1.7 1.6h.3" />
+  </svg>
+);
+
 export const PlusIcon = ({ size = 16, className }: P) => (
   <svg {...base(size)} strokeWidth={1.8} className={className}>
     <path d="M10 4v12M4 10h12" />

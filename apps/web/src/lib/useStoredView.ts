@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { DEFAULT_VIEW, type GroupBy, type SortBy, type View } from "@shared/board.ts";
 
 const KEY = "toodoo.view";
-const GROUPS: GroupBy[] = ["status", "due", "priority", "tag", "source", "epic"];
+const GROUPS: GroupBy[] = ["status", "column", "priority", "tag", "source", "epic"];
 const SORTS: SortBy[] = ["manual", "due", "priority", "time", "tag"];
 
 // localStorage can be missing, blocked or hold junk: every path falls back to the default view.

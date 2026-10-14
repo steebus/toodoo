@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { NO_EPIC, NO_TAG, type GroupBy, type SortBy, type View } from "@shared/board.ts";
-import { ChevronIcon } from "./icons";
+import { SlidersIcon } from "./icons";
 
-const GROUPS: [GroupBy, string][] = [["status", "Status"], ["due", "Due"], ["priority", "Priority"], ["epic", "Epic"], ["tag", "Tag"], ["source", "Source"]];
+const GROUPS: [GroupBy, string][] = [["status", "Due"], ["column", "Status"], ["priority", "Priority"], ["epic", "Epic"], ["tag", "Tag"], ["source", "Source"]];
 const SORTS: [SortBy, string][] = [["manual", "Manual"], ["due", "Due"], ["priority", "Priority"], ["time", "Time"], ["tag", "Tag"]];
 
 type Props = {
@@ -29,9 +29,9 @@ export function ViewMenu({ view, tags, epics = [], onChange }: Props) {
 
   return (
     <div className="viewmenu" ref={root}>
-      <button type="button" className="viewmenu-button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        View
-        <ChevronIcon size={16} className={`viewmenu-chevron${open ? " is-open" : ""}`} />
+      <button type="button" className="viewmenu-button" aria-label="View" title="View: group, sort, filter" aria-haspopup="dialog" aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}>
+        <SlidersIcon />
       </button>
       {open && (
         <div className="viewmenu-pop" role="dialog" aria-label="View">

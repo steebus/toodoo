@@ -42,7 +42,7 @@ it("offers sign-in when signed out", async () => {
 it("shows the board when signed in", () => {
   state.authed = true;
   render(<App />);
-  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 Mar" })).toBeInTheDocument();
 });
 
 const kept = {
@@ -104,7 +104,7 @@ it("a query that throws shows the kept board with Retry and Sign out; Retry remo
     vi.useRealTimers();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
-    expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 March" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Tuesday 10 Mar" })).toBeInTheDocument();
   } finally {
     auth.user = undefined;
     vi.mocked(console.error).mockRestore();

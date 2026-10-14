@@ -11,7 +11,9 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = { todo: "To do", doing: "Doing", blocked: "Blocked" };
 
 // Categorical, never signals: no reds or greens (those mean high/carried and done). Hues live in tokens.css.
-export const EPIC_COLOURS = ["blue", "violet", "amber", "teal", "plum", "slate", "ochre", "sky"] as const;
+export const EPIC_COLOURS = [
+  "blue", "violet", "amber", "teal", "plum", "slate", "ochre", "sky", "indigo", "cyan", "gold", "coffee", "orchid", "denim", "copper", "lilac",
+] as const;
 export type EpicColour = (typeof EPIC_COLOURS)[number];
 
 export interface Epic {

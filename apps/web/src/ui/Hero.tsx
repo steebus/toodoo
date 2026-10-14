@@ -14,7 +14,7 @@ import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
 import { compactDate } from "./format";
 import { HelpSheet } from "./HelpSheet";
-import { AddButton, AddSheet, Tabs, type Tab } from "./Mobile";
+import { AddButton, AddSheet, Tabs, useSwipeTabs, type Tab } from "./Mobile";
 import { MotionRoot, useArrivals, useCelebration } from "./motion";
 import { COMPACT_AT, PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
 import { Toast } from "./Toast";
@@ -39,6 +39,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const narrow = useNarrow();
   const [tab, setTab] = useState<Tab>("today");
   const [adding, setAdding] = useState<string | null>(null);
+  useSwipeTabs(narrow && viewing === null && adding === null, tab, setTab);
   const split = useSplit();
   const setSplit = split[1];
   const [stored, setView] = useStoredView();
@@ -112,6 +113,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           headline={model.headline}
           total={model.total}
           room={actions ? "day" : undefined}
+          nav={nav && { ...nav, today: board.today }}
           onSignOut={onSignOut}
           presets={PRESETS}
           activePreset={preset}
@@ -124,7 +126,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} moves={view.group === "status"} compact={compact} actions={actions}>
         <Panes split={split}>
-          <DayPlan plan={model.plan} board={board} actions={actions} nav={nav} tabpanel={narrow}
+          <DayPlan plan={model.plan} board={board} actions={actions} tabpanel={narrow}
             nextUp={{
               items: model.nextUp, onOpen: showTask,
               onPlanAll: actions && !offline ? (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date)) : undefined,
@@ -157,13 +159,13 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           </>
         )}
         {narrow && actions && adding !== null && (
-          <AddSheet today={board.today} nowM={board.nowM} initial={adding} epics={board.epics} onAdd={(t) => {
+          <AddSheet today={board.today} nowM={board.nowM} initial={adding} epics={board.epics} tags={model.tags} onAdd={(t) => {
             setTab("today");
             return actions.add(t);
           }} onClose={() => setAdding(null)} onFailed={setAdding} />
         )}
         {actions && viewTask && (
-          <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline} epics={board.epics} editTitle={editTitle}
+          <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline} epics={board.epics} tagPool={model.tags} editTitle={editTitle}
             epic={viewTask.epic_id ? board.epics?.find((e) => e.id === viewTask.epic_id) : undefined}
             progress={viewTask.estimate_mins && board.effort?.[viewTask.id]?.actual
               ? { spent: board.effort[viewTask.id].actual, est: viewTask.estimate_mins } : null}
