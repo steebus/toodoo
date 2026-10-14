@@ -42,7 +42,11 @@ export type Actions = {
   // A change dragged into being (to another rail), with Undo putting the old values back.
   shift: (id: string, patch: Record<string, unknown>, message: string) => void;
   planTasks: (ids: string[], date: string) => Promise<void>;
+  // A prep task for a calendar event (due that day, 15m); asked again, it finds the first.
+  prep: (e: PrepEvent) => Promise<void>;
 };
+
+export type PrepEvent = { date: string; start?: string; end?: string; title: string; where?: string };
 
 const failure = (e: unknown, fallback: string) => {
   const data = (e as { data?: unknown })?.data;
@@ -74,6 +78,7 @@ export function useActions(board: BoardData): Actions {
   const placeBlock = useMutation(api.agent.placeBlock).withOptimisticUpdate((s, a) => opt.placeBlock(s as Store, a));
   const removeBlock = useMutation(api.agent.removeBlock).withOptimisticUpdate((s, a) => opt.removeBlock(s as Store, a));
   const planDay = useMutation(api.agent.plan);
+  const prepTask = useMutation(api.agent.prepTask);
 
   const fail = useCallback((what: string, e: unknown) => show({ kind: "error", message: failure(e, what) }), [show]);
 
@@ -288,8 +293,24 @@ export function useActions(board: BoardData): Actions {
     [planDay, removeBlock, show, fail],
   );
 
+  const prep = useCallback(
+    async (e: PrepEvent) => {
+      try {
+        const r = await prepTask(e);
+        if (!r.created) return show({ kind: "error", message: `Already on the list: ${r.title}` });
+        show({
+          kind: "undo", message: `Added: ${r.title}`,
+          undo: () => void deleteTask({ id: r.id }).catch((err) => fail("Couldn't undo", err)),
+        });
+      } catch (err) {
+        fail("Couldn't add that", err);
+      }
+    },
+    [prepTask, deleteTask, show, fail],
+  );
+
   return {
-    offline, unsaved, away, toast, dismiss,
+    offline, unsaved, away, toast, dismiss, prep: gate(prep, Promise.resolve()),
     add: gate(add, Promise.resolve(false)), tick: gate(tick, undefined), remove: gate(remove, undefined),
     save: gate(save, Promise.resolve(false)), place: gate(place, undefined), unplace: gate(unplace, undefined),
     addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined), shift: gate(shift, undefined),

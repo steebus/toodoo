@@ -55,3 +55,7 @@ export const removeBlock = mutation({
   args: { task_id: v.string(), date: v.string(), block_id: v.optional(v.string()) },
   handler: async (ctx, a) => m.removeBlock(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),
 });
+export const prepTask = mutation({
+  args: { date: v.string(), start: v.optional(v.string()), end: v.optional(v.string()), title: v.string(), where: v.optional(v.string()) },
+  handler: async (ctx, a) => m.prepTask(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),
+});

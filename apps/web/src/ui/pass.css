@@ -155,6 +155,18 @@
 }
 /* Events are the day's furniture: quiet. Tasks are the work: paper, a firmer edge, a little lift. */
 .plan-event { background: var(--well); color: var(--ink-2); border-color: var(--rule-soft); box-shadow: none; }
+.plan-event.is-live, .pass .plan-event .plan-body { cursor: pointer; }
+.plan-event.is-live:hover { border-color: var(--rule); color: var(--ink); }
+/* An event tapped: its one action, Create prep task, on a small slip under it. */
+.event-menu {
+  position: absolute; left: calc(var(--lane-left) + 2%); z-index: 30; display: grid; gap: calc(2 * var(--u)); min-width: calc(230 * var(--u));
+  padding: calc(6 * var(--u)); background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 12px 28px -10px rgb(0 0 0 / 0.35); font-family: var(--font-ui); font-size: calc(18 * var(--u));
+}
+.event-menu-head { margin: 0; padding: calc(5 * var(--u)) calc(10 * var(--u)) calc(7 * var(--u)); font-family: var(--font-print); font-size: calc(14 * var(--u)); color: var(--ink-3); border-bottom: 1px solid var(--rule-soft); }
+.event-menu button { display: flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(9 * var(--u)) calc(10 * var(--u)); border-radius: calc(3 * var(--u)); text-align: left; color: inherit; }
+.event-menu button:hover, .event-menu button:focus-visible { background: var(--well); }
+.event-menu button:disabled { opacity: 0.5; }
 .plan-task { --block-bg: var(--paper); background: var(--block-bg); color: var(--paper-ink); border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); box-shadow: 0 2px 5px rgb(0 0 0 / 0.12); }
 .plan-block.is-current { border-left: calc(3 * var(--u)) solid var(--ink); padding-left: calc(17 * var(--u)); }
 .plan-time { width: calc(71 * var(--u)); flex: none; }

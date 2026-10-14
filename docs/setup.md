@@ -49,3 +49,8 @@ Create `.env.import` with `CONVEX_SITE_URL=https://<prod>.convex.site` (from Das
 
 ## Claude connector
 claude.ai → Settings → Connectors → Add custom connector → `https://<prod>.convex.site/mcp` → sign in with AuthKit → Allow.
+
+## Jira link (optional)
+1. Make an API token at https://id.atlassian.com/manage-profile/security/api-tokens.
+2. In toodoo: menu → **Suggested** → **Link Jira**. Enter the site (`your-team.atlassian.net`), your Atlassian email and the token. Leave JQL blank for every open issue assigned to you, or narrow it (e.g. `project = ACME AND assignee = currentUser() AND statusCategory != Done`).
+3. Issues sync every 15 minutes (**Sync now** for immediately) into Suggested. Jira Cloud only; the token is stored in Convex and never sent to the browser.

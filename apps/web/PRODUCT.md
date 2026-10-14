@@ -20,7 +20,7 @@ An agent-fed planner. Claude reads, suggests and plans through the same data and
 
 ## Operating Context
 
-- **The 6:30 run (weekdays):** a scheduled Claude routine reads Google Calendar, Gmail and Jira, writes the day's events and headline, adds tasks, and messages Steve asking what else needs to fit in.
+- **The 6:30 run (weekdays):** a scheduled Claude routine reads Google Calendar and Gmail (Jira only when it isn't linked), writes the day's events and headline, proposes tasks into Suggested, and messages Steve asking what else needs to fit in.
 - **The daily ritual, in three stages:**
   1. **Capture:** get tasks in and edit them. The to-do list has priority.
   2. **Plan:** place tasks on the day's timeline around events. List and plan have equal weight.
@@ -44,6 +44,9 @@ An agent-fed planner. Claude reads, suggests and plans through the same data and
   - day navigation.
 - **Epics:** title, description, priority and status (planned, active, on hold, done). A task has at most one epic and keeps its own priority; the epic counts for half of it (a high epic lifts a plain task to medium; on hold sinks it). Managed on the Epics screen: full create/edit/delete, tasks dragged between epics, reordered, or taken out.
 - **Sharing in:** Android's share sheet (the installed PWA's share target) and a Chrome bookmarklet open `/share`, which reads what came in (Jira keys and summaries, Gmail subjects, page titles, selected words) for a title, due date, time, priority, estimate and epic, and asks before adding. It survives a sign-in on the way.
+- **Suggested:** an inbox (in the wordmark's menu, counted on its badge) for what Claude and the Jira link propose. Each suggestion is accepted onto the list, rejected (never proposed again) or combined with a task Steve already has (it fills that task's gaps and lends it its Jira key, so the next sync knows them as one); lookalike tasks are offered first. Every call has Undo.
+- **Jira link:** a Jira Cloud site, email and API token (never sent back to the browser) plus a JQL (default: open issues assigned to Steve), synced every 15 minutes or on demand. Each issue arrives in Suggested with its description (task lists become checklist steps), estimate, priority, status, due date and epic (its parent epic or project, by name).
+- **Prep tasks:** tapping an event on the timeline offers Create prep task: "Prep: <event>", due that day, 15 minutes, made once per event.
 - **Board:** a Kanban of To do, Doing, Blocked and Done (the last fortnight), filterable by epic. Doing lifts a task in suggestions; Blocked sinks it.
 - **Rails:** Carried over, Today, Done today, Coming up (the week ahead) and Later (everything after, by due date); the last three fold.
 - **Checklists:** a task may carry up to 50 steps, ticked on its ticket or edited in the edit sheet; dockets and cards show the progress.

@@ -76,7 +76,10 @@ function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTas
   const isToday = b.date === b.today;
   const blocks: PlanBlock[] = [];
   timedEvents(b.day?.events ?? []).forEach((e, i) => {
-    blocks.push({ id: `event-${i}`, kind: "event", startM: e.s, mins: e.e - e.s, time: clock12(toHM(e.s)), title: e.title });
+    blocks.push({
+      id: `event-${i}`, kind: "event", startM: e.s, mins: e.e - e.s, time: clock12(toHM(e.s)), title: e.title,
+      event: { start: toHM(e.s), end: toHM(e.e), title: e.title, ...(e.where ? { where: e.where } : {}) },
+    });
   });
   for (const pb of b.blocks) {
     const t = byId.get(pb.task_id);

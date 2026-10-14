@@ -66,6 +66,7 @@
 }
 .room .room-button:hover, .room .room-toggle:hover { border-color: var(--ink-3); }
 .room .room-toggle { color: var(--ink-2); box-shadow: none; }
+.room .room-button.is-quiet { color: var(--ink-2); box-shadow: none; }
 .room .room-toggle[aria-pressed="true"] { color: var(--ink); border-color: var(--ink-3); }
 
 /* ---------- lanes: recessed wells the slips sit in ---------- */
@@ -917,6 +918,47 @@
 .tidy-clear { display: grid; justify-items: center; gap: 16px; padding-top: 60px; }
 .tidy-clear-word { margin: 0; font-family: var(--font-print); font-size: 28px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 @media (max-width: 640px) { .tidy-card { padding: 18px 18px 20px; } .tidy-key kbd { display: none; } }
+
+/* ---------- Suggested: what Claude and Jira propose, a card each, waiting for Accept · Combine · Reject ---------- */
+.suggested { display: grid; justify-items: center; align-content: start; gap: 18px; }
+.sug-list { display: grid; justify-items: center; gap: 22px; width: min(560px, 100%); margin: 0; padding: 0 0 80px; list-style: none; }
+.sug-list > .tidy-card { list-style: none; }
+.sug-card .skel-line { display: block; margin-bottom: 12px; }
+.tidy-title.sug-title { font-size: clamp(21px, 3.2vw, 26px); }
+.sug-desc { cursor: pointer; white-space: pre-line; }
+.sug-desc.is-open { -webkit-line-clamp: unset; display: block; }
+.sug-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-family: var(--font-print); font-size: 13px; color: var(--biro); text-decoration: none; }
+.sug-link:hover { text-decoration: underline; }
+.sug-alike { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 16px 0 0; padding-top: 12px; border-top: 1px dashed color-mix(in srgb, var(--paper-ink) 20%, var(--paper)); }
+.sug-alike-label { font-family: var(--font-print); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--biro); }
+.room .sug-alike-task {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 5px 10px; border-radius: 999px;
+  font-family: var(--font-print); font-size: 13px; color: var(--paper-ink); border: 1px solid color-mix(in srgb, var(--biro) 50%, var(--paper));
+  transition: background 0.15s ease, transform 0.15s var(--spring);
+}
+.room .sug-alike-task:hover:not(:disabled) { background: color-mix(in srgb, var(--biro) 12%, var(--paper)); transform: translateY(-1px); }
+.room .tidy-key.is-accept { color: var(--paper); background: var(--paper-ink); border-color: var(--paper-ink); }
+.room .tidy-key.is-accept:hover:not(:disabled) { background: color-mix(in srgb, var(--paper-ink) 85%, var(--paper)); }
+.room .tidy-card .tidy-keys .is-delete { margin-left: auto; }
+.sug-pick .tidy-input input { height: 44px; font-size: 17px; }
+.sug-pick-list { display: grid; gap: 2px; margin: 8px 0 0; padding: 0; list-style: none; max-height: 260px; overflow-y: auto; }
+.room .sug-pick-task {
+  display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 9px 10px; border-radius: 4px; text-align: left;
+  font-family: var(--font-print); font-size: 15px; color: var(--paper-ink);
+}
+.room .sug-pick-task:hover, .room .sug-pick-task:focus-visible { background: color-mix(in srgb, var(--paper) 88%, var(--paper-ink)); }
+.sug-pick-due { flex: none; font-size: 12px; color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
+.sug-pick-none { padding: 9px 10px; font-family: var(--font-print); font-size: 14px; color: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
+.sug-jira {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; width: min(560px, 100%); box-sizing: border-box; margin: 0;
+  padding: 10px 0 14px; border-bottom: 1px solid var(--rule-soft); font-family: var(--font-print);
+}
+.sug-jira-name { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sug-jira-state { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-3); }
+.sug-jira-state.is-bad { color: var(--red); }
+.sug-jira-form { --u: 1px; display: grid; padding: 12px 0 18px; }
+.sug-jira-form .sheet-field a { margin-left: 6px; color: var(--biro); }
+@media (max-width: 640px) { .sug-jira-form .sheet-pair { grid-template-columns: 1fr; } }
 
 /* The wordmark's count of tasks to tidy: a small stamp hung on the name's last letter. It takes no room, so the
    header's spacing (which knows the wordmark's width) holds with or without it. */

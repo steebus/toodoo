@@ -15,6 +15,8 @@ import type * as crons from "../crons.js";
 import type * as epics from "../epics.js";
 import type * as http from "../http.js";
 import type * as importArtifact from "../importArtifact.js";
+import type * as inbox from "../inbox.js";
+import type * as jira from "../jira.js";
 import type * as lib_user from "../lib/user.js";
 import type * as mcp from "../mcp.js";
 import type * as me from "../me.js";
@@ -37,6 +39,8 @@ declare const fullApi: ApiFromModules<{
   epics: typeof epics;
   http: typeof http;
   importArtifact: typeof importArtifact;
+  inbox: typeof inbox;
+  jira: typeof jira;
   "lib/user": typeof lib_user;
   mcp: typeof mcp;
   me: typeof me;

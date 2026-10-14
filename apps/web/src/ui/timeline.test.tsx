@@ -338,3 +338,16 @@ it("counts the blocks wholly out of sight below or above the line, and a pill go
   act(() => { sc.dispatchEvent(new Event("scroll")); });
   await waitFor(() => expect(screen.queryByRole("button", { name: /above|below/ })).toBeNull());
 });
+
+it("an event opens its menu and makes a prep task, with undo", async () => {
+  show(board({ day: { date: T, headline: null, events: [{ start: "14:00", end: "15:00", title: "Client demo", where: "Zoom" }] } }));
+  fn("prepTask").mockResolvedValue({ id: "prep1", title: "Prep: Client demo", created: true });
+  fn("deleteTask").mockResolvedValue({});
+  await userEvent.click(screen.getByRole("button", { name: "Client demo, 2:00–3:00" }));
+  const menu = screen.getByRole("menu", { name: "Client demo" });
+  await userEvent.click(within(menu).getByRole("menuitem", { name: "Create prep task" }));
+  expect(fn("prepTask")).toHaveBeenCalledWith({ date: T, start: "14:00", end: "15:00", title: "Client demo", where: "Zoom" });
+  expect(screen.queryByRole("menu", { name: "Client demo" })).toBeNull();
+  await userEvent.click(await screen.findByRole("button", { name: "Undo" }));
+  expect(fn("deleteTask")).toHaveBeenCalledWith({ id: "prep1" });
+});

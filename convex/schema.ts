@@ -54,6 +54,39 @@ export default defineSchema({
     user_id: v.string(), url: v.string(), synced_at: v.optional(v.number()), tried_at: v.optional(v.number()),
     error: v.optional(v.string()),
   }).index("by_user", ["user_id"]),
+  // The Suggested inbox: tasks the agent or the Jira link proposes, until Steve accepts, rejects or combines them.
+  // Settled rows stay (state not pending) so the same thing is never proposed twice.
+  inbox: defineTable({
+    user_id: v.string(),
+    state: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected"), v.literal("merged")),
+    origin: v.string(), // who proposed it: "agent", "jira"
+    title: v.string(),
+    description: str,
+    note: str,
+    link: str,
+    source: v.string(),
+    external_id: str,
+    due: str,
+    time: str,
+    priority,
+    estimate_mins: v.union(v.number(), v.null()),
+    tags: v.array(v.string()),
+    epic_id: v.union(v.id("epics"), v.null()),
+    status: v.optional(v.union(v.literal("backlog"), v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
+    checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))),
+    task_id: v.optional(v.id("tasks")), // the task it became or went into
+    undo: v.optional(v.any()), // combined: the task's fields as they were, for Undo
+    created_at: v.number(),
+    updated_at: v.number(),
+  })
+    .index("by_user_state", ["user_id", "state"])
+    .index("by_user_source_ext", ["user_id", "source", "external_id"]),
+  // The Jira link: a site, an account email and an API token (never sent back), and the JQL that picks the issues.
+  jira_links: defineTable({
+    user_id: v.string(), site: v.string(), email: v.string(), token: v.string(), jql: v.string(),
+    synced_at: v.optional(v.number()), tried_at: v.optional(v.number()), error: v.optional(v.string()),
+    count: v.optional(v.number()),
+  }).index("by_user", ["user_id"]),
   plan_blocks: defineTable({
     user_id: v.string(), date: v.string(), task_id: v.id("tasks"), start: v.string(), mins: v.number(),
   })

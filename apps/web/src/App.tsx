@@ -19,6 +19,7 @@ import { Matrix } from "./ui/Matrix";
 import { RoomShell, RoomSkeleton } from "./ui/RoomShell";
 import { ShareRoom } from "./ui/ShareRoom";
 import { CalendarsRoom } from "./ui/CalendarsRoom";
+import { Suggested } from "./ui/Suggested";
 import { SignIn as Door } from "./ui/SignIn";
 import type { BoardData } from "./ui/types";
 
@@ -61,13 +62,13 @@ function useTodayBoard() {
   return useBoard(undefined, user?.id);
 }
 
-function SideRoom({ room }: { room: "share" | "calendars" }) {
+function SideRoom({ room }: { room: "share" | "calendars" | "suggested" }) {
   const out = useSignOut();
   const offline = useOffline();
   const board = useTodayBoard();
   return (
     <RoomShell room={room} board={board} offline={offline} onSignOut={out}>
-      {room === "share" ? <ShareRoom offline={offline} /> : <CalendarsRoom offline={offline} />}
+      {room === "share" ? <ShareRoom offline={offline} /> : room === "suggested" ? <Suggested offline={offline} /> : <CalendarsRoom offline={offline} />}
     </RoomShell>
   );
 }
@@ -109,7 +110,7 @@ function Rooms({ cached }: { cached?: string }) {
   useEffect(() => {
     if (room !== "share" && pendingShare()) go("share");
   }, [room]);
-  if (room === "share" || room === "calendars") return <SideRoom key={room} room={room} />;
+  if (room === "share" || room === "calendars" || room === "suggested") return <SideRoom key={room} room={room} />;
   if (room === "stats" || room === "tasks" || room === "tidy") return <AccountRoom key={room} room={room} />;
   return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
 }

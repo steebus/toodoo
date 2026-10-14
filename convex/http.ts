@@ -28,6 +28,7 @@ function callTool(ctx: ActionCtx, name: string, a: any): Promise<unknown> {
   switch (name) {
     case "get_snapshot": return ctx.runQuery(api.agent.getSnapshot, { ...pick(a, ["date", "query"]), now: Date.now() });
     case "add_tasks": return ctx.runMutation(api.agent.addTasks, { tasks: Array.isArray(a?.tasks) ? a.tasks : [] });
+    case "propose_tasks": return ctx.runMutation(api.inbox.proposeTasks, { tasks: Array.isArray(a?.tasks) ? a.tasks.slice(0, 100) : [] });
     case "update_task": return ctx.runMutation(api.agent.updateTask, { id: String(a?.id ?? ""), patch: a?.patch ?? {} });
     case "set_day": return ctx.runMutation(api.agent.setDay, { day: a ?? {} });
     case "suggest": return ctx.runQuery(api.agent.suggest, { ...pick(a, ["date", "limit"]), now: Date.now() });

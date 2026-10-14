@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, animate, m } from "motion/react";
 import { layoutLanes, SLOT, toHM } from "@shared/planning.ts";
@@ -56,6 +56,8 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
     setDraftState(d);
   };
   const drag = useRef<Drag | null>(null);
+  const [eventMenu, setEventMenu] = useState<string | null>(null); // the event whose menu is open
+  useEffect(() => setEventMenu(null), [date]);
   const keyTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const refocus = useRef<string | null>(null);
   const swallowClick = useRef(false);
@@ -426,6 +428,7 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
   };
 
   const ghost = draft?.via === "pointer" ? draft : null;
+  const menuBlock = eventMenu ? lanes.find((b) => b.id === eventMenu) : undefined;
   const slotTop = (m: number) => blockTop(m, startM);
   const pickerTop = (m: number) => {
     const below = slotTop(m) + 44;
@@ -509,6 +512,17 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
                 </span>
               </>
             );
+            if (b.kind === "event" && live && b.event) {
+              return (
+                <m.li key={b.id} className={`${cls} is-live`} style={style} {...snap}>
+                  <button type="button" className="plan-body" aria-haspopup="menu" aria-expanded={eventMenu === b.id}
+                    aria-label={`${b.title}, ${range(b.startM, b.mins)}`}
+                    onClick={(e) => { e.stopPropagation(); setEventMenu((x) => (x === b.id ? null : b.id)); }}>
+                    {face}
+                  </button>
+                </m.li>
+              );
+            }
             if (!editable) return <m.li key={b.id} className={cls} style={style} {...snap}>{face}</m.li>;
             return (
               <m.li key={b.id} data-block={b.id} data-task={b.taskId} className={cls} style={style} {...snap}>
@@ -572,6 +586,17 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
             <span className="now-rule" aria-hidden />
           </p>
         )}
+        {live && menuBlock?.event && (
+          <EventMenu
+            key={menuBlock.id}
+            style={{ top: px(blockTop(menuBlock.startM, startM) + blockHeight(menuBlock.mins) + 6) }}
+            title={menuBlock.title}
+            where={menuBlock.event.where}
+            offline={offline}
+            onPrep={() => { setEventMenu(null); void actions!.prep({ date, ...menuBlock.event! }); }}
+            onClose={() => setEventMenu(null)}
+          />
+        )}
         {live && !offline && picker !== null && (
           <SlotPicker
             key={picker}
@@ -610,5 +635,30 @@ function OutOfSight({ dir, n, onClick }: { dir: "above" | "below"; n: number; on
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// An event's menu, under it on the line: Create prep task. Escape or a click away closes it.
+function EventMenu({ style, title, where, offline, onPrep, onClose }: {
+  style: CSSProperties; title: string; where?: string; offline: boolean; onPrep: () => void; onClose: () => void;
+}) {
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    root.current?.querySelector("button")?.focus();
+    const away = (e: MouseEvent) => { if (!root.current?.contains(e.target as Node)) onClose(); };
+    const esc = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [onClose]);
+  return (
+    <m.div ref={root} className="event-menu" role="menu" aria-label={title} style={style}
+      initial={{ opacity: 0, y: -4, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.14 }}>
+      <p className="event-menu-head">{title}{where ? ` · ${where}` : ""}</p>
+      <button type="button" role="menuitem" disabled={offline} onClick={onPrep}>Create prep task</button>
+    </m.div>
   );
 }

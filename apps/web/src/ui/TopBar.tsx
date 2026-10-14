@@ -118,13 +118,16 @@ function DayNav({ date, today, onDate }: { date: string; today: string; onDate: 
   );
 }
 
-// The wordmark, and a chevron for the menu: the theme (one button that steps Light, Dark, Auto), All tasks, Stats,
+// The wordmark, and a chevron for the menu: the theme (one button that steps Light, Dark, Auto), All tasks, Suggested, Tidy up, Stats,
 // Share to toodoo, Calendars, Sign out. A popover like the view menu: Escape or a click away closes it.
 function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   const counted = useQuery(api.stats.tidyCount, {});
-  const tidy = typeof counted === "number" ? counted : 0;
+  const waiting = useQuery(api.inbox.count, {});
+  const suggested = typeof waiting === "number" ? waiting : 0;
+  // The wordmark's one count: suggestions waiting, plus tasks to tidy.
+  const tidy = (typeof counted === "number" ? counted : 0) + suggested;
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false); };
@@ -141,7 +144,7 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
       <button type="button" className="daymenu-button" aria-haspopup="menu" aria-expanded={open} aria-label="Menu" onClick={() => setOpen((o) => !o)}>
         <span className="daymenu-name">
           toodoo
-          {tidy > 0 && <span key={tidy} className="tidy-badge" aria-label={`${tidy} to tidy`}>{tidy > 99 ? "99+" : tidy}</span>}
+          {tidy > 0 && <span key={tidy} className="tidy-badge" aria-label={`${tidy} to sort`}>{tidy > 99 ? "99+" : tidy}</span>}
         </span>
         <ChevronIcon size={18} className={`daymenu-chevron${open ? " is-open" : ""}`} />
       </button>
@@ -149,8 +152,11 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
         <span className="daymenu-pop" role="menu" aria-label="Menu">
           <ThemeCycle />
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("tasks"); }}>All tasks</button>
+          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("suggested"); }}>
+            Suggested{suggested > 0 && <span className="count-chip">{suggested}</span>}
+          </button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("tidy"); }}>
-            Tidy up{tidy > 0 && <span className="count-chip">{tidy}</span>}
+            Tidy up{tidy - suggested > 0 && <span className="count-chip">{tidy - suggested}</span>}
           </button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("stats"); }}>Stats</button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("share"); }}>Share to toodoo</button>

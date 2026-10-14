@@ -29,6 +29,7 @@ export type PlanBlock = {
   current?: boolean;
   done?: boolean;
   colour?: string | null; // its epic's
+  event?: { start?: string; end?: string; title: string; where?: string }; // an event's own fields, for its prep task
   meta?: string; // its checklist and estimate ("■■□ 2/3 · est 45m"), printed under the title when the block has room
 };
 

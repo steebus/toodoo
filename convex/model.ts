@@ -3,6 +3,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
+import { prepFor } from "../shared/inbox.ts";
 import { piles, QUIET_DAYS, tidyCount } from "../shared/tidy.ts";
 import { buildSnapshot, WEEK_AHEAD, type FullTask, type State } from "../shared/snapshot.ts";
 import {
@@ -96,6 +97,11 @@ export async function loadState(db: R, userId: string, t: string, date: string):
   };
 }
 
+const hasJira = async (db: R, userId: string) =>
+  (await db.query("jira_links").withIndex("by_user", (q) => q.eq("user_id", userId)).first()) !== null;
+const inboxWaiting = async (db: R, userId: string) =>
+  (await db.query("inbox").withIndex("by_user_state", (q) => q.eq("user_id", userId).eq("state", "pending")).collect()).length;
+
 const hasFeed = async (db: R, userId: string) =>
   (await db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", userId)).first()) !== null;
 
@@ -106,6 +112,8 @@ export async function snapshot(db: R, userId: string, a: { date?: string; query?
   return {
     app_url: process.env.APP_URL ?? null,
     calendar_feed: await hasFeed(db, userId),
+    jira_link: await hasJira(db, userId),
+    suggested_waiting: await inboxWaiting(db, userId),
     ...buildSnapshot({ date, today: t, nowM, query: a.query, ...(await loadState(db, userId, t, date)) }),
   };
 }
@@ -166,6 +174,18 @@ export async function setDay(db: W, userId: string, input: unknown) {
   if (hit) await db.patch(hit._id, { headline, events });
   else await db.insert("days", { user_id: userId, date: d.date, headline, events });
   return { date: d.date, headline, events };
+}
+
+// A prep task for a calendar event, made once: a second ask finds the first.
+export async function prepTask(db: W, userId: string, e: { date: string; start?: string; end?: string; title: string; where?: string }) {
+  checkDate(e.date);
+  const p = prepFor(e);
+  const hit = await db.query("tasks").withIndex("by_user_source_ext", (q) =>
+    q.eq("user_id", userId).eq("source", p.source).eq("external_id", p.external_id)).first();
+  if (hit) return { id: hit._id as string, title: hit.title, created: false };
+  const r = await addTasks(db, userId, [p], e.date);
+  if (!r.created[0]) throw new InputError(r.errors[0]?.error ?? "couldn't make that");
+  return { id: r.created[0].id, title: r.created[0].title, created: true };
 }
 
 export async function deleteTask(db: W, userId: string, id: string) {
