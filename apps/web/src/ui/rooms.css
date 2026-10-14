@@ -664,6 +664,12 @@
 .slip-holder { position: relative; list-style: none; outline: none; }
 .slip-holder:focus-visible > .slip { outline: 2px solid var(--ink); outline-offset: 3px; }
 .slip-holder > .slip { touch-action: pan-y; }
+/* A card swiped aside never widens the page: the lane clips it sideways (only sideways, so the column row under the
+   card still hangs below the last one), and the page never scrolls sideways or resizes under the finger. */
+@media (max-width: 819px) {
+  .kanban .lane { overflow-x: clip; }
+  .room-main.kanban { overflow-x: clip; }
+}
 .cs-under {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding: 0 16px;
   background: var(--well-strong); border-radius: 3px; pointer-events: none;
