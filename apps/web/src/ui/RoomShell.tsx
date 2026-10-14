@@ -12,7 +12,7 @@ import { TopBar } from "./TopBar";
 import type { BoardData } from "./types";
 import { compactDate, longDate } from "./format";
 import { DEFAULT_VIEW } from "@shared/board.ts";
-import { SkeletonTicket } from "./Hero";
+import { useNarrow } from "../lib/useNarrow";
 
 type Props = { room: Room; board?: BoardData; offline?: boolean; onSignOut?: () => void; children: ReactNode };
 
@@ -21,26 +21,43 @@ const PRESETS = ["Plan", "Capture"];
 // The Board or Epics before their data comes: the page's own shape (lanes of blank tickets, or epic cards),
 // shimmering, so the data fills in rather than jumps in.
 export function RoomSkeleton({ room }: { room: "board" | "epics" | "matrix" }) {
+  const narrow = useNarrow();
+  const slip = (i: number) => <li key={i} className="slip slip-card"><span className="skel skel-line" style={{ width: "40%" }} /><span className="skel skel-line" style={{ width: "85%" }} /><span className="skel skel-line" style={{ width: "60%" }} /></li>;
   return (
     <main className={`room-main is-loading ${room === "board" ? "kanban" : room}`} aria-busy>
-      <div className="room-head"><span className="skel skel-line" style={{ width: 120, height: 26 }} /></div>
+      {!narrow && <div className="room-head"><span className="skel skel-line" style={{ width: 120, height: 26 }} /></div>}
       {room === "matrix" ? (
         <div className="mx-frame"><div className="mx-plot" /></div>
+      ) : room === "board" && narrow ? (
+        // the phone's Board: the five column tabs, the add line, one column
+        <>
+          <div className="kb-tabs" aria-hidden>
+            {[0, 1, 2, 3, 4].map((i) => <span key={i} className="kb-tab"><span className="skel skel-line" style={{ width: "70%" }} /><span className="skel skel-line" style={{ width: 20 }} /></span>)}
+          </div>
+          <div className="lane-add"><div className="skel-input-line" /></div>
+          <div className="kanban-cols"><section className="kanban-col"><ol className="lane skel-lane">{[0, 1, 2].map(slip)}</ol></section></div>
+        </>
       ) : room === "board" ? (
         <div className="kanban-cols">
           {[3, 1, 1, 2].map((n, c) => (
             <section key={c} className="kanban-col">
               <span className="skel skel-line" style={{ width: 90, height: 16, marginBottom: 12 }} />
-              <ol className="lane skel-lane">{Array.from({ length: n }, (_, i) => <li key={i} className="slip slip-card"><span className="skel skel-line" style={{ width: "40%" }} /><span className="skel skel-line" style={{ width: "85%" }} /><span className="skel skel-line" style={{ width: "60%" }} /></li>)}</ol>
+              <ol className="lane skel-lane">{Array.from({ length: n }, (_, i) => slip(i))}</ol>
             </section>
           ))}
         </div>
       ) : (
+        // Epics open folded: the name, the progress line, a row of tallies
         <div className="epic-list">
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2, 3].map((i) => (
             <section key={i} className="epic">
-              <div className="epic-head"><span className="skel skel-line" style={{ width: "45%", height: 20 }} /></div>
-              <div className="epic-body"><ol className="lane tickets">{[0, 1, 2].map((k) => <SkeletonTicket key={k} />)}</ol></div>
+              <div className="epic-head">
+                <span className="epic-toggle"><span className="skel skel-line" style={{ width: `${[45, 30, 55, 38][i]}%`, height: 20 }} /></span>
+                <div className="epic-meta">
+                  <span className="epic-progress"><span className="epic-track" /><span className="skel skel-line" style={{ width: 56 }} /></span>
+                  <span className="epic-stats">{[0, 1, 2].map((k) => <span key={k} className="skel skel-line" style={{ width: "70%" }} />)}</span>
+                </div>
+              </div>
             </section>
           ))}
         </div>

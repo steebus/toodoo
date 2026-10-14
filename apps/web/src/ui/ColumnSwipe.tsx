@@ -23,7 +23,9 @@ export function ColumnSwipe({ columns, from, held, disabled, onMove, className, 
   const last = useRef(from);
   const moved = useRef(0);
   const shown = useTransform(x, [-40, -12, 0, 12, 40], [1, 0, 0, 0, 1]);
+  const flying = useRef(false);
   useMotionValueEvent(x, "change", (v) => {
+    if (flying.current) return;
     const c = columnAt(v, from, columns.length);
     if (c === last.current) return;
     last.current = c;
@@ -33,13 +35,24 @@ export function ColumnSwipe({ columns, from, held, disabled, onMove, className, 
   const end = () => {
     moved.current = Date.now();
     const c = held ? from : columnAt(x.get(), from, columns.length);
-    last.current = from;
-    setTo(from);
-    if (c !== from) {
-      buzz(12);
+    const reset = () => {
+      flying.current = false;
+      last.current = from;
+      setTo(from);
       x.set(0);
-      onMove(c);
-    } else animate(x, 0, reducedMotion() ? { duration: 0 } : SNAPPY);
+    };
+    if (c === from) {
+      reset();
+      animate(x, 0, reducedMotion() ? { duration: 0 } : SNAPPY);
+      return;
+    }
+    // Landing in another column: the paper flies off the way it was going, then moves (and leaves this list).
+    buzz(12);
+    flying.current = true;
+    const away = Math.sign(c - from) * (window.innerWidth || 400);
+    const done = () => { onMove(c); reset(); };
+    if (reducedMotion()) return done();
+    void animate(x, away, { type: "tween", duration: 0.16, ease: [0.4, 0, 1, 1] }).then(done);
   };
   const right = to > from;
   return (

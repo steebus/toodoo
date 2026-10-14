@@ -1,4 +1,5 @@
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { m } from "motion/react";
 import { NO_EPIC, sortTasks } from "@shared/board.ts";
 import { epicMap, TASK_STATUS_LABEL, TASK_STATUSES, type TaskStatus } from "@shared/epics.ts";
 import { addDays, byOrder, formatDuration } from "@shared/planning.ts";
@@ -74,7 +75,13 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   const lanes: Lane[] = COLUMNS.map((c) => ({ id: c, ids: cols[c].map((t) => t.id) }));
   // On the phone, one column at a time under tabs (which take drops too); on a desktop, all four.
   const narrow = useNarrow();
-  const [shown, setShown] = useState<Column>("todo");
+  const [shown, setShownState] = useState<Column>("todo");
+  // Which way the phone's column changed: the new one slides in from that side (none on first paint).
+  const [dir, setDir] = useState(0);
+  const setShown = (c: Column) => {
+    setDir(Math.sign(COLUMNS.indexOf(c) - COLUMNS.indexOf(shown)));
+    setShownState(c);
+  };
   const [viewing, setViewing] = useState<string | null>(null);
   const viewTask = viewing ? byId.get(viewing) : undefined;
   const manual = view.sort === "manual";
@@ -139,7 +146,7 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
       >
         {narrow && (
           <div className="kb-tabs" role="tablist" aria-label="Columns">
-            {COLUMNS.map((c) => <ColumnTab key={c} column={c} count={cols[c].length} on={shown === c} onSelect={() => setShown(c)} />)}
+            {COLUMNS.map((c) => <ColumnTab key={c} column={c} count={cols[c].length} on={shown === c} onSelect={() => shown !== c && setShown(c)} />)}
           </div>
         )}
         <div className="kanban-cols"
@@ -147,7 +154,9 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
           {COLUMNS.filter((c) => !narrow || c === shown).map((c) => isFolded(c) ? (
             <FoldedColumn key={c} column={c} tasks={cols[c]} onUnfold={() => fold(c)} />
           ) : (
-            <section key={c} className={`kanban-col is-${c}`} aria-labelledby={`col-${c}`}>
+            <m.section key={c} className={`kanban-col is-${c}`} aria-labelledby={`col-${c}`}
+              initial={narrow && dir ? { opacity: 0, x: dir * 56 } : false} animate={{ opacity: 1, x: 0 }}
+              transition={{ type: "spring", visualDuration: 0.32, bounce: 0.12 }}>
               <h2 id={`col-${c}`} className="lane-label">
                 {label(c)}
                 <span className="count-chip">{cols[c].length}</span>
@@ -167,7 +176,7 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
                     showEpic={!filterEpic} onOpen={setViewing} onKey={onKey} disabled={off} swipe={swipeFor(t)} />
                 ))}
               </LaneList>
-            </section>
+            </m.section>
           ))}
         </div>
       </LaneDnd>
@@ -204,13 +213,21 @@ function FoldedColumn({ column, tasks, onUnfold }: { column: Column; tasks: Full
 }
 
 // A column's tab on the phone: its name and count; pick it to show that column, or drop a card on it to move the
-// card there (to the column's foot).
+// card there (to the column's foot). The lit tab's backing slides across to the tab picked, and a count that goes
+// up (a card arriving) gives a small bump.
 function ColumnTab({ column, count, on, onSelect }: { column: Column; count: number; on: boolean; onSelect: () => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${TAB}${column}`, data: { type: "lane" } });
+  const was = useRef(count);
+  const [bump, setBump] = useState(0);
+  useEffect(() => {
+    if (count > was.current) setBump((b) => b + 1);
+    was.current = count;
+  }, [count]);
   return (
     <button ref={setNodeRef} type="button" role="tab" aria-selected={on} className={`kb-tab${isOver ? " is-over" : ""}`} onClick={onSelect}>
+      {on && <m.span layoutId="kb-tab-on" className="kb-tab-on" transition={{ type: "spring", visualDuration: 0.3, bounce: 0.18 }} aria-hidden />}
       <span className="kb-tab-name">{label(column)}</span>
-      <span className="count-chip">{count}</span>
+      <span key={bump} className={`count-chip${bump ? " is-bump" : ""}`}>{count}</span>
     </button>
   );
 }

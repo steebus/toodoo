@@ -22,6 +22,7 @@ import { Toast } from "./Toast";
 import { TaskView } from "./TaskView";
 import { TodoPanel } from "./TodoPanel";
 import { TopBar } from "./TopBar";
+import { RoomNav } from "./RoomNav";
 import type { BoardData } from "./types";
 
 const PRESETS = ["Plan", "Capture"];
@@ -186,13 +187,16 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
 // Everything sits where it will be (the Next up box, the line's hours, rails of blank tickets), quietly shimmering,
 // so the board arriving fills in rather than jumps in.
 export function HeroShell() {
+  // On the phone, the phone's own frame: the To do half (as the Day opens), rails of stubs, the rooms bar.
+  const narrow = useNarrow();
   return (
-    <div className="pass is-loading" aria-busy>
+    <div className="pass is-loading" aria-busy data-tab={narrow ? "today" : undefined}>
       <header className="topbar">
         <p className="r-wordmark wordmark">toodoo</p>
-        <p className="r-date date"><span className="skel skel-line" style={{ width: "62%" }} /></p>
-        <p className="r-headline headline"><span className="skel skel-line" style={{ width: "48%" }} /></p>
+        <p className="r-date date"><span className="skel skel-line" style={{ width: narrow ? "7em" : "62%" }} /></p>
+        <p className="r-headline headline"><span className="skel skel-line" style={{ width: narrow ? "86%" : "48%" }} /></p>
         <div className="r-topbar-rule topbar-rule" aria-hidden />
+        {narrow && <RoomNav room="day" />}
       </header>
       <main className="pass-main" style={{ ["--split" as string]: 33.85 }}>
         <section className="dayplan" aria-labelledby="dayplan-title" style={{ ["--nu-h" as string]: "calc(100 * var(--u) + 1.6cqh)" }}>
@@ -211,10 +215,11 @@ export function HeroShell() {
           <div className="r-quickadd quickadd-input skel-input" aria-hidden />
           <div className="todo-scroll" aria-hidden>
             {[3, 2].map((n, g) => (
-              <section key={g} className="grp grp-today">
+              <section key={g} className={`grp ${narrow ? "grp-compact" : "grp-today"}`}>
                 <div className="grp-head"><span className="skel skel-line" style={{ width: "9ch", height: "0.9em" }} /></div>
+                {narrow && <span className="rail-bar" />}
                 <ol className="grp-dockets">
-                  {Array.from({ length: n }, (_, i) => <SkeletonTicket key={i} />)}
+                  {Array.from({ length: n }, (_, i) => (narrow ? <SkeletonStub key={i} /> : <SkeletonTicket key={i} />))}
                 </ol>
               </section>
             ))}
@@ -222,6 +227,20 @@ export function HeroShell() {
         </section>
       </main>
     </div>
+  );
+}
+
+// A blank stub, as the phone's rails hang them: a time and a title's worth of grey.
+function SkeletonStub() {
+  return (
+    <li className="docket docket-compact is-skel">
+      <div className="dk-paper">
+        <div className="dk-print">
+          <span className="skel skel-line" style={{ width: 44, flex: "none" }} />
+          <span className="skel skel-line" style={{ flex: 1 }} />
+        </div>
+      </div>
+    </li>
   );
 }
 

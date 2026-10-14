@@ -26,6 +26,7 @@ export function RoomNav({ room }: { room: Room }) {
           >
             <Icon className="room-icon" />
             <span className="room-name">{r.label}</span>
+            {r.room === room && <span className="room-mark" aria-hidden />}
           </a>
         </span>
         );
