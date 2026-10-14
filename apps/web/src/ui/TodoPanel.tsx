@@ -31,7 +31,6 @@ type Props = {
   arrivals?: Map<string, number>; // dockets that just arrived from elsewhere, and their place in the stagger
   onTomorrow?: (id: string) => void; // set on the phone: dockets swipe (right to bump, left for Plan / Tomorrow)
   swipe?: boolean;
-  tabpanel?: boolean; // on the phone it is one of two tabs
 };
 
 const NO_ARRIVALS = new Map<string, number>();
@@ -84,7 +83,7 @@ function useAddFlight(groups: GroupData[], scroll: React.RefObject<HTMLElement |
   return { view, hidden };
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false, tabpanel }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const [laterOpen, setLaterOpen] = useState(false);
   const [doneOpen, toggleDone] = useDoneOpen();
@@ -99,7 +98,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
   const flight = useAddFlight(groups, scroll, compact);
 
   return (
-    <section id="todo" className={`todo${compact ? " is-compact" : ""}`} aria-labelledby="todo-title" role={tabpanel ? "tabpanel" : undefined}>
+    <section id="todo" className={`todo${compact ? " is-compact" : ""}`} aria-labelledby="todo-title">
       <h2 id="todo-title" className="sr-only">To do</h2>
       <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} epics={model.epics} tags={model.tags} />
       {/* Changing between the rails and the Focus column crossfades the two forms. */}

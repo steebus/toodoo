@@ -14,7 +14,7 @@ import { DndProvider } from "./DndProvider";
 import { DayPlan, type DayNavProps } from "./DayPlan";
 import { compactDate } from "./format";
 import { HelpSheet } from "./HelpSheet";
-import { AddButton, AddSheet, Tabs, useSwipeTabs, type Tab } from "./Mobile";
+import { AddButton, AddSheet, useSwipeTabs, type Tab } from "./Mobile";
 import { MotionRoot, useArrivals, useCelebration } from "./motion";
 import { COMPACT_AT, PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
 import { Toast } from "./Toast";
@@ -116,8 +116,9 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           nav={nav && { ...nav, today: board.today }}
           onSignOut={onSignOut}
           presets={PRESETS}
-          activePreset={preset}
-          onPreset={(p) => setSplit(PRESET_SPLIT[p])}
+          // on the phone the switch picks the half that shows: Plan the line, Capture the list
+          activePreset={narrow ? (tab === "plan" ? "Plan" : "Capture") : preset}
+          onPreset={(p) => (narrow ? setTab(p === "Plan" ? "plan" : "today") : setSplit(PRESET_SPLIT[p]))}
           onFocus={focusNow}
           celebrate={celebrate}
           offline={offline || !!actions?.away}
@@ -126,7 +127,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
         />
         <DndProvider board={board} groups={model.groups} manual={view.sort === "manual"} moves={view.group === "status"} compact={compact} actions={actions}>
         <Panes split={split}>
-          <DayPlan plan={model.plan} board={board} actions={actions} tabpanel={narrow}
+          <DayPlan plan={model.plan} board={board} actions={actions}
             nextUp={{
               items: model.nextUp, onOpen: showTask,
               onPlanAll: actions && !offline ? (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date)) : undefined,
@@ -147,17 +148,11 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
             offline={offline}
             arrivals={arrivals}
             swipe={narrow && !!actions}
-            tabpanel={narrow}
             onTomorrow={actions && !offline ? ((id) => void actions.save(id, { due: addDays(board.today, 1) })) : undefined}
           />
         </Panes>
         </DndProvider>
-        {narrow && (
-          <>
-            {actions && <AddButton disabled={offline} onClick={() => setAdding("")} />}
-            <Tabs tab={tab} onTab={setTab} />
-          </>
-        )}
+        {narrow && actions && <AddButton disabled={offline} onClick={() => setAdding("")} />}
         {narrow && actions && adding !== null && (
           <AddSheet today={board.today} nowM={board.nowM} initial={adding} epics={board.epics} tags={model.tags} onAdd={(t) => {
             setTab("today");

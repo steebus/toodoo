@@ -15,6 +15,7 @@ import { Kanban } from "./ui/Kanban";
 import { Matrix } from "./ui/Matrix";
 import { RoomShell, RoomSkeleton } from "./ui/RoomShell";
 import { ShareRoom } from "./ui/ShareRoom";
+import { CalendarsRoom } from "./ui/CalendarsRoom";
 import { SignIn as Door } from "./ui/SignIn";
 import type { BoardData } from "./ui/types";
 
@@ -57,11 +58,15 @@ function useTodayBoard() {
   return useBoard(undefined, user?.id);
 }
 
-function SharedRoom() {
+function SideRoom({ room }: { room: "share" | "calendars" }) {
   const out = useSignOut();
   const offline = useOffline();
   const board = useTodayBoard();
-  return <RoomShell room="share" board={board} offline={offline} onSignOut={out}><ShareRoom offline={offline} /></RoomShell>;
+  return (
+    <RoomShell room={room} board={board} offline={offline} onSignOut={out}>
+      {room === "share" ? <ShareRoom offline={offline} /> : <CalendarsRoom offline={offline} />}
+    </RoomShell>
+  );
 }
 
 function WorkRoom({ room }: { room: "board" | "epics" | "matrix" }) {
@@ -86,7 +91,7 @@ function Rooms({ cached }: { cached?: string }) {
   useEffect(() => {
     if (room !== "share" && pendingShare()) go("share");
   }, [room]);
-  if (room === "share") return <SharedRoom />;
+  if (room === "share" || room === "calendars") return <SideRoom key={room} room={room} />;
   return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
 }
 

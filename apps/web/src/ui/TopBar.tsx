@@ -34,19 +34,15 @@ export function TopBar({ date, dateShort, headline, total, presets, activePreset
       <p ref={line} className="r-headline headline" title={headline || undefined}>
         <span key={headline} className="headline-line">{headline}</span>
       </p>
-      {/* Focus | Plan · Capture: one row at the right, a rule between, the same gap either side of it. A room
-          other than the Day puts its own controls here instead (`end`). */}
+      {/* Focus · Plan · Capture: one button set at the right. Focus is an action; Plan and Capture a two-way switch,
+          the lit side sliding across. A room other than the Day puts its own controls here instead (`end`). */}
       {end ? <div className="topbar-end">{end}</div> : (
         <div className="topbar-end">
-          <p className="r-progress focus-slot">
-            <button type="button" className="focus-button" aria-label="Focus" disabled={!onFocus} onClick={onFocus}
-              title={onFocus ? "Focus on the task in hand (f)" : "Nothing on the line now or next"}>
-              <TimerIcon size={19} /> <span className="focus-word">Focus</span>
-            </button>
-          </p>
-          <span className="topbar-sep" aria-hidden />
-          {/* Plan · Capture: a two-way switch, the lit side sliding across. */}
           <nav className="r-presets presets mode-switch" aria-label="Mode">
+            <button type="button" className="preset preset-focus" aria-label="Focus" disabled={!onFocus} onClick={onFocus}
+              title={onFocus ? "Focus on the task in hand (f)" : "Nothing on the line now or next"}>
+              <TimerIcon size={20} />
+            </button>
             {presets.map((p) => (
               <button key={p} type="button" className="preset" aria-pressed={p === activePreset} aria-label={p} title={p} onClick={() => onPreset?.(p)}>
                 {p === activePreset && <m.span className="mode-ink" layoutId="mode-ink" aria-hidden />}
@@ -117,7 +113,7 @@ function DayNav({ date, today, onDate, label, short }: { date: string; today: st
 }
 
 // The wordmark, and a chevron for the menu: the theme (one button that steps Light, Dark, Auto), Share to toodoo,
-// Sign out. A popover like the view menu: Escape or a click away closes it.
+// Calendars, Sign out. A popover like the view menu: Escape or a click away closes it.
 function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
@@ -142,6 +138,7 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
         <span className="daymenu-pop" role="menu" aria-label="Menu">
           <ThemeCycle />
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("share"); }}>Share to toodoo</button>
+          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("calendars"); }}>Calendars</button>
           {onSignOut && <button type="button" role="menuitem" className="daymenu-item" onClick={onSignOut}>Sign out</button>}
         </span>
       )}

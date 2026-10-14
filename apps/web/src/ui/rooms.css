@@ -293,6 +293,22 @@
 .share-done-head { margin: 0; font-family: var(--font-print); font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); }
 .share-done-title { margin: 0; max-width: 32ch; font-family: var(--font-print); font-weight: 700; font-size: 20px; line-height: 1.25; }
 
+/* ---------- calendars: the feeds that fill the day's events ---------- */
+.cal-feeds { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule-soft); }
+.cal-feed {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--rule-soft); animation: cal-in 220ms ease-out both;
+}
+.cal-feed-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+.cal-feed-state { font-size: 13px; color: var(--ink-3); }
+.cal-feed-state.is-bad { color: var(--red); }
+.room .cal-feed-x { display: grid; place-items: center; width: 28px; height: 28px; color: var(--ink-3); border-radius: var(--radius); }
+.room .cal-feed-x:hover { color: var(--ink); background: var(--well); }
+.cal-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.cal-add .room-button { height: 100%; }
+@keyframes cal-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .cal-feed { animation: none; } }
+
 /* ---------- theme: light · dark · auto ---------- */
 .theme-switch { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--rule-soft); border-radius: calc(var(--radius) + 2px); }
 :is(.pass, .room) .theme-opt { display: grid; place-items: center; width: 26px; height: 24px; color: var(--ink-3); border-radius: var(--radius); }
@@ -372,16 +388,6 @@
 }
 
 /* ---------- Focus: the task in hand, everything else dark and blurred, a kitchen timer running ---------- */
-/* Focus: in the count's old place, the one inked control in the header row. */
-.focus-slot { display: flex; align-items: center; justify-content: center; margin: 0; }
-.pass .focus-button {
-  display: inline-flex; align-items: center; gap: calc(7 * var(--u)); padding: calc(6 * var(--u)) calc(14 * var(--u));
-  font-family: var(--font-ui); font-weight: 700; font-size: calc(20 * var(--u)); line-height: 1; color: var(--ink);
-  border: 1.5px solid var(--ink); border-radius: calc(5 * var(--u)); box-shadow: 0 calc(2 * var(--u)) 0 var(--rule);
-}
-.pass .focus-button:hover:not(:disabled) { background: var(--well); }
-.pass .focus-button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
-.pass .focus-button:disabled { color: var(--ink-3); border-color: var(--rule); box-shadow: none; opacity: 1; }
 .sheet-ticket.is-focus::backdrop { background: rgb(8 8 8 / 0.62); backdrop-filter: blur(9px) saturate(0.8); }
 /* Placed from the sheet (the dialog is its frame): centred in the dark room to its left. */
 .kitchen-timer {
@@ -572,13 +578,16 @@
 .tk-tag-add::-webkit-calendar-picker-indicator { display: none !important; } /* the suggestions' arrow took the word's room */
 .tk-tag-add::placeholder { color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); }
 
-/* ---------- the phone: one header row (toodoo · date · Focus), Day · Board · Epics along the bottom ---------- */
+/* ---------- the phone: one header row (toodoo · date · Focus|Plan|Capture), the rooms along the bottom ---------- */
 .date-short { display: none; }
 @media (max-width: 819px) {
-  .pass .topbar { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 10px; padding-bottom: 12px; }
-  .pass .topbar .wordmark { grid-area: 1 / 1; }
-  .pass .topbar .date { grid-area: 1 / 2; justify-content: center; margin: 0; font-size: 17px; min-width: 0; }
-  .pass .topbar .focus-slot { grid-area: 1 / 3; }
+  .pass .topbar { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 8px; padding-bottom: 12px; }
+  .pass .topbar .wordmark { grid-area: 1 / 1; font-size: 24px; }
+  .pass .topbar .date { grid-area: 1 / 2; justify-content: flex-start; margin: 0; font-size: 17px; min-width: 0; }
+  /* the desktop's Focus · Plan · Capture set; here Plan and Capture pick the half that shows */
+  .pass .topbar .presets { grid-area: 1 / 3; position: static; width: auto; height: auto; margin: 0; padding: 2px; }
+  .pass .topbar .preset { width: 34px; height: 30px; }
+  .pass .topbar .preset svg { width: 20px; height: 20px; }
   /* The day's line in a fixed two-line box, shrunk to fit (useFitText), so a long one never moves the page. */
   .pass .topbar .headline { grid-area: 2 / 1 / 3 / -1; margin-top: 10px; text-align: left; justify-content: flex-start; align-items: flex-start; height: 41px; }
   .topbar-end { display: contents; }
@@ -590,8 +599,6 @@
   .pass .date .daynav-date { padding: 3px 2px; width: 6.8em; } /* "Wed 28 May" */
   /* no room beside the date on a phone: Today hangs just under it */
   .pass .date .daynav-today { left: 50%; top: calc(100% - 4px); translate: -50% 0; margin: 0; font-size: 11px; padding: 1px 6px; }
-  .pass .focus-button { padding: 7px 9px; font-size: 15px; }
-  .focus-word { display: none; } /* the timer says Focus; the room goes to the date */
   /* the rooms bar: fixed along the bottom, a tab per room */
   .pass .rooms, .room .rooms {
     position: fixed; z-index: 15; left: 0; right: 0; top: auto; bottom: 0; width: auto; display: flex; height: auto; margin: 0;
@@ -725,7 +732,10 @@
 .mx-card.is-below { --ty: calc(var(--r) + 12px); }
 .mx-card.is-left { --tx: -14%; }
 .mx-card.is-right { --tx: -86%; }
-.mx-card.is-stub { width: min(330px, 86vw); height: 52px; pointer-events: auto; cursor: pointer; }
+.mx-card-ghost { display: block; width: 100%; height: 100%; }
+.mx-card.is-stub { display: flex; align-items: center; gap: 8px; width: min(380px, 92vw); height: 52px; pointer-events: auto; cursor: pointer; }
+.mx-card.is-stub .mx-card-ghost { flex: 1; min-width: 0; }
+.room .mx-open { flex: none; height: 40px; background: var(--surface); box-shadow: 0 2px 6px rgb(0 0 0 / 0.14); }
 @keyframes mx-card-in { from { opacity: 0; scale: 0.94; } }
 /* where a drop would land it */
 .mx-ask {

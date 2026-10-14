@@ -17,7 +17,7 @@ export const TOOL_DEFS = [
     description: "Patch one task by id: done (sets done_on), due, time, priority, estimate_mins, tags, title, note, description, link, epic (a name) or epic_id (null removes it from its epic), status todo|doing|blocked (the Kanban column; 'In Progress' etc. are understood), checklist [{text, done}] (replaces the whole list). Use the fields, never note, for priority, status and epic.",
     inputSchema: obj({ id: { type: "string" }, patch: { type: "object" } }, ["id", "patch"]) },
   { name: "set_day",
-    description: "Upsert a day's headline and/or events [{start HH:MM, end HH:MM, title, where?, allDay?}]. Events replace the day's list.",
+    description: "Upsert a day's headline and/or events [{start HH:MM, end HH:MM, title, where?, allDay?}]. Events replace the day's list, except when the user has a calendar feed: then events come only from it and are ignored here.",
     inputSchema: obj({ date, headline: { type: "string", maxLength: 500 }, events: { type: "array", maxItems: 100, items: { type: "object" } } }, ["date"]) },
   { name: "list_epics", annotations: { readOnlyHint: true },
     description: "Every epic: id, title, description, priority, status (planned|active|on_hold|done). A task's epic lifts or sinks it in suggest and plan: the epic's priority counts half as much as the task's own, and on_hold sinks it.",

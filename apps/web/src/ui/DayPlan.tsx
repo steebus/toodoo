@@ -8,7 +8,7 @@ import type { BoardData, NextUpItem, PlanData } from "./types";
 export type DayNavProps = { date: string; onDate: (d: string) => void };
 
 type Props = {
-  plan: PlanData; board?: BoardData; actions?: Actions; tabpanel?: boolean;
+  plan: PlanData; board?: BoardData; actions?: Actions;
   nextUp?: { items: NextUpItem[]; onPlanAll?: () => void; onOpen?: (id: string) => void };
 };
 
@@ -32,7 +32,7 @@ const keep = (key: string, value: string) => {
 
 // The Day plan panel: all-day chips across its head when there are any, Next up, then the line.
 // Zoom is Ctrl + wheel or a pinch on the line.
-export function DayPlan({ plan, board, actions, tabpanel, nextUp }: Props) {
+export function DayPlan({ plan, board, actions, nextUp }: Props) {
   const { allDay } = plan;
   const [zoom, setZoomState] = useState(() => clampZoom(Number(stored(ZOOM_KEY)) || 1));
   const setZoom = (z: number) => {
@@ -47,7 +47,7 @@ export function DayPlan({ plan, board, actions, tabpanel, nextUp }: Props) {
   };
   const n = nextUp?.items.length ?? 0;
   return (
-    <section id="dayplan" className="dayplan" aria-labelledby="dayplan-title" role={tabpanel ? "tabpanel" : undefined}
+    <section id="dayplan" className="dayplan" aria-labelledby="dayplan-title"
       style={{ ["--nu-h" as string]: nextUpHeight(n, nuOpen), ["--ad-h" as string]: allDay.length ? "3.6cqh" : "0cqh" }}>
       <h2 id="dayplan-title" className="sr-only">Day plan</h2>
       {allDay.length > 0 && (

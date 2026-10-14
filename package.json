@@ -22,6 +22,7 @@
     "zod": "^4.6.6"
   },
   "dependencies": {
-    "convex": "^1.46.0"
+    "convex": "^1.46.0",
+    "ical.js": "^2.2.1"
   }
 }

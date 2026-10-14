@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 // Four rooms on four paths. Anything else (including AuthKit's /callback) is the day.
-export type Room = "day" | "board" | "epics" | "matrix" | "share";
+export type Room = "day" | "board" | "epics" | "matrix" | "share" | "calendars";
 export const ROOMS: { room: Room; path: string; label: string }[] = [
   { room: "day", path: "/", label: "Day" },
   { room: "board", path: "/board", label: "Board" },
@@ -9,8 +9,8 @@ export const ROOMS: { room: Room; path: string; label: string }[] = [
   { room: "matrix", path: "/matrix", label: "Matrix" },
 ];
 
-// Share is a room off the nav: where the share sheet and the bookmarklet land.
-const PATHS: { room: Room; path: string }[] = [...ROOMS, { room: "share", path: "/share" }];
+// Share and Calendars are rooms off the nav (the menu has them); share is: where the share sheet and the bookmarklet land.
+const PATHS: { room: Room; path: string }[] = [...ROOMS, { room: "share", path: "/share" }, { room: "calendars", path: "/calendars" }];
 
 export const roomOf = (pathname: string): Room =>
   PATHS.find((r) => r.path !== "/" && (pathname === r.path || pathname.startsWith(r.path + "/")))?.room ?? "day";

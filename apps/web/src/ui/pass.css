@@ -71,8 +71,8 @@
   position: absolute; right: calc(100% - var(--r-presets-x) - var(--r-presets-w)); top: var(--r-presets-y); height: var(--r-presets-h);
   display: flex; align-items: center; gap: var(--hdr-gap);
 }
-.topbar-end > .focus-slot, .topbar-end > .presets { position: static; width: auto; height: auto; margin-top: 0; padding-left: 0; }
-.topbar-sep, .pass .rooms::after { width: 1px; height: calc(30 * var(--u)); background: var(--rule-soft); }
+.topbar-end > .presets { position: static; width: auto; height: auto; margin-top: 0; padding-left: 0; }
+.pass .rooms::after { width: 1px; height: calc(30 * var(--u)); background: var(--rule-soft); }
 .pass .rooms::after { content: ""; position: absolute; left: calc(100% + var(--hdr-gap)); top: 50%; translate: 0 -50%; }
 .presets {
   display: flex; align-items: center; justify-content: flex-end;
@@ -84,6 +84,8 @@
 .preset svg { position: relative; width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
 .preset[aria-pressed="true"] { color: var(--ink); }
 .preset:hover { color: var(--ink); }
+.pass .preset:disabled { color: var(--ink-3); opacity: 0.45; cursor: default; }
+.preset:active:not(:disabled) svg { translate: 0 1px; }
 .mode-ink { position: absolute; inset: 0; background: var(--surface); border-radius: inherit; box-shadow: 0 1px 2px rgb(0 0 0 / 0.14); }
 .topbar-rule::after {
   content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule);
@@ -852,7 +854,7 @@
 :is(.pass, .room) :is(button, input, select):disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---------- the phone (<820px): the same pass, one room at a time ---------- */
-.tabs, .fab { display: none; }
+.fab { display: none; }
 
 @media (max-width: 819px) {
   :root { --u: 1px; }
@@ -868,12 +870,10 @@
   }
   .topbar :is(.r-wordmark, .r-date, .r-headline, .r-progress) { position: static; width: auto; height: auto; }
   .wordmark { font-size: 28px; padding: 0; }
-  .topbar .focus-slot { position: relative; inset: auto; grid-area: 1 / 2; padding: 0; }
-  .pass .focus-button { font-size: 16px; padding: 7px 12px; }
   .progress-track { left: 0; bottom: 0; }
   .date { grid-column: 1 / -1; justify-content: flex-start; margin: 12px 0 0; padding: 0; font-size: 18px; }
   .headline { grid-column: 1 / -1; justify-content: flex-start; margin-top: 7px; font-size: 15px; line-height: 1.35; white-space: normal; color: var(--ink-2); }
-  .presets, .topbar-sep, .topbar-rule, .divider-grip, .panel-divider, .dayplan::before, .todo .quickadd { display: none; }
+  .topbar-rule, .divider-grip, .panel-divider, .dayplan::before, .todo .quickadd { display: none; }
   .offline-stamp { left: calc(118px + env(safe-area-inset-left)); top: calc(19px + env(safe-area-inset-top)); }
   .bumped-slot { left: auto; right: calc(14px + env(safe-area-inset-right)); top: calc(46px + env(safe-area-inset-top)); width: 104px; }
   .bumped-tick { left: auto; right: 2px; top: calc(12px + env(safe-area-inset-top)); height: 24px; }
@@ -898,7 +898,6 @@
   .allday-chip { max-width: 30vw; }
   .plan-scroll {
     position: relative; left: auto; top: auto; width: auto; height: auto; grid-column: 1 / -1;
-    overflow: visible; overflow-x: clip; /* the page scrolls it: not a scroller itself, so the out-of-sight pills stick to the screen */
     margin-top: 12px; padding-bottom: 130px; border-top: 1px solid var(--rule-soft); /* clear of the add button */
   }
   .plan-grid { --lane-left: 21%; --lane-w: 75%; }
@@ -971,13 +970,6 @@
   }
   .fab-print { font-family: var(--font-print); font-size: 10px; letter-spacing: 0.14em; color: var(--paper-ink); }
   .pass .fab:disabled { opacity: 0.5; }
-  .tabs {
-    display: flex; flex: none; order: 1; position: relative; z-index: 3; margin: 10px 16px 0;
-    background: var(--well); border: 1px solid var(--rule-soft); border-radius: 8px; padding: 3px;
-  }
-  .pass .tab { position: relative; flex: 1; height: 30px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.02em; color: var(--ink-3); border-radius: 6px; }
-  .pass .tab[aria-selected="true"] { color: var(--ink); }
-  .tab-ink { position: absolute; inset: 0; z-index: -1; background: var(--surface); border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
   .pass > .topbar { order: 0; }
   .pass-main { order: 2; }
   .toast-slot { left: calc(16px + env(safe-area-inset-left)); right: 90px; bottom: calc(80px + env(safe-area-inset-bottom)); transform: none; }

@@ -9,6 +9,8 @@
  */
 
 import type * as agent from "../agent.js";
+import type * as calendar from "../calendar.js";
+import type * as crons from "../crons.js";
 import type * as epics from "../epics.js";
 import type * as http from "../http.js";
 import type * as importArtifact from "../importArtifact.js";
@@ -27,6 +29,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
+  calendar: typeof calendar;
+  crons: typeof crons;
   epics: typeof epics;
   http: typeof http;
   importArtifact: typeof importArtifact;

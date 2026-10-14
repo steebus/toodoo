@@ -1,41 +1,10 @@
 import { m } from "motion/react";
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef } from "react";
 import type { Epic } from "@shared/epics.ts";
 import type { NewTask } from "../lib/useActions";
 import { QuickAdd } from "./QuickAdd";
 
 export type Tab = "today" | "plan";
-// Plan on the left and Today on the right, as the panes sit on a desktop.
-const TABS: { tab: Tab; label: string; panel: string }[] = [
-  { tab: "plan", label: "Plan", panel: "dayplan" },
-  { tab: "today", label: "Today", panel: "todo" },
-];
-
-// The phone's two halves of the day, under the header: the line and the list. The ink bar slides between them.
-// A tablist: arrows (and Home / End) move between the tabs and select as they go.
-export function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
-  const key = (e: KeyboardEvent<HTMLDivElement>) => {
-    const i = TABS.findIndex((t) => t.tab === tab);
-    const to = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i + TABS.length - 1) % TABS.length
-      : e.key === "Home" ? 0 : e.key === "End" ? TABS.length - 1 : -1;
-    if (to < 0) return;
-    e.preventDefault();
-    onTab(TABS[to].tab);
-    e.currentTarget.querySelectorAll<HTMLElement>("[role=tab]")[to]?.focus();
-  };
-  return (
-    <div className="tabs" role="tablist" aria-label="View" onKeyDown={key}>
-      {TABS.map((t) => (
-        <button key={t.tab} id={`tab-${t.tab}`} type="button" role="tab" className="tab" aria-selected={tab === t.tab}
-          tabIndex={tab === t.tab ? 0 : -1} aria-controls={t.panel} onClick={() => onTab(t.tab)}>
-          {t.label}
-          {tab === t.tab && <m.span className="tab-ink" layoutId="tab-ink" aria-hidden />}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // A sideways swipe across the page goes between Plan and Today, as if they sat side by side. Not one that starts on
 // a card (its own swipe ticks it), a plan block, something to type in, or a strip that scrolls sideways.
 const NOT_A_PAGE_SWIPE = "[data-docket], .plan-block, input, textarea, select, .nextup, .chips, .qa-tools, dialog";

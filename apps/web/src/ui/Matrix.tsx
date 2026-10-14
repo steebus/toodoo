@@ -192,8 +192,12 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
             return (
               <div className={`mx-card${narrow ? " is-stub" : ""}${py < 0.42 ? " is-below" : ""}${px < 0.2 ? " is-left" : px > 0.8 ? " is-right" : ""}`}
                 style={{ left: `${px * 100}%`, top: `${py * 100}%`, ["--r" as string]: `${r}px` }}
-                onClick={() => setViewing(t.id)} aria-hidden>
-                <DocketGhost docket={docket(t, t.time, today, t.epic_id ? epics.get(t.epic_id) : undefined, work.spent?.[t.id])} compact={narrow} />
+                onPointerDown={(e) => e.preventDefault()} /* keep the dot focused, so the card stays up for the tap */
+                onClick={() => setViewing(t.id)}>
+                <span className="mx-card-ghost" aria-hidden>
+                  <DocketGhost docket={docket(t, t.time, today, t.epic_id ? epics.get(t.epic_id) : undefined, work.spent?.[t.id])} compact={narrow} />
+                </span>
+                {narrow && <button type="button" className="room-button mx-open" onClick={(e) => { e.stopPropagation(); setViewing(t.id); }}>Open</button>}
               </div>
             );
           })()}

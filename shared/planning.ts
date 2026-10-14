@@ -34,6 +34,7 @@ const shortFmt = new Intl.DateTimeFormat("en-AU", { timeZone: TZ, weekday: "shor
 const asDate = (d: string) => new Date(d + "T12:00:00+10:00");
 
 export const ymd = (d: Date) => ymdFmt.format(d);
+export const hm = (d: Date) => hmFmt.format(d);
 export const today = (now = new Date()) => ymd(now);
 export const toMin = (hm?: string | null): number | null => {
   const m = /^(\d{1,2}):(\d{2})/.exec(hm ?? "");

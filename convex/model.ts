@@ -95,12 +95,16 @@ export async function loadState(db: R, userId: string, t: string, date: string):
   };
 }
 
+const hasFeed = async (db: R, userId: string) =>
+  (await db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", userId)).first()) !== null;
+
 export async function snapshot(db: R, userId: string, a: { date?: string; query?: string }, now = new Date()) {
   checkDate(a.date);
   const { t, nowM } = clock(now);
   const date = a.date ?? t;
   return {
     app_url: process.env.APP_URL ?? null,
+    calendar_feed: await hasFeed(db, userId),
     ...buildSnapshot({ date, today: t, nowM, query: a.query, ...(await loadState(db, userId, t, date)) }),
   };
 }
@@ -156,7 +160,8 @@ export async function setDay(db: W, userId: string, input: unknown) {
   const d = parseDay(input);
   const hit = await db.query("days").withIndex("by_user_date", (q) => q.eq("user_id", userId).eq("date", d.date)).first();
   const headline = d.headline === undefined ? hit?.headline ?? null : d.headline ?? null;
-  const events = d.events ?? hit?.events ?? [];
+  // A user with a calendar feed gets events from it alone; set_day keeps to the headline.
+  const events = ((await hasFeed(db, userId)) ? undefined : d.events) ?? hit?.events ?? [];
   if (hit) await db.patch(hit._id, { headline, events });
   else await db.insert("days", { user_id: userId, date: d.date, headline, events });
   return { date: d.date, headline, events };
