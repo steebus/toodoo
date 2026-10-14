@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
+import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
 import { buildSnapshot, WEEK_AHEAD, type FullTask, type State } from "../shared/snapshot.ts";
 import {
@@ -359,5 +359,21 @@ export async function workspace(db: R, userId: string, now: Date) {
     done_counts: doneCounts,
     tasks: [...open, ...done.filter((d) => d.done)].map(toTask),
     spent,
+  };
+}
+
+// ---------- the whole account: Stats and All tasks ----------
+
+// Every task ever (with the day it was made), every epic and every block: Stats charts it, All tasks searches it.
+// ponytail: one unpaged read of everything; page it (or keep running totals) if an account outgrows a few thousand tasks
+export async function everything(db: R, userId: string, now: Date) {
+  const { t, nowM } = clock(now);
+  const tasks = await db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", userId)).collect();
+  const blocks = await db.query("plan_blocks").withIndex("by_user_date", (q) => q.eq("user_id", userId)).collect();
+  return {
+    today: t, nowM,
+    epics: await listEpics(db, userId),
+    tasks: tasks.map((d) => ({ ...toTask(d), created_on: ymd(new Date(d.created_at)) })),
+    blocks: blocks.map((b) => ({ id: b._id as string, task_id: b.task_id as string, date: b.date, start: b.start, mins: b.mins })),
   };
 }

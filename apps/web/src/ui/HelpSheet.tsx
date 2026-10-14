@@ -1,15 +1,16 @@
 import { useEffect, useRef } from "react";
 
 const KEYS: [string[], string][] = [
+  [["d", "k", "e", "m"], "Day, Kanban, Epics, Matrix"],
+  [["p", "c"], "Plan, Capture"],
+  [["f"], "Focus on the task in hand"],
   [["n"], "Add"],
-  [["j", "k"], "Next, previous"],
-  [["x"], "Tick"],
-  [["e"], "Edit"],
-  [["p"], "Plan"],
+  [["j", "↑"], "Next, previous ticket"],
+  [["x"], "Tick the ticket"],
+  [["p"], "Put the ticket on the plan"],
+  [["r"], "Rename the ticket"],
   [["[", "]"], "Previous, next day"],
   [["t"], "Today"],
-  [["1", "2"], "Plan, Capture"],
-  [["f"], "Focus on the task in hand"],
   [["?"], "Shortcuts"],
 ];
 
@@ -39,7 +40,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
         <h2 id="help-title" className="sheet-title">Shortcuts</h2>
         <dl className="help-list">
           {KEYS.map(([keys, what]) => (
-            <div key={what} style={{ display: "contents" }}>
+            <div key={what + keys} style={{ display: "contents" }}>
               <dt>{keys.map((k) => <kbd key={k}>{k}</kbd>)}</dt>
               <dd>{what}</dd>
             </div>

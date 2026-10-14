@@ -1,5 +1,5 @@
 import { useAuth } from "@workos-inc/authkit-react";
-import { Component, Fragment, useEffect, useState, type ReactNode } from "react";
+import { Component, Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { clearCache, hasCachedBoard, lastUser, loadBoard, localDate, setLastUser, useOffline } from "./lib/offline";
 import { useActions } from "./lib/useActions";
@@ -8,7 +8,9 @@ import { useDayChange } from "./lib/useDayChange";
 import { useViewDate } from "./lib/useViewDate";
 import { pendingShare } from "./lib/share";
 import { go, useRoute } from "./lib/useRoute";
-import { useWorkActions, useWorkspace } from "./lib/useWork";
+import { useEverything, useWorkActions, useWorkspace } from "./lib/useWork";
+import { AllTasks } from "./ui/AllTasks";
+import { Stats } from "./ui/Stats";
 import { Epics } from "./ui/Epics";
 import { Hero, HeroShell } from "./ui/Hero";
 import { Kanban } from "./ui/Kanban";
@@ -85,6 +87,21 @@ function WorkRoom({ room }: { room: "board" | "epics" | "matrix" }) {
   );
 }
 
+// Stats and All tasks: the whole account. All tasks edits through the Board's actions (a task's ticket, as there).
+function AccountRoom({ room }: { room: "stats" | "tasks" }) {
+  const out = useSignOut();
+  const board = useTodayBoard();
+  const all = useEverything();
+  const work = useMemo(() => all && { today: all.today, epics: all.epics, tasks: all.tasks, done_counts: {} }, [all]);
+  const actions = useWorkActions(work);
+  return (
+    <RoomShell room={room} board={board} offline={actions.offline} onSignOut={out}>
+      {!all ? <main className="room-main is-loading" aria-busy><div className="room-head"><span className="skel skel-line" style={{ width: 120, height: 26 }} /></div></main>
+        : room === "stats" ? <Stats all={all} /> : <AllTasks all={all} actions={actions} />}
+    </RoomShell>
+  );
+}
+
 function Rooms({ cached }: { cached?: string }) {
   const [room] = useRoute();
   // Back from signing in (AuthKit returns to /callback) with a share still waiting: take it up.
@@ -92,6 +109,7 @@ function Rooms({ cached }: { cached?: string }) {
     if (room !== "share" && pendingShare()) go("share");
   }, [room]);
   if (room === "share" || room === "calendars") return <SideRoom key={room} room={room} />;
+  if (room === "stats" || room === "tasks") return <AccountRoom key={room} room={room} />;
   return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
 }
 

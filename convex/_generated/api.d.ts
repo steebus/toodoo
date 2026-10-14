@@ -20,6 +20,7 @@ import type * as me from "../me.js";
 import type * as model from "../model.js";
 import type * as rest from "../rest.js";
 import type * as restOps from "../restOps.js";
+import type * as stats from "../stats.js";
 
 import type {
   ApiFromModules,
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   model: typeof model;
   rest: typeof rest;
   restOps: typeof restOps;
+  stats: typeof stats;
 }>;
 
 /**

@@ -55,7 +55,10 @@
 /* One line in the gap between the room nav and the count: a long day is cut short, never laid over them. */
 /* The day's line: up to two lines in the gap between the room nav and the count, shrunk to fit (useFitText)
    rather than cut off. */
-.pass .r-headline { left: 23.4%; width: 47.2%; top: 2.85%; height: 3.4%; }
+.pass .r-headline { left: 26.4%; width: 47.2%; top: 3.3%; height: 3.2%; }
+/* The date sits on the header row's centre line, the day's line centred under it. */
+.pass { --r-date-x: 42.58%; }
+.pass .r-date { padding-left: 0; }
 .headline {
   display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; text-align: center;
   font-size: calc(21 * var(--u)); line-height: 1.12; white-space: normal; overflow-wrap: anywhere; color: var(--ink);
@@ -74,6 +77,8 @@
 .topbar-end > .presets { position: static; width: auto; height: auto; margin-top: 0; padding-left: 0; }
 .pass .rooms::after { width: 1px; height: calc(30 * var(--u)); background: var(--rule-soft); }
 .pass .rooms::after { content: ""; position: absolute; left: calc(100% + var(--hdr-gap)); top: 50%; translate: 0 -50%; }
+/* and one between the wordmark and the rooms, which never come closer to it than two gaps and the rule */
+.pass .rooms::before { content: ""; position: absolute; right: calc(100% + var(--hdr-gap)); top: 50%; translate: 0 -50%; width: 1px; height: calc(30 * var(--u)); background: var(--rule-soft); }
 .presets {
   display: flex; align-items: center; justify-content: flex-end;
   font-size: calc(20 * var(--u)); line-height: 1; color: var(--ink-2); padding-left: calc(6 * var(--u)); margin-top: calc(-3 * var(--u));
@@ -121,6 +126,11 @@
 .plan-blocks { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
 .plan-blocks > li, .plan-grid .slotpick { pointer-events: auto; }
 .hour-lines, .hour-labels { pointer-events: none; }
+/* Zoomed in, the half hours come up, then the quarters: fainter rules and smaller times, faded in with --zoom. */
+.hour-line.is-half { border-top-style: dotted; opacity: clamp(0, calc((var(--zoom, 1) - 1.25) * 3), 1); }
+.hour-line.is-quarter { border-top-style: dotted; border-top-color: var(--rule-soft); opacity: clamp(0, calc((var(--zoom, 1) - 2) * 3), 1); }
+.hour-label.is-sub { font-size: calc(13 * var(--u)); color: var(--ink-3); opacity: clamp(0, calc((var(--zoom, 1) - 1.25) * 3), 1); }
+.hour-label.is-quarter { opacity: clamp(0, calc((var(--zoom, 1) - 2) * 3), 1); }
 /* Header row beside the title: all-day chips give way to the day nav. */
 .dayplan-head {
   position: absolute; left: 1cqw; width: calc(var(--split) * 1cqw - 2cqw); top: 7.6cqh; height: 2.93cqh;
@@ -694,10 +704,11 @@
 .pass .slotpick-search:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .slotpick-list { margin: 0; padding: 0; list-style: none; overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
 .slotpick-opt {
-  display: flex; align-items: baseline; gap: calc(10 * var(--u)); padding: calc(9 * var(--u)) calc(10 * var(--u)); border-radius: var(--radius); cursor: pointer; white-space: nowrap;
+  display: flex; align-items: baseline; gap: calc(10 * var(--u)); padding: calc(6 * var(--u)) calc(10 * var(--u)); border-radius: var(--radius); cursor: pointer; white-space: nowrap;
 }
 .slotpick-opt[aria-selected="true"] { background: var(--well-strong); }
-.slotpick-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+/* room for descenders: the title clips (for its ellipsis), so it needs line height for g, p and y to hang in */
+.slotpick-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; color: var(--ink); }
 .slotpick-why { margin-left: auto; flex: none; font-size: calc(14 * var(--u)); color: var(--ink-3); }
 .slotpick-opt.is-create .slotpick-title { color: var(--ink-2); }
 .slotpick-plus { font-family: var(--font-ui); font-weight: 700; color: var(--ink-2); }
@@ -909,7 +920,6 @@
   .pass .plan-body { padding-left: 12px; }
   .is-current .plan-body { padding-left: 10px; }
   .plan-time { width: 58px; }
-  .plan-out.is-below { bottom: calc(54px + env(safe-area-inset-bottom)); } /* over the rooms bar */
   .pass .plan-out-pill { font-size: 13px; padding: 6px 12px 6px 9px; }
   .now-time { left: 20px; font-size: 16px; }
   .now-rule { left: 72px; }
@@ -1018,3 +1028,7 @@
 
 /* A rail with a docket from another rail held over it: dashed, as every provisional drop target is. */
 .grp.is-over { outline: 1.5px dashed var(--ink-3); outline-offset: calc(2 * var(--u)); border-radius: calc(6 * var(--u)); }
+
+/* One-line fields that clip for their ellipsis: room below the line for descenders (g, p, y), given back by the
+   margin so nothing around them moves. */
+.dk-row dd, .docket-today .dk-source, .plan-meta, .nextup-title, .nextup-why { padding-bottom: 0.2em; margin-bottom: -0.2em; }

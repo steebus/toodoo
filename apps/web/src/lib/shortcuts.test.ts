@@ -13,6 +13,11 @@ it("maps keys to actions", () => {
   expect(key("1")).toBe("presetPlan");
   expect(key("2")).toBe("presetCapture");
   expect(key("f")).toBe("focus");
+  expect(key("p")).toBe("presetPlan");
+  expect(key("D")).toBe("roomDay");
+  expect(key("k")).toBe("roomBoard");
+  expect(key("e")).toBe("roomEpics");
+  expect(key("m")).toBe("roomMatrix");
   expect(key("?")).toBe("help");
   expect(key("z")).toBeNull();
 });

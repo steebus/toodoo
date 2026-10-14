@@ -8,6 +8,7 @@ import { useMinuteTick } from "./useBoard";
 import { loadWork, saveWork, useNoNetwork } from "./offline";
 import { isOptimistic } from "./optimistic";
 import * as w from "./workOptimistic";
+import type { Everything } from "./stats";
 
 export type { WorkData } from "./workOptimistic";
 
@@ -145,4 +146,9 @@ export function useWorkActions(work: w.WorkData | undefined): WorkActions {
   }, [create, update, removeE, updateTask, show, fail]);
 
   return { offline, toast, dismiss, move, save, add, remove, createEpic, updateEpic, removeEpic };
+}
+
+// Stats and All tasks: the whole account, live (nothing kept on the device: it can be big, and both need the network).
+export function useEverything(): Everything | undefined {
+  return useQuery(api.stats.everything, { now: useMinuteTick() });
 }

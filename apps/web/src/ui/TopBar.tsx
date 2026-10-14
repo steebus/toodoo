@@ -112,8 +112,8 @@ function DayNav({ date, today, onDate, label, short }: { date: string; today: st
   );
 }
 
-// The wordmark, and a chevron for the menu: the theme (one button that steps Light, Dark, Auto), Share to toodoo,
-// Calendars, Sign out. A popover like the view menu: Escape or a click away closes it.
+// The wordmark, and a chevron for the menu: the theme (one button that steps Light, Dark, Auto), All tasks, Stats,
+// Share to toodoo, Calendars, Sign out. A popover like the view menu: Escape or a click away closes it.
 function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
@@ -137,6 +137,8 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
       {open && (
         <span className="daymenu-pop" role="menu" aria-label="Menu">
           <ThemeCycle />
+          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("tasks"); }}>All tasks</button>
+          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("stats"); }}>Stats</button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("share"); }}>Share to toodoo</button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("calendars"); }}>Calendars</button>
           {onSignOut && <button type="button" role="menuitem" className="daymenu-item" onClick={onSignOut}>Sign out</button>}

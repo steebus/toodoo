@@ -284,6 +284,12 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
     for (let m = startM; m <= endM; m += 60) out.push(m);
     return out;
   }, [startM, endM]);
+  // The half and quarter hours: drawn always, faded in by the zoom (CSS reads --zoom), so they come as you zoom in.
+  const ticks = useMemo(() => {
+    const out: number[] = [];
+    for (let m = startM + 15; m < endM; m += 15) if (m % 60) out.push(m);
+    return out;
+  }, [startM, endM]);
 
   const at = (b: PlanBlock) => (draft?.id === b.id && draft.via === "key" ? { start: draft.start, mins: draft.mins } : { start: b.startM, mins: b.mins });
   const lanes = useMemo(() => {
@@ -458,11 +464,19 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
           {hours.map((m) => (
             <span key={m} className="hour-line" style={{ top: px(minToPx(m, startM) + LINE_DROP) }} />
           ))}
+          {ticks.map((m) => (
+            <span key={m} className={`hour-line ${m % 30 ? "is-quarter" : "is-half"}`} style={{ top: px(minToPx(m, startM) + LINE_DROP) }} />
+          ))}
         </div>
         <ol className="hour-labels" aria-label="Hours">
           {hours.map((m) => (
             <li key={m} className="hour-label" style={{ top: px(minToPx(m, startM)) }}>
               {hourLabel(m / 60)}
+            </li>
+          ))}
+          {ticks.map((m) => (
+            <li key={m} className={`hour-label is-sub ${m % 30 ? "is-quarter" : "is-half"}`} style={{ top: px(minToPx(m, startM)) }} aria-hidden>
+              {clock12(toHM(m))}
             </li>
           ))}
         </ol>
@@ -552,7 +566,7 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
           </m.p>
         )}
         {nowM !== null && (
-          <p className="nowline" style={{ top: px(minToPx(nowM, startM) - NOW_LEAD) }} aria-label={`Now ${clock12(toHM(nowM))}`}>
+          <p className="nowline" style={{ top: `calc(${px(minToPx(nowM, startM))} - ${NOW_LEAD} * var(--u))` }} aria-label={`Now ${clock12(toHM(nowM))}`}>
             <NowMarker className="now-marker" />
             <span className="now-time">{clock12(toHM(nowM))}</span>
             <span className="now-rule" aria-hidden />

@@ -139,3 +139,14 @@ it("lets the agent name an epic and say a status in a tracker's words", async ()
   expect(up).toMatchObject({ epic_id: crooz.id, status: "blocked" });
   await expect(t.mutation(api.agent.updateTask, { id: created[1].id, patch: { status: "someday" } })).rejects.toThrow(/status must be/);
 });
+
+it("everything: every task however old, with the day it was made, and every block", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Ancient" }, { title: "Open" }] });
+  await t.mutation(api.agent.updateTask, { id: created[0].id, patch: { done: true, done_on: "2025-01-01" } });
+  await t.mutation(api.agent.placeBlock, { task_id: created[1].id, date: "2025-06-01", start: "09:00", mins: 30 });
+  const all = await t.query(api.stats.everything, { now });
+  expect(all.tasks.map((x) => x.title).sort()).toEqual(["Ancient", "Open"]);
+  expect(all.tasks[0].created_on).toBe("2026-10-12");
+  expect(all.blocks).toHaveLength(1);
+});

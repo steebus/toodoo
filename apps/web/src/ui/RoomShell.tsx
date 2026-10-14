@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { actionFor, ROOM_KEYS } from "../lib/shortcuts";
 import { createPortal } from "react-dom";
 import { focusBlock, focusIntent } from "../lib/focus";
 import { go, type Room } from "../lib/useRoute";
@@ -57,7 +58,7 @@ export function HeaderControls({ children }: { children: ReactNode }) {
   if (slot === undefined) return <div className="room-head">{children}</div>;
   return slot && createPortal(children, slot);
 }
-const OWN_CORNER: Room[] = ["board", "epics", "matrix"];
+const OWN_CORNER: Room[] = ["board", "epics", "matrix", "stats"];
 
 // The Board, Epics, Matrix and Share rooms: the Day view's own header row (today's date and line, then Focus and
 // the presets, or the room's own controls), then a page that scrolls. A preset or Focus goes to the Day view.
@@ -67,6 +68,22 @@ export function RoomShell({ room, board, offline, onSignOut, children }: Props) 
   const split = loadSplit();
   const active = PRESETS.find((p) => Math.abs(PRESET_SPLIT[p] - split) < 0.5) ?? "";
   const block = board ? focusBlock(board) : null;
+  const toPreset = (p: string) => { saveSplit(PRESET_SPLIT[p]); go("day"); };
+  const focus = block ? () => { focusIntent.at = Date.now(); go("day"); } : undefined;
+  // The room keys, and P, C and F (which go to the Day view), work here as they do there.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const a = actionFor(e);
+      if (!a || e.defaultPrevented) return;
+      if (a in ROOM_KEYS) go(ROOM_KEYS[a as keyof typeof ROOM_KEYS]);
+      else if (a === "presetPlan" || a === "presetCapture") toPreset(a === "presetPlan" ? "Plan" : "Capture");
+      else if (a === "focus" && focus) focus();
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
   return (
     <div className="room" data-room={room} data-offline={offline || undefined}>
       <div className="room-top">
@@ -79,8 +96,8 @@ export function RoomShell({ room, board, offline, onSignOut, children }: Props) 
             total={model?.total ?? 0}
             presets={PRESETS}
             activePreset={active}
-            onPreset={(p) => { saveSplit(PRESET_SPLIT[p]); go("day"); }}
-            onFocus={block ? () => { focusIntent.at = Date.now(); go("day"); } : undefined}
+            onPreset={toPreset}
+            onFocus={focus}
             onSignOut={onSignOut}
             offline={offline}
             end={OWN_CORNER.includes(room) ? <div className="topbar-slot" ref={setSlot} /> : undefined}

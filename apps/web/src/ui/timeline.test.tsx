@@ -170,10 +170,10 @@ it("the search filters, and Create new adds the parsed task then places it", asy
   await waitFor(() => expect(fn("deleteTask")).toHaveBeenCalledWith({ id: "new1" }));
 });
 
-it("e on a focused block opens its task's edit sheet", () => {
+it("r on a focused block opens its task's edit sheet", () => {
   show();
   block().focus();
-  fireEvent.keyDown(document.activeElement!, { key: "e" });
+  fireEvent.keyDown(document.activeElement!, { key: "r" });
   expect(within(screen.getByRole("dialog")).getByDisplayValue("Write report")).toBeInTheDocument();
 });
 
