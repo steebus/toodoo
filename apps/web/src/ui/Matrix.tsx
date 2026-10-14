@@ -1,7 +1,7 @@
 import { m } from "motion/react";
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { NO_EPIC, NO_TAG } from "@shared/board.ts";
-import { epicMap } from "@shared/epics.ts";
+import { epicMap, plusHigh } from "@shared/epics.ts";
 import { addDays, type Priority } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { bandY, BANDS, dueAt, jitter, priorityAt, radius, urgencyX } from "../lib/matrix";
@@ -10,8 +10,10 @@ import { docket } from "./build";
 import { DocketGhost } from "./Docket";
 import type { WorkActions, WorkData } from "../lib/useWork";
 import { compactDate } from "./format";
-import { MotionRoot, SNAPPY } from "./motion";
+import { SNAPPY } from "./motion";
+import { HeaderControls } from "./RoomShell";
 import { TaskView } from "./TaskView";
+import { SettingsMenu, SettingsPick } from "./ViewMenu";
 import { Toast } from "./Toast";
 
 type Status = "open" | "todo" | "doing" | "blocked" | "done" | "all";
@@ -31,8 +33,11 @@ const PRIORITY_WORD: Record<string, string> = { high: "high", med: "med", low: "
 const word = (p: Priority | null) => PRIORITY_WORD[p ?? "none"];
 const statusOf = (t: FullTask) => (t.done ? "done" : t.status ?? "todo");
 const DRAG_SLOP = 4;
+// A dot as drawn: a blot of marker, and a pen ring round it that doesn't quite close.
+const BLOT = "M20.6 4.2c8.9.4 15.6 7.3 15.2 16.3-.4 8.8-7.6 15.4-16.5 15-8.6-.4-15-7.4-14.7-16.1C4.9 10.6 11.8 3.8 20.6 4.2z";
+const RING = "M23.5 4.6c7.9 1.3 13.2 8.6 12.1 16.9-1.2 8.6-8.9 14.4-17.4 13.2C9.7 33.5 4 25.9 5.2 17.4 6.3 9.7 12.8 4.1 20.9 4.3";
 // Day marks under the plot, so a drag can be aimed at a date.
-const MARKS: [number, string][] = [[-7, "−1w"], [0, "today"], [2, "+2d"], [7, "+1w"], [14, "+2w"], [30, "+1m"]];
+const MARKS: [number, string][] = [[-7, "last week"], [0, "today"], [2, "+2 days"], [7, "next week"], [14, "+2 wks"], [30, "a month"]];
 
 export function shown(work: WorkData, p: Prefs): FullTask[] {
   return work.tasks.filter((t) =>
@@ -70,8 +75,10 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
   // Biggest first, so the small ones sit on top and stay clickable.
   const dots = useMemo(() => tasks.map((t) => {
     const [jx, jy] = jitter(t.id);
-    return { t, x: urgencyX(t.due, today) + jx, y: bandY(t.priority) + jy, r: radius(t.estimate_mins, work.spent?.[t.id]) };
-  }).sort((a, b) => b.r - a.r), [tasks, today, work.spent]);
+    // +high (a high task in a high epic) rides at the very top of the high band
+    const top = plusHigh(t, t.epic_id ? epics.get(t.epic_id) : undefined);
+    return { t, x: urgencyX(t.due, today) + jx, y: bandY(t.priority) + (top ? -0.08 + jy / 4 : jy), r: radius(t.estimate_mins, work.spent?.[t.id]), turn: Math.round((jx / 0.03 + 0.5) * 360) };
+  }).sort((a, b) => b.r - a.r), [tasks, today, work.spent, epics]);
 
   // A drop (or an arrow key) asks for this due date and priority; only what changed is written, with Undo.
   const place = (t: FullTask, due: string, priority: Priority | null) => {
@@ -124,49 +131,58 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
   };
 
   const pick = (label: string, key: keyof Prefs, options: [string, string][]) => (
-    <label className="room-pick">
-      <span>{label}</span>
-      <select value={prefs[key]} onChange={(e) => setPrefs({ ...prefs, [key]: e.target.value })}>
-        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-    </label>
+    <SettingsPick label={label} value={prefs[key]} options={options} onChange={(v) => setPrefs({ ...prefs, [key]: v })} />
   );
   const dragged = drag?.moved ? dots.find((d) => d.t.id === drag.id) : undefined;
   const held = (id: string) => !!drag?.moved && drag.id === id;
   const shownTip = dots.find((d) => d.t.id === (dragged ? drag!.id : tip));
   return (
-    <MotionRoot>
     <main className="room-main matrix">
-      <div className="room-head">
-        <h1 className="room-title">Matrix</h1>
-        <span className="count-chip">{tasks.length}</span>
-        <span className="room-head-gap" />
+      <h1 className="sr-only">Matrix</h1>
+      <HeaderControls><SettingsMenu>
         {pick("Status", "status", STATUSES)}
         {pick("Epic", "epic", [["", "All"], ...work.epics.filter((e) => e.status !== "done" || e.id === prefs.epic).map((e): [string, string] => [e.id, e.title]), [NO_EPIC, "No epic"]])}
         {pick("Tag", "tag", [["", "All"], ...tags.map((x): [string, string] => [x, x]), [NO_TAG, "Untagged"]])}
         {pick("Source", "source", [["", "All"], ...sources.map((x): [string, string] => [x, x])])}
-      </div>
+      </SettingsMenu></HeaderControls>
       <div className="mx-frame">
         <div className="mx-plot" ref={plot} role="group" aria-label="Tasks by urgency and importance"
           onPointerDown={(e) => e.target === e.currentTarget && setTip(null)}>
-          <span className="mx-q mx-q-do" aria-hidden>DO</span>
-          <span className="mx-q mx-q-plan" aria-hidden>PLAN</span>
-          <span className="mx-q mx-q-pass" aria-hidden>HAND OFF</span>
-          <span className="mx-q mx-q-drop" aria-hidden>DROP</span>
-          {MARKS.map(([d, l]) => (
-            <span key={l} className="mx-mark" style={{ left: `${urgencyX(addDays(today, d), today) * 100}%` }} aria-hidden>{l}</span>
+          {/* drawn on the paper: the do-now corner marked over in highlighter, the quarters ruled freehand */}
+          <svg className="mx-ink" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+            <path className="mx-highlight" d="M1.2 1.6 L49.2 0.9 L49.6 49.1 L0.9 49.6 Z" />
+            <path className="mx-rule" d="M50.2 1.2 C49.6 18 50.7 33 49.9 50 S50.6 82 50.1 98.8" />
+            <path className="mx-rule" d="M0.8 50.3 C18 49.5 33 50.8 50 49.9 S82 50.5 99.2 50.1" />
+          </svg>
+          <span className="mx-q mx-q-do" aria-hidden>do it</span>
+          <span className="mx-q mx-q-plan" aria-hidden>plan it</span>
+          <span className="mx-q mx-q-pass" aria-hidden>hand it off</span>
+          <span className="mx-q mx-q-drop" aria-hidden>drop it?</span>
+          {/* where a drag tips a task into the next priority: pencil across the sheet (the middle one is the biro rule) */}
+          {BANDS.slice(1).map((p, i) => (
+            <span key={i} className={`mx-cut${i === 1 ? " is-middle" : ""}`} style={{ top: `${((i + 1) / BANDS.length) * 100}%` }} aria-hidden>
+              <b>{word(BANDS[i])} ↑</b><b>{word(p)} ↓</b>
+            </span>
           ))}
-          {dots.map(({ t, x, y, r }) => {
-            const held = drag?.moved && drag.id === t.id;
+          {MARKS.map(([d, l]) => (
+            <span key={l} className={`mx-mark${d === 2 || d === 14 ? " is-minor" : ""}`} style={{ left: `${urgencyX(addDays(today, d), today) * 100}%` }} aria-hidden>{l}</span>
+          ))}
+          {dots.map(({ t, x, y, r, turn }) => {
+            const lifted = held(t.id);
             const e = t.epic_id ? epics.get(t.epic_id) : undefined;
             return (
-              <m.button key={t.id} type="button" className={`mx-dot${t.done ? " is-done" : ""}${held ? " is-held" : ""}`}
+              <m.button key={t.id} type="button" className={`mx-dot${t.done ? " is-done" : ""}${lifted ? " is-held" : ""}`}
                 aria-label={`${t.title}, due ${compactDate(t.due)}, ${word(t.priority)}`}
                 data-r={r} style={{ width: `calc(${r * 2}px * var(--mx-k, 1))`, height: `calc(${r * 2}px * var(--mx-k, 1))`, ["--dot" as string]: e?.colour ? `var(--epic-${e.colour})` : "var(--ink-3)" }}
                 initial={false}
-                animate={{ left: `${(held ? drag!.x : x) * 100}%`, top: `${(held ? drag!.y : y) * 100}%` }}
-                transition={held ? { duration: 0 } : SNAPPY}
+                animate={{ left: `${(lifted ? drag!.x : x) * 100}%`, top: `${(lifted ? drag!.y : y) * 100}%` }}
+                transition={lifted ? { duration: 0 } : SNAPPY}
                 onKeyDown={(ev) => onKey(t, ev)} {...pointer(t, x, y)}>
+                {/* a marker blot, ringed in pen; each one turned its own way so no two look stamped */}
+                <svg viewBox="0 0 40 40" aria-hidden style={{ rotate: `${turn}deg` }}>
+                  <path className="mx-blot" d={BLOT} />
+                  <path className="mx-ring" d={RING} />
+                </svg>
               </m.button>
             );
           })}
@@ -187,8 +203,8 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
             </span>
           )}
         </div>
-        <span className="mx-axis mx-axis-x" aria-hidden><b>URGENT</b><b>LATER</b></span>
-        <span className="mx-axis mx-axis-y" aria-hidden><b>LESS SO</b><b>IMPORTANT</b></span> {/* read bottom to top */}
+        <span className="mx-axis mx-axis-x" aria-hidden><b>← urgent</b><b>later →</b></span>
+        <span className="mx-axis mx-axis-y" aria-hidden><b>less so</b><b>important →</b></span> {/* read bottom to top */}
       </div>
       {viewTask && (
         <TaskView key={viewTask.id} task={viewTask} today={today} offline={off} epics={work.epics} tagPool={tags}
@@ -201,6 +217,5 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
       )}
       <Toast toast={actions.toast} onDismiss={actions.dismiss} />
     </main>
-    </MotionRoot>
   );
 }

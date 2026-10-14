@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { animate, m } from "motion/react";
+import { AnimatePresence, animate, m } from "motion/react";
 import { layoutLanes, SLOT, toHM } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
@@ -9,7 +9,7 @@ import { useIsOffline } from "../lib/offline";
 import { buzz } from "../lib/swipe";
 import { useDropHint } from "./DndProvider";
 import { clock12, hourLabel } from "./format";
-import { CheckIcon, DrawnCheck, NowMarker } from "./icons";
+import { ChevronIcon, DrawnCheck, NowMarker } from "./icons";
 import { reducedMotion, SNAPPY, useLayoutDependency } from "./motion";
 import { BLOCK_LEAD, blockHeight, blockTop, gridHeight, HOUR_PX, LINE_DROP, minToPx, NOW_LEAD } from "./plan";
 import { SlotPicker } from "./SlotPicker";
@@ -217,6 +217,48 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
     };
   }, [!!onZoom]); // eslint-disable-line react-hooks/exhaustive-deps -- refs only
 
+  // Blocks wholly out of sight, above and below what shows of the line (its own scroll on a desktop, the page's on
+  // a phone): counted for the pills at either end. Measured from the drawn blocks, so zoom and drags just work.
+  const [out, setOut] = useState({ above: 0, below: 0 });
+  const measure = useRef(() => {});
+  measure.current = () => {
+    const sc = scroller.current;
+    if (!sc) return;
+    const r = sc.getBoundingClientRect();
+    const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, window.innerHeight);
+    let above = 0, below = 0;
+    sc.querySelectorAll(".plan-block").forEach((el) => {
+      const b = el.getBoundingClientRect();
+      if (b.bottom <= top + 1) above++;
+      else if (b.top >= bottom - 1) below++;
+    });
+    setOut((o) => (o.above === above && o.below === below ? o : { above, below }));
+  };
+  useLayoutEffect(() => measure.current());
+  useEffect(() => {
+    const sc = scroller.current;
+    const on = () => measure.current();
+    sc?.addEventListener("scroll", on, { passive: true });
+    window.addEventListener("scroll", on, { passive: true });
+    window.addEventListener("resize", on);
+    return () => {
+      sc?.removeEventListener("scroll", on);
+      window.removeEventListener("scroll", on);
+      window.removeEventListener("resize", on);
+    };
+  }, []);
+  // A pill takes you to the nearest block out of sight that way.
+  const reveal = (dir: "above" | "below") => {
+    const sc = scroller.current;
+    if (!sc) return;
+    const r = sc.getBoundingClientRect();
+    const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, window.innerHeight);
+    const hidden = [...sc.querySelectorAll<HTMLElement>(".plan-block")]
+      .filter((el) => (dir === "above" ? el.getBoundingClientRect().bottom <= top + 1 : el.getBoundingClientRect().top >= bottom - 1))
+      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+    (dir === "above" ? hidden.at(-1) : hidden[0])?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+  };
+
   // Escape abandons a pointer drag: no write, no ghost.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -386,6 +428,7 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
 
   return (
     <m.div className="plan-scroll" layoutScroll ref={(n: HTMLDivElement | null) => { scroller.current = n; drop.setNodeRef(n); }}>
+      <OutOfSight dir="above" n={out.above} onClick={() => reveal("above")} />
       <div className="plan-grid" ref={grid} style={{ height: px(gridHeight(startM, endM)) }}>
         {live && (
           <div
@@ -533,27 +576,25 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
           />
         )}
       </div>
-      {board && <DoneThatDay board={board} />}
+      <OutOfSight dir="below" n={out.below} onClick={() => reveal("below")} />
     </m.div>
   );
 }
 
-function DoneThatDay({ board }: { board: BoardData }) {
-  const done = board.tasks.filter((t) => t.done && t.done_on === board.date);
-  if (!done.length) return null;
+// "^ 3 above" / "v 2 below": floats at that end of the line (sticky, no height, so nothing moves for it).
+function OutOfSight({ dir, n, onClick }: { dir: "above" | "below"; n: number; onClick: () => void }) {
   return (
-    <section className="plan-done" aria-label="Done that day">
-      <h3 className="plan-done-label">
-        DONE <span className="count-chip">{done.length}</span>
-      </h3>
-      <ul className="plan-done-list">
-        {done.map((t) => (
-          <li key={t.id} className="plan-done-row">
-            <CheckIcon size={14} className="plan-done-tick" />
-            <span className="plan-done-title">{t.title}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <div className={`plan-out is-${dir}`}>
+      <AnimatePresence>
+        {n > 0 && (
+          <m.button key="pill" type="button" className="plan-out-pill" onClick={onClick}
+            initial={{ opacity: 0, y: dir === "above" ? -6 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: dir === "above" ? -6 : 6 }}
+            transition={{ duration: 0.16 }}>
+            <ChevronIcon size={14} className="plan-out-chevron" />
+            {n} {dir}
+          </m.button>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

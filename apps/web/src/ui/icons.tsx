@@ -82,33 +82,38 @@ export const CloseIcon = ({ size = 16, className }: P) => (
 );
 
 // ---------- the rooms and modes, each a sketch of its own screen ----------
-// Day: the line down the left with its blocks, the tickets beside it.
+// Day: a desk calendar, today's date on its page.
 export const DayIcon = ({ size = 22, className }: P) => (
   <svg {...base(size)} className={className}>
-    <path d="M3 3v14" />
-    <rect x="5" y="4" width="4" height="3" rx="0.6" />
-    <rect x="5" y="10" width="4" height="5" rx="0.6" />
-    <rect x="12" y="3.5" width="5" height="6" rx="0.6" />
-    <rect x="12" y="11.5" width="5" height="5" rx="0.6" />
+    <rect x="2.5" y="3.5" width="15" height="14" rx="1.6" />
+    <path d="M2.5 7.5h15M6.5 2v3M13.5 2v3" />
+    <text x="10" y="15.6" textAnchor="middle" fontSize="7.4" fontWeight="700" fill="currentColor" stroke="none"
+      fontFamily="var(--font-ui), sans-serif">{new Date().getDate()}</text>
   </svg>
 );
-// Board: three columns of cards.
+// Board: a kanban, three columns with cards stacked in each.
 export const BoardIcon = ({ size = 22, className }: P) => (
   <svg {...base(size)} className={className}>
-    <rect x="2.5" y="3" width="4" height="6" rx="0.6" />
-    <rect x="2.5" y="11" width="4" height="4" rx="0.6" />
-    <rect x="8" y="3" width="4" height="9" rx="0.6" />
-    <rect x="13.5" y="3" width="4" height="4" rx="0.6" />
-    <rect x="13.5" y="9" width="4" height="6" rx="0.6" />
+    <g strokeWidth={1.1} opacity={0.6}>
+      <rect x="1.6" y="2.5" width="4.8" height="15" rx="1" />
+      <rect x="7.6" y="2.5" width="4.8" height="15" rx="1" />
+      <rect x="13.6" y="2.5" width="4.8" height="15" rx="1" />
+    </g>
+    <g fill="currentColor" stroke="none">
+      <rect x="2.55" y="3.9" width="2.9" height="2.9" rx="0.5" />
+      <rect x="2.55" y="8.2" width="2.9" height="2.9" rx="0.5" />
+      <rect x="8.55" y="3.9" width="2.9" height="2.9" rx="0.5" />
+      <rect x="8.55" y="8.2" width="2.9" height="2.9" rx="0.5" />
+      <rect x="8.55" y="12.5" width="2.9" height="2.9" rx="0.5" />
+      <rect x="14.55" y="3.9" width="2.9" height="2.9" rx="0.5" />
+    </g>
   </svg>
 );
-// Epics: a stack of bars, each part filled.
+// Epics: a project folder, its work filed inside.
 export const EpicsIcon = ({ size = 22, className }: P) => (
   <svg {...base(size)} className={className}>
-    <rect x="2.5" y="3" width="15" height="3.4" rx="1.7" />
-    <rect x="2.5" y="8.3" width="15" height="3.4" rx="1.7" />
-    <rect x="2.5" y="13.6" width="15" height="3.4" rx="1.7" />
-    <path d="M4.2 4.7h7M4.2 10h3M4.2 15.3h9.5" strokeWidth={2} />
+    <path d="M2.5 15.5V5a1 1 0 0 1 1-1h4.3l1.8 2h6.9a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z" />
+    <path d="M2.5 9h15M6 12.5h5" strokeWidth={1.3} />
   </svg>
 );
 // Matrix: four quarters and dots of different sizes.

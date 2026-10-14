@@ -59,6 +59,10 @@ export function effectivePriority(task: { priority: Priority | null }, epic?: Pi
   return s >= 2 ? "high" : s >= 0.75 ? "med" : s <= -0.5 ? "low" : null;
 }
 
+// High twice over: a high task in a high epic (not on hold). Printed "+HIGH", and first among the highs.
+export const plusHigh = (task: { priority: Priority | null }, epic?: Pick2) =>
+  task.priority === "high" && epic?.priority === "high" && epic.status !== "on_hold";
+
 export const epicMap = <E extends { id: string }>(epics: E[] | undefined) => new Map((epics ?? []).map((e) => [e.id, e]));
 
 const EPIC_STATUS_RANK: Record<EpicStatus, number> = { active: 0, planned: 1, on_hold: 2, done: 3 };

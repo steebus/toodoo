@@ -93,6 +93,15 @@ describe("sortTasks", () => {
   it("priority: high, med, low, none then manual", () => expect(order("priority")).toEqual(["b", "c", "a", "d"]));
   it("time: untimed last, ties manual", () => expect(order("time")).toEqual(["d", "c", "a", "b"]));
   it("tag: first tag alphabetical, untagged last", () => expect(order("tag")).toEqual(["c", "d", "a", "b"]));
+  it("priority: a high task in a high epic (+high) comes before other highs", () => {
+    const epics = [{ id: "hot", title: "Hot", description: null, priority: "high", status: "active", sort_order: 1 }] as never;
+    const ts = [task({ title: "high", priority: "high" }), task({ title: "plus", priority: "high", epic_id: "hot" })];
+    expect(titles(sortTasks(ts, "priority", epics))).toEqual(["plus", "high"]);
+  });
+  it("effort: biggest estimate first, unsized last, ties manual", () => {
+    const sized = [task({ title: "s", estimate_mins: 15 }), task({ title: "l", estimate_mins: 120 }), task({ title: "u" })];
+    expect(titles(sortTasks(sized, "effort"))).toEqual(["l", "s", "u"]);
+  });
   it("does not mutate its input", () => {
     const copy = [...all];
     sortTasks(all, "due");

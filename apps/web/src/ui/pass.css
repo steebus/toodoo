@@ -78,16 +78,13 @@
   display: flex; align-items: center; justify-content: flex-end;
   font-size: calc(20 * var(--u)); line-height: 1; color: var(--ink-2); padding-left: calc(6 * var(--u)); margin-top: calc(-3 * var(--u));
 }
-.preset-slot { display: inline-flex; align-items: center; }
-.presets { gap: calc(12 * var(--u)); }
-.preset-dot { display: none; }
-.preset { position: relative; display: grid; place-items: center; padding: calc(4 * var(--u)); color: var(--ink-3); border-radius: var(--radius); }
-.preset svg { width: calc(25 * var(--u)); height: calc(25 * var(--u)); }
-.preset[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
-.preset[aria-pressed="true"]::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: calc(-6 * var(--u)); height: 2.5px; background: var(--ink); border-radius: 1px;
-}
+/* Plan · Capture: a two-way switch in a well, the lit side a raised pill that slides across (mode-ink). */
+.pass .mode-switch { gap: 0; padding: calc(3 * var(--u)); margin-top: 0; background: var(--well); border: 1px solid var(--rule-soft); border-radius: calc(8 * var(--u)); }
+.preset { position: relative; display: grid; place-items: center; width: calc(38 * var(--u)); height: calc(30 * var(--u)); color: var(--ink-3); border-radius: calc(6 * var(--u)); }
+.preset svg { position: relative; width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+.preset[aria-pressed="true"] { color: var(--ink); }
 .preset:hover { color: var(--ink); }
+.mode-ink { position: absolute; inset: 0; background: var(--surface); border-radius: inherit; box-shadow: 0 1px 2px rgb(0 0 0 / 0.14); }
 .topbar-rule::after {
   content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule);
 }
@@ -355,14 +352,15 @@
 .docket { position: relative; }
 /* Paper never inverts. The perforated top is a row of paper teeth with nothing (not white) between them,
    so it sits right on any ground, light or dark. A flat offset shadow, as a 2D sprite would have. */
+.docket { --dk-paper: var(--paper); } /* the paper's colour: an epic tints it, torn foot and all */
 .dk-paper {
-  position: absolute; inset: 0; background: var(--paper); border-radius: 2px 2px 0 0;
+  position: absolute; inset: 0; background: var(--dk-paper); border-radius: 2px 2px 0 0;
   filter: drop-shadow(0 calc(5 * var(--u)) calc(6 * var(--u)) rgb(0 0 0 / 0.16)) drop-shadow(0 0 1px rgb(0 0 0 / 0.18));
 }
 /* The torn foot: paper teeth hanging below the ticket, nothing between them, so it sits right on any ground. */
 .dk-paper::before {
   content: ""; position: absolute; left: 0; right: 0; bottom: calc(-5 * var(--u)); height: calc(5 * var(--u)); pointer-events: none;
-  background: conic-gradient(from -45deg at 50% 100%, var(--paper) 90deg, transparent 0) 0 0 / calc(10 * var(--u)) calc(5 * var(--u)) repeat-x;
+  background: conic-gradient(from -45deg at 50% 100%, var(--dk-paper) 90deg, transparent 0) 0 0 / calc(10 * var(--u)) calc(5 * var(--u)) repeat-x;
 }
 /* Its picture is still flying in from the quick add. Visibility, not opacity: the paper's inline opacity
    belongs to motion's shared layout, the li's to dnd-kit. */
@@ -662,14 +660,6 @@
   .plan-block.is-revealed .plan-resize-top { top: -15px; bottom: auto; }
   .plan-block.is-revealed .plan-resize::after { width: 34px; height: 5px; opacity: 1; background: var(--ink-2); box-shadow: 0 0 0 2px var(--surface); }
 }
-/* The zoom: − and + beside the title (and Ctrl + wheel, or a pinch, on the line itself). */
-.plan-zoom { flex: none; display: inline-flex; gap: calc(2 * var(--u)); }
-.pass .plan-zoom button {
-  width: calc(32 * var(--u)); height: calc(30 * var(--u)); display: grid; place-items: center; border-radius: var(--radius);
-  font-family: var(--font-print); font-size: calc(24 * var(--u)); line-height: 1; color: var(--ink-2);
-}
-.pass .plan-zoom button:hover:not(:disabled) { color: var(--ink); background: var(--well); }
-.pass .plan-zoom button:disabled { color: var(--ink-3); opacity: 0.5; cursor: default; }
 .plan-scroll { touch-action: pan-y; } /* two fingers on the line zoom it rather than the page */
 
 .plan-ghost {
@@ -719,19 +709,18 @@
   .slotpick, .slotpick.is-sheet { animation: fade-in 0.12s linear both; }
 }
 
-/* ---------- done that day: quiet rows under the line ---------- */
-.plan-done { margin: calc(6 * var(--u)) 0 calc(18 * var(--u)); padding: calc(14 * var(--u)) 0 0 calc(4.36% + calc(4 * var(--u))); border-top: 1px solid var(--rule-soft); }
-.plan-done-label {
-  display: flex; align-items: center; gap: calc(12 * var(--u)); margin: 0 0 calc(8 * var(--u));
-  font-family: var(--font-ui); font-weight: 700; font-size: calc(15 * var(--u)); line-height: 1; letter-spacing: 0.01em;
+/* ---------- out of sight: "^ 3 above" / "v 2 below", floating at that end of the line ---------- */
+.plan-out { position: sticky; z-index: 6; height: 0; display: flex; justify-content: center; pointer-events: none; }
+.plan-out.is-above { top: 0; align-items: flex-start; }
+.plan-out.is-below { bottom: 0; align-items: flex-end; }
+.pass .plan-out-pill {
+  display: inline-flex; align-items: center; gap: calc(6 * var(--u)); margin: calc(8 * var(--u)) 0; padding: calc(5 * var(--u)) calc(12 * var(--u)) calc(5 * var(--u)) calc(9 * var(--u));
+  pointer-events: auto; background: var(--paper); color: var(--paper-ink); border: 1px solid var(--rule); border-radius: 999px;
+  font-family: var(--font-print); font-size: calc(14 * var(--u)); line-height: 1; white-space: nowrap;
+  box-shadow: 0 calc(3 * var(--u)) calc(10 * var(--u)) rgb(0 0 0 / 0.14);
 }
-.plan-done-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
-.plan-done-row {
-  display: flex; align-items: center; gap: calc(10 * var(--u)); height: calc(26 * var(--u)); padding-right: calc(12 * var(--u));
-  font-family: var(--font-print); font-size: calc(15.5 * var(--u)); line-height: 1; color: var(--ink-2); white-space: nowrap;
-}
-.plan-done-tick { flex: none; color: var(--green); }
-.plan-done-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pass .plan-out-pill:hover { border-color: var(--ink-3); }
+.is-above .plan-out-chevron { rotate: 180deg; }
 
 /* ---------- drag and drop ---------- */
 .dk-ghost { margin: 0; padding: 0; list-style: none; width: 100%; height: 100%; pointer-events: none; }
@@ -909,6 +898,7 @@
   .allday-chip { max-width: 30vw; }
   .plan-scroll {
     position: relative; left: auto; top: auto; width: auto; height: auto; grid-column: 1 / -1;
+    overflow: visible; overflow-x: clip; /* the page scrolls it: not a scroller itself, so the out-of-sight pills stick to the screen */
     margin-top: 12px; padding-bottom: 130px; border-top: 1px solid var(--rule-soft); /* clear of the add button */
   }
   .plan-grid { --lane-left: 21%; --lane-w: 75%; }
@@ -920,10 +910,10 @@
   .pass .plan-body { padding-left: 12px; }
   .is-current .plan-body { padding-left: 10px; }
   .plan-time { width: 58px; }
-  .pass .plan-zoom button { width: 32px; height: 30px; font-size: 20px; }
+  .plan-out.is-below { bottom: calc(54px + env(safe-area-inset-bottom)); } /* over the rooms bar */
+  .pass .plan-out-pill { font-size: 13px; padding: 6px 12px 6px 9px; }
   .now-time { left: 20px; font-size: 16px; }
   .now-rule { left: 72px; }
-  .plan-done { padding-left: 16px; }
 
   /* Today: Next up as a strip to thumb along, then the rails */
 
@@ -1017,13 +1007,12 @@
 }
 
 /* ---------- epic colour: a solid band down a task's left edge and a wash of its colour on the paper ---------- */
-.docket.has-epic .dk-print { background: linear-gradient(color-mix(in srgb, var(--epic) 13%, transparent) 0 0); }
+.docket.has-epic:not(.is-done) { --dk-paper: color-mix(in srgb, var(--epic) 13%, var(--paper)); }
 .docket.has-epic .dk-print::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(6 * var(--u));
   background: var(--epic); pointer-events: none;
 }
 .docket.is-done.has-epic .dk-print::before { opacity: 0.4; }
-.docket.is-done.has-epic .dk-print { background: none; }
 .plan-task.has-epic { --block-bg: color-mix(in srgb, var(--epic) 16%, var(--paper)); }
 .plan-task.has-epic::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(5 * var(--u)); background: var(--epic); pointer-events: none;

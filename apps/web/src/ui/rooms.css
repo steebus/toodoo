@@ -88,16 +88,17 @@
 
 /* ---------- slips: a task on thermal paper, perforated along the top. Paper never inverts. ---------- */
 .slip {
+  --slip-paper: var(--paper);
   position: relative; display: flex; flex-direction: column; gap: 9px; padding: 12px 14px 13px;
-  background: var(--paper); color: var(--paper-ink); border-radius: 0 0 2px 2px;
+  background: var(--slip-paper); color: var(--paper-ink); border-radius: 2px 2px 0 0;
   font-family: var(--font-print); font-size: 14px; line-height: 1.2;
   filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.12));
   cursor: grab; touch-action: manipulation; -webkit-touch-callout: none; user-select: none;
 }
-/* the sawtooth: a row of paper teeth standing on the slip's top edge */
+/* the torn foot: a row of paper teeth hanging off the slip's bottom edge, in the paper's own colour */
 .slip::before {
-  content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 5px;
-  background: conic-gradient(from 135deg at 50% 0, var(--tk-paper) 90deg, transparent 0) 0 0 / 10px 5px repeat-x;
+  content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 5px; pointer-events: none;
+  background: conic-gradient(from -45deg at 50% 100%, var(--slip-paper) 90deg, transparent 0) 0 0 / 10px 5px repeat-x;
 }
 .slip:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .slip:hover { filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.16)); }
@@ -126,6 +127,25 @@
 .kanban-col { display: flex; flex-direction: column; min-width: 0; }
 .kanban-col .lane { min-height: 140px; }
 .kanban-col.is-done .lane { background: transparent; border-style: solid; }
+/* Blocked runs red: its well, its edge and its name. */
+.kanban-col.is-blocked .lane { background: color-mix(in srgb, var(--red) 9%, var(--well)); border-color: color-mix(in srgb, var(--red) 32%, var(--rule-soft)); }
+.kanban-col.is-blocked .lane-label, .kanban-fold.is-blocked { color: var(--red-ink); }
+/* A column folds from its head to a strip where it stood: its name up the strip, then what's in it. */
+.room .lane-fold { margin-left: auto; display: grid; place-items: center; width: 26px; height: 26px; color: var(--ink-3); border-radius: 4px; }
+.room .lane-fold svg { rotate: 90deg; }
+.room .lane-fold:hover { color: var(--ink); background: var(--well); }
+.room .kanban-fold {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 260px; padding: 10px 0 14px;
+  background: var(--well); border: 1px solid var(--rule-soft); border-radius: 5px; color: var(--ink);
+  font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.01em; text-transform: uppercase;
+  transition: background-color 0.16s ease-out, border-color 0.16s ease-out;
+}
+.room .kanban-fold:hover { background: var(--well-strong); }
+.room .kanban-fold.is-over { border: 1px dashed var(--ink-3); }
+.room .kanban-fold.is-blocked { background: color-mix(in srgb, var(--red) 9%, var(--well)); border-color: color-mix(in srgb, var(--red) 32%, var(--rule-soft)); }
+.kanban-fold-name, .kanban-fold-sum { writing-mode: vertical-rl; }
+.kanban-fold-sum { font-family: var(--font-print); font-weight: 400; font-size: 13px; text-transform: none; color: var(--ink-2); }
+.kanban-fold-sum.is-high { color: var(--red-ink); }
 
 /* ---------- Epics: a stack of headed lists ---------- */
 /* Epics are cards in a grid, each with its colour along the top. */
@@ -242,7 +262,7 @@
 }
 
 /* ---------- epic colour: a band down the left edge and a wash (slips, the ticket), a hairline down an epic's ---------- */
-.slip.has-epic { box-shadow: inset 6px 0 0 var(--epic); background-image: linear-gradient(color-mix(in srgb, var(--epic) 13%, transparent) 0 0); }
+.slip.has-epic { --slip-paper: color-mix(in srgb, var(--epic) 13%, var(--paper)); box-shadow: inset 6px 0 0 var(--epic); }
 .sheet.sheet-ticket.has-epic { --tk-paper: color-mix(in srgb, var(--epic) 20%, var(--paper)); } /* the whole slip in its epic's colour */
 .sheet-ticket > * { --paper: var(--tk-paper); } /* and everything printed on it mixes from that paper */
 .epic.is-done.has-epic .epic-toggle::before, .epic.is-on_hold.has-epic .epic-toggle::before { opacity: 0.45; }
@@ -322,7 +342,8 @@
 .tk-progress { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; font-size: 13px; }
 .tk-progress .pen-progress { height: 7px; }
 .tk-body { white-space: pre-line; overflow-wrap: anywhere; }
-.tk-note { font-family: var(--font-hand); font-weight: 500; font-size: 22px; line-height: 1.15; color: var(--biro); } /* written by hand */
+/* The note as written: by hand, in biro. Typing it is plain print, like every other field. */
+:is(.pass, .room) .tk-note.tk-field:not(.is-empty) { font-family: var(--font-hand); font-weight: 500; font-size: 22px; line-height: 1.15; color: var(--biro); }
 .tk-link a { color: var(--biro); overflow-wrap: anywhere; }
 .tk-tags { font-size: 14px; color: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }
 .tk-status { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -345,7 +366,7 @@
 @media (max-width: 819px) {
   .sheet.sheet-ticket { width: 100vw; max-height: 88dvh; box-shadow: 0 -12px 30px rgb(0 0 0 / 0.2); }
   .sheet-ticket::before { left: 0; right: 0; top: -6px; bottom: auto; width: auto; height: 6px;
-    background: conic-gradient(from 135deg at 50% 0, var(--paper) 90deg, transparent 0) 0 0 / 12px 6px repeat-x; }
+    background: conic-gradient(from 135deg at 50% 0, var(--tk-paper) 90deg, transparent 0) 0 0 / 12px 6px repeat-x; }
   .ticket { max-height: 88dvh; padding: 20px 18px calc(22px + env(safe-area-inset-bottom)); }
   .tk-title { font-size: 21px; }
 }
@@ -544,10 +565,11 @@
 :is(.pass, .room) .tk-tag-x { display: grid; place-items: center; width: 18px; height: 18px; color: inherit; opacity: 0.6; border-radius: 2px; }
 :is(.pass, .room) .tk-tag-x:hover { opacity: 1; color: var(--paper-red); }
 .tk-tag-add {
-  width: 9ch; padding: 3px 5px; font: inherit; font-size: 14px; color: var(--paper-ink); background: transparent;
+  width: 10ch; padding: 3px 5px; font: inherit; font-size: 14px; color: var(--paper-ink); background: transparent;
   border: 1px dashed transparent; border-radius: 2px;
 }
 .tk-tag-add:hover, .tk-tag-add:focus { border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); outline: none; width: 14ch; }
+.tk-tag-add::-webkit-calendar-picker-indicator { display: none !important; } /* the suggestions' arrow took the word's room */
 .tk-tag-add::placeholder { color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); }
 
 /* ---------- the phone: one header row (toodoo · date · Focus), Day · Board · Epics along the bottom ---------- */
@@ -640,42 +662,60 @@
 }
 .lane-add input::placeholder { color: color-mix(in srgb, var(--paper-ink) 48%, var(--paper)); }
 
-/* ---------- the Matrix: every task a dot, urgent to the left, important at the top ---------- */
+/* ---------- the Matrix: a sheet of the paper, drawn on in pen ---------- */
 .matrix { min-height: 0; }
-.mx-frame { position: relative; flex: 1; min-height: 420px; padding: 24px 0 26px 26px; }
+.mx-frame { position: relative; flex: 1; min-height: 420px; padding: 30px 0 34px 30px; }
+/* the sheet: thermal paper with a torn foot, a little lift off the desk */
 .mx-plot {
-  position: absolute; inset: 24px 0 26px 26px; border: 1px solid var(--rule); border-radius: 6px;
-  background:
-    linear-gradient(var(--rule), var(--rule)) 50% 0 / 1px 100% no-repeat,
-    linear-gradient(var(--rule), var(--rule)) 0 50% / 100% 1px no-repeat,
-    linear-gradient(color-mix(in srgb, var(--red) 6%, transparent) 0 0) 0 0 / 50% 50% no-repeat,
-    linear-gradient(color-mix(in srgb, var(--ink) 3%, transparent) 0 0) 100% 100% / 50% 50% no-repeat,
-    var(--surface);
+  position: absolute; inset: 30px 4px 38px 30px; background: var(--paper); color: var(--paper-ink); border-radius: 2px 2px 0 0;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.12), 0 12px 28px rgb(0 0 0 / 0.07);
 }
-.mx-q, .mx-mark, .mx-axis { font-family: var(--font-print); letter-spacing: 0.08em; color: var(--ink-3); pointer-events: none; user-select: none; }
-.mx-q { position: absolute; font-size: 12px; font-weight: 700; opacity: 0.8; }
-.mx-q-do { left: 12px; top: 10px; color: var(--red-ink); }
-.mx-q-plan { right: 12px; top: 10px; }
-.mx-q-pass { left: 12px; bottom: 10px; }
-.mx-q-drop { right: 12px; bottom: 10px; }
-/* day marks: a faint dashed line up the plot, its name under it */
+.mx-plot::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; pointer-events: none;
+  background: conic-gradient(from -45deg at 50% 100%, var(--paper) 90deg, transparent 0) 0 0 / 12px 6px repeat-x;
+}
+.mx-ink { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.mx-rule { fill: none; stroke: var(--biro); stroke-width: 1.8; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: 0.85; }
+.mx-highlight { fill: color-mix(in srgb, var(--paper-red) 13%, transparent); stroke: none; }
+/* the hand: Caveat in biro, the do-now corner in red pen */
+.mx-q, .mx-mark, .mx-axis, .mx-ask { font-family: var(--font-hand); font-weight: 500; color: var(--biro); pointer-events: none; user-select: none; }
+.mx-q { position: absolute; font-size: 25px; line-height: 1; rotate: -2deg; }
+.mx-q-do { left: 14px; top: 10px; color: var(--paper-red); }
+.mx-q-plan { right: 16px; top: 10px; rotate: 1.5deg; }
+.mx-q-pass { left: 14px; bottom: 12px; rotate: 1deg; }
+.mx-q-drop { right: 16px; bottom: 12px; rotate: -1deg; opacity: 0.7; }
+/* day marks: pencil ticks up the sheet, named under it */
 .mx-mark {
-  position: absolute; top: 0; bottom: -20px; width: 0; display: flex; align-items: flex-end; justify-content: center;
-  border-left: 1px dashed color-mix(in srgb, var(--rule) 70%, transparent); font-size: 11px; white-space: nowrap;
+  position: absolute; top: 0; bottom: -30px; width: 0; display: flex; align-items: flex-end; justify-content: center;
+  border-left: 1px dashed color-mix(in srgb, var(--paper-ink) 18%, transparent); font-size: 17px; white-space: nowrap; color: var(--ink-2);
 }
-.mx-axis { position: absolute; display: flex; justify-content: space-between; font-size: 11px; }
-.mx-axis b { font-weight: 700; }
-.mx-axis-x { left: 26px; right: 0; top: 2px; }
-.mx-axis-y { left: 0; top: 24px; bottom: 26px; width: 18px; writing-mode: vertical-rl; rotate: 180deg; }
+/* priority cutoffs: a pencil line across, the band above and the band below named on it at its left */
+.mx-cut {
+  position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed color-mix(in srgb, var(--paper-ink) 18%, transparent);
+  pointer-events: none; font-family: var(--font-hand); font-weight: 500; font-size: 16px; line-height: 1; color: var(--ink-2);
+}
+.mx-cut.is-middle { border-top: 0; } /* the biro rule is drawn there already */
+.mx-cut b { position: absolute; left: 14px; font-weight: inherit; white-space: nowrap; opacity: 0.8; }
+.mx-cut b:first-child { bottom: 3px; }
+.mx-cut b:last-child { top: 3px; }
+.mx-axis { position: absolute; display: flex; justify-content: space-between; font-size: 19px; color: var(--ink-2); }
+.mx-axis b { font-weight: 500; }
+.mx-axis-x { left: 34px; right: 8px; top: 0; }
+.mx-axis-y { left: 0; top: 30px; bottom: 38px; width: 24px; writing-mode: vertical-rl; rotate: 180deg; }
 
 .room .mx-dot {
-  position: absolute; translate: -50% -50%; padding: 0; border-radius: 50%; cursor: grab; touch-action: none;
-  background: color-mix(in srgb, var(--dot) 82%, transparent); border: 2px solid color-mix(in srgb, var(--dot) 75%, #000);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.16); transition: scale 0.14s ease-out, box-shadow 0.14s ease-out;
+  position: absolute; translate: -50% -50%; padding: 0; border: 0; background: none; cursor: grab; touch-action: none;
+  transition: scale 0.14s ease-out;
 }
-.room .mx-dot:hover, .room .mx-dot:focus-visible { z-index: 5; scale: 1.12; }
-.room .mx-dot.is-held { z-index: 10; cursor: grabbing; scale: 1.18; box-shadow: 0 6px 16px rgb(0 0 0 / 0.22); }
-.room .mx-dot.is-done { background: transparent; opacity: 0.5; }
+.mx-dot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mx-blot { fill: var(--dot); opacity: 0.72; }
+.mx-ring { fill: none; stroke: color-mix(in srgb, var(--dot) 70%, #000); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.room .mx-dot:hover, .room .mx-dot:focus-visible { z-index: 5; scale: 1.14; }
+.room .mx-dot:focus-visible { outline: none; }
+.mx-dot:focus-visible .mx-ring { stroke: var(--paper-ink); stroke-width: 2.6; }
+.room .mx-dot.is-held { z-index: 10; cursor: grabbing; scale: 1.2; filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.2)); }
+.mx-dot.is-done .mx-blot { opacity: 0.12; }
+.mx-dot.is-done { opacity: 0.6; }
 /* Hovered (or tapped on a phone): its ticket as it hangs on the Day, over the dot, or under it near the top. */
 .mx-card {
   --tx: -50%; --ty: calc(-100% - var(--r) - 12px);
@@ -689,11 +729,20 @@
 @keyframes mx-card-in { from { opacity: 0; scale: 0.94; } }
 /* where a drop would land it */
 .mx-ask {
-  position: absolute; z-index: 13; translate: calc(var(--r) + 10px) -50%; padding: 3px 7px; border: 1px solid var(--rule); border-radius: 3px;
-  background: var(--surface); font-family: var(--font-print); font-size: 12px; white-space: nowrap; pointer-events: none;
+  position: absolute; z-index: 13; translate: calc(var(--r) + 10px) -50%; padding: 0 4px;
+  background: color-mix(in srgb, var(--paper) 85%, transparent); font-size: 21px; line-height: 1; white-space: nowrap; rotate: -2deg;
 }
 @media (prefers-reduced-motion: reduce) { .room .mx-dot { transition: none; } .mx-card { animation: none; } }
 @media (max-width: 819px) {
   .mx-frame { min-height: 68dvh; --mx-k: 0.62; } /* dots in proportion to the smaller plot */
+  .mx-mark.is-minor { font-size: 0; } /* the tick stays; its name would crowd the next */
+  .mx-card.is-stub { left: 50% !important; --tx: -50%; } /* across the sheet, whichever dot it's for */
+  .mx-q { font-size: 21px; }
   .matrix .room-pick select { max-width: 130px; }
+}
+
+/* ---------- a room's own controls in the header's right-hand corner (Board, Epics, Matrix) ---------- */
+.topbar-slot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+@media (max-width: 819px) {
+  .pass .topbar .topbar-slot { grid-area: 1 / 3; }
 }

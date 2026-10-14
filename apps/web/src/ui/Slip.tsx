@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
-import { effectivePriority, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
+import { effectivePriority, plusHigh, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { dayWord, formatDuration } from "@shared/planning.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
 import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
@@ -34,7 +34,7 @@ export function when(t: FullTask, today: string) {
 export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = true, showStatus = false }: Props) {
   const w = when(t, today);
   const high = !t.done && effectivePriority(t, epic) === "high";
-  const flag = high ? <span className="slip-high">! HIGH</span> : null;
+  const flag = high ? <span className="slip-high">{plusHigh(t, epic) ? "! +HIGH" : "! HIGH"}</span> : null;
   const list = checklistProgress(t.checklist);
   const steps = list ? <span className="slip-list" aria-label={`Checklist ${list.done} of ${list.total}`}>☐ {list.done}/{list.total}</span> : null;
   const status = showStatus && !t.done && t.status && t.status !== "todo"

@@ -8,6 +8,7 @@ import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
 import { EpicSheet } from "./EpicSheet";
+import { HeaderControls } from "./RoomShell";
 import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "./icons";
 import { justDropped, LaneDnd, LaneList } from "./LaneDnd";
 import { epicStyle, LaneAdd, when } from "./Slip";
@@ -81,10 +82,8 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
 
   return (
     <main className="room-main epics">
-      <div className="room-head">
-        <h1 className="room-title">Epics</h1>
-        <span className="count-chip">{shown.length}</span>
-        <span className="room-head-gap" />
+      <h1 className="sr-only">Epics</h1>
+      <HeaderControls>
         {(hiddenDone > 0 || prefs.showDone) && (
           <button type="button" className="room-toggle" aria-pressed={prefs.showDone} onClick={() => setPrefs({ ...prefs, showDone: !prefs.showDone })}>
             {prefs.showDone ? "Hide done" : `Show done`}
@@ -94,7 +93,7 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
         <button type="button" className="room-button" disabled={off} onClick={() => setSheet("new")}>
           <PlusIcon size={15} /> New epic
         </button>
-      </div>
+      </HeaderControls>
       <LaneDnd lanes={lanes} disabled={off} titleOf={(id) => byId.get(id)?.title ?? "task"} laneName={nameOf} onDrop={drop}
         ghost={(id) => {
           const t = byId.get(id);

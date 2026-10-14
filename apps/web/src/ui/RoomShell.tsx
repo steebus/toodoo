@@ -1,10 +1,12 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { focusBlock, focusIntent } from "../lib/focus";
 import { go, type Room } from "../lib/useRoute";
 import { buildPass } from "./build";
 import { loadSplit, PRESET_SPLIT, saveSplit } from "./Panes";
 import "./pass.css";
 import "./rooms.css";
+import { MotionRoot } from "./motion";
 import { TopBar } from "./TopBar";
 import type { BoardData } from "./types";
 import { compactDate, longDate } from "./format";
@@ -46,9 +48,21 @@ export function RoomSkeleton({ room }: { room: "board" | "epics" | "matrix" }) {
   );
 }
 
-// The Board, Epics and Share rooms: the Day view's own header row (today's date and line, Focus, the presets),
-// then a page that scrolls. A preset or Focus goes to the Day view and applies there.
+// The header row's right-hand corner, for a room's own controls (the Board's epic and sort, the Matrix's filters,
+// New epic): they render there through a portal, where the Day view has Focus and Plan · Capture.
+// Outside a shell (no slot at all) they sit at the head of the page instead.
+const HeaderSlot = createContext<HTMLElement | null | undefined>(undefined);
+export function HeaderControls({ children }: { children: ReactNode }) {
+  const slot = useContext(HeaderSlot);
+  if (slot === undefined) return <div className="room-head">{children}</div>;
+  return slot && createPortal(children, slot);
+}
+const OWN_CORNER: Room[] = ["board", "epics", "matrix"];
+
+// The Board, Epics, Matrix and Share rooms: the Day view's own header row (today's date and line, then Focus and
+// the presets, or the room's own controls), then a page that scrolls. A preset or Focus goes to the Day view.
 export function RoomShell({ room, board, offline, onSignOut, children }: Props) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   const model = board ? buildPass(board, DEFAULT_VIEW) : null;
   const split = loadSplit();
   const active = PRESETS.find((p) => Math.abs(PRESET_SPLIT[p] - split) < 0.5) ?? "";
@@ -69,10 +83,12 @@ export function RoomShell({ room, board, offline, onSignOut, children }: Props) 
             onFocus={block ? () => { focusIntent.at = Date.now(); go("day"); } : undefined}
             onSignOut={onSignOut}
             offline={offline}
+            end={OWN_CORNER.includes(room) ? <div className="topbar-slot" ref={setSlot} /> : undefined}
           />
         </div>
       </div>
-      {children}
+      {/* motion for the pages too: the ticket's pen tick, the Matrix's dots */}
+      <MotionRoot><HeaderSlot value={slot}>{children}</HeaderSlot></MotionRoot>
     </div>
   );
 }

@@ -216,15 +216,6 @@ it("a date in the URL is the day the board opens on", () => {
   expect(state.args[0].date).toBe("2026-03-12");
 });
 
-it("lists what was done that day under the line, and hides the list when empty", () => {
-  const { unmount } = show();
-  const done = screen.getByRole("region", { name: "Done that day" });
-  expect(within(done).getByText("File taxes")).toBeInTheDocument();
-  unmount();
-  show(board({ tasks: [report] }));
-  expect(screen.queryByRole("region", { name: "Done that day" })).toBeNull();
-});
-
 it("a pending keyboard move is saved before arrows start on another block", () => {
   vi.useFakeTimers();
   show(board({
@@ -327,4 +318,23 @@ it("Ctrl + wheel zooms the line, within its limits, and the zoom is kept", async
   for (let i = 0; i < 20; i++) fireEvent.wheel(line(), { deltaY: 400, ctrlKey: true });
   await waitFor(() => expect(line().style.getPropertyValue("--zoom")).toBe("0.5"));
   localStorage.removeItem("toodoo.planZoom");
+});
+
+it("counts the blocks wholly out of sight below or above the line, and a pill goes to the nearest", async () => {
+  show();
+  const sc = document.querySelector<HTMLElement>(".plan-scroll")!;
+  const block = sc.querySelector<HTMLElement>(".plan-block")!;
+  const rect = (top: number, h: number) => ({ top, bottom: top + h, left: 0, right: 100, width: 100, height: h, x: 0, y: top, toJSON: () => ({}) });
+  sc.getBoundingClientRect = () => rect(100, 300);
+  block.scrollIntoView = vi.fn();
+  block.getBoundingClientRect = () => rect(500, 40); // past the foot
+  act(() => { sc.dispatchEvent(new Event("scroll")); });
+  await userEvent.click(await screen.findByRole("button", { name: "1 below" }));
+  expect(block.scrollIntoView).toHaveBeenCalled();
+  block.getBoundingClientRect = () => rect(20, 40); // over the head
+  act(() => { sc.dispatchEvent(new Event("scroll")); });
+  expect(await screen.findByRole("button", { name: "1 above" })).toBeInTheDocument();
+  block.getBoundingClientRect = () => rect(380, 40); // partly in sight: not out of it
+  act(() => { sc.dispatchEvent(new Event("scroll")); });
+  await waitFor(() => expect(screen.queryByRole("button", { name: /above|below/ })).toBeNull());
 });

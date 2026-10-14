@@ -1,7 +1,7 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { NO_EPIC, sortTasks } from "@shared/board.ts";
 import { epicMap, TASK_STATUS_LABEL, TASK_STATUSES, type TaskStatus } from "@shared/epics.ts";
-import { addDays, byOrder } from "@shared/planning.ts";
+import { addDays, byOrder, formatDuration } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import { laneStep, orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
@@ -9,7 +9,10 @@ import { useDroppable } from "@dnd-kit/core";
 import { useNarrow } from "../lib/useNarrow";
 import { LaneDnd, LaneList, TAB } from "./LaneDnd";
 import { LaneAdd, SlipGhost, SortableSlip } from "./Slip";
+import { ChevronIcon } from "./icons";
+import { HeaderControls } from "./RoomShell";
 import { TaskView } from "./TaskView";
+import { SettingsMenu, SettingsPick } from "./ViewMenu";
 import { Toast } from "./Toast";
 
 type Column = TaskStatus | "done";
@@ -17,14 +20,19 @@ const COLUMNS: Column[] = [...TASK_STATUSES, "done"];
 const label = (c: Column) => (c === "done" ? "Done" : TASK_STATUS_LABEL[c]);
 export const columnOf = (t: FullTask): Column => (t.done ? "done" : t.status ?? "todo");
 
-type Prefs = { epic: string; sort: "manual" | "priority" };
+const SORTS = [["manual", "Manual"], ["priority", "Priority"], ["effort", "Effort"], ["due", "Due date"]] as const;
+type Prefs = { epic: string; sort: (typeof SORTS)[number][0]; folded?: Column[] };
 const KEY = "toodoo.boardView";
 function loadPrefs(): Prefs {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<Prefs> | null;
-    return { epic: typeof raw?.epic === "string" ? raw.epic : "", sort: raw?.sort === "priority" ? "priority" : "manual" };
+    return {
+      epic: typeof raw?.epic === "string" ? raw.epic : "",
+      sort: SORTS.find(([v]) => v === raw?.sort)?.[0] ?? "manual",
+      folded: Array.isArray(raw?.folded) ? raw.folded.filter((c) => COLUMNS.includes(c)) : [],
+    };
   } catch {
-    return { epic: "", sort: "manual" };
+    return { epic: "", sort: "manual", folded: [] };
   }
 }
 
@@ -33,7 +41,7 @@ export function columns(work: WorkData, prefs: Prefs): Record<Column, FullTask[]
   const shown = work.tasks.filter((t) => !prefs.epic || (prefs.epic === NO_EPIC ? !t.epic_id : t.epic_id === prefs.epic));
   const out = Object.fromEntries(COLUMNS.map((c) => [c, [] as FullTask[]])) as Record<Column, FullTask[]>;
   for (const t of shown) out[columnOf(t)].push(t);
-  for (const c of TASK_STATUSES) out[c] = prefs.sort === "priority" ? sortTasks(out[c], "priority", work.epics) : out[c].sort(byOrder);
+  for (const c of TASK_STATUSES) out[c] = prefs.sort === "manual" ? out[c].sort(byOrder) : sortTasks(out[c].sort(byOrder), prefs.sort, work.epics);
   out.done.sort((a, b) => (b.done_on ?? "").localeCompare(a.done_on ?? "") || byOrder(a, b));
   return out;
 }
@@ -94,29 +102,24 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   };
 
   const filterEpic = view.epic && view.epic !== NO_EPIC ? view.epic : null;
-  const openCount = cols.todo.length + cols.doing.length + cols.blocked.length;
+  // A column folds to a thin strip where it stands (the phone shows one column at a time, so never there).
+  const isFolded = (c: Column) => !narrow && !!view.folded?.includes(c);
+  const fold = (c: Column) => {
+    const f = view.folded ?? [];
+    setPrefs({ ...view, folded: f.includes(c) ? f.filter((x) => x !== c) : [...f, c] });
+  };
   return (
     <main className="room-main kanban">
-      <div className="room-head">
-        <h1 className="room-title">Board</h1>
-        <span className="count-chip">{openCount}</span>
-        <span className="room-head-gap" />
-        <label className="room-pick">
-          <span>Epic</span>
-          <select value={view.epic} onChange={(e) => setPrefs({ ...view, epic: e.target.value })}>
-            <option value="">All</option>
-            {work.epics.filter((e) => e.status !== "done" || e.id === view.epic).map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-            <option value={NO_EPIC}>No epic</option>
-          </select>
-        </label>
-        <label className="room-pick">
-          <span>Sort</span>
-          <select value={view.sort} onChange={(e) => setPrefs({ ...view, sort: e.target.value as Prefs["sort"] })}>
-            <option value="manual">Manual</option>
-            <option value="priority">Priority</option>
-          </select>
-        </label>
-      </div>
+      <h1 className="sr-only">Board</h1>
+      <HeaderControls>
+        <SettingsMenu>
+          <SettingsPick label="Epic" value={view.epic}
+            options={[["", "All"], ...work.epics.filter((e) => e.status !== "done" || e.id === view.epic).map((e): [string, string] => [e.id, e.title]), [NO_EPIC, "No epic"]]}
+            onChange={(epic) => setPrefs({ ...view, epic })} />
+          <SettingsPick label="Sort" value={view.sort} options={SORTS.map(([v, l]): [string, string] => [v, l])}
+            onChange={(sort) => setPrefs({ ...view, sort: sort as Prefs["sort"] })} />
+        </SettingsMenu>
+      </HeaderControls>
       <LaneDnd
         lanes={lanes}
         disabled={off}
@@ -133,12 +136,20 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
             {COLUMNS.map((c) => <ColumnTab key={c} column={c} count={cols[c].length} on={shown === c} onSelect={() => setShown(c)} />)}
           </div>
         )}
-        <div className="kanban-cols">
-          {COLUMNS.filter((c) => !narrow || c === shown).map((c) => (
+        <div className="kanban-cols"
+          style={narrow ? undefined : { gridTemplateColumns: COLUMNS.map((c) => (isFolded(c) ? "52px" : "minmax(220px, 1fr)")).join(" ") }}>
+          {COLUMNS.filter((c) => !narrow || c === shown).map((c) => isFolded(c) ? (
+            <FoldedColumn key={c} column={c} tasks={cols[c]} onUnfold={() => fold(c)} />
+          ) : (
             <section key={c} className={`kanban-col is-${c}`} aria-labelledby={`col-${c}`}>
               <h2 id={`col-${c}`} className="lane-label">
                 {label(c)}
                 <span className="count-chip">{cols[c].length}</span>
+                {!narrow && (
+                  <button type="button" className="lane-fold" aria-label={`Fold ${label(c)}`} title="Fold" onClick={() => fold(c)}>
+                    <ChevronIcon size={18} />
+                  </button>
+                )}
               </h2>
               {c === "todo" && (
                 <LaneAdd today={work.today} label="Add a task" disabled={off} onAdd={actions.add} epics={work.epics}
@@ -166,6 +177,23 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
       )}
       <Toast toast={actions.toast} onDismiss={actions.dismiss} />
     </main>
+  );
+}
+
+// A folded column: its name up the strip, how many and how much work, and high-priority ones counted. It still
+// takes a dropped card (to its foot), and a click opens it out again.
+function FoldedColumn({ column, tasks, onUnfold }: { column: Column; tasks: FullTask[]; onUnfold: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${TAB}${column}`, data: { type: "lane" } });
+  const mins = tasks.reduce((n, t) => n + (t.estimate_mins ?? 0), 0);
+  const high = tasks.filter((t) => t.priority === "high").length;
+  return (
+    <button ref={setNodeRef} type="button" className={`kanban-fold is-${column}${isOver ? " is-over" : ""}`} aria-expanded={false}
+      aria-label={`Unfold ${label(column)}, ${tasks.length}`} title="Unfold" onClick={onUnfold}>
+      <span className="count-chip">{tasks.length}</span>
+      <span className="kanban-fold-name">{label(column)}</span>
+      {mins > 0 && <span className="kanban-fold-sum">~{formatDuration(mins)}</span>}
+      {high > 0 && <span className="kanban-fold-sum is-high">{high} high</span>}
+    </button>
   );
 }
 

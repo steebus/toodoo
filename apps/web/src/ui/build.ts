@@ -1,5 +1,5 @@
 import { groupTasks, waitingDays, type View } from "@shared/board.ts";
-import { effectivePriority, epicMap, type Epic } from "@shared/epics.ts";
+import { effectivePriority, epicMap, plusHigh, type Epic } from "@shared/epics.ts";
 import { DAY_END, DAY_START, dayWord, formatDuration, timedEvents, toHM, toMin } from "@shared/planning.ts";
 import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { clock12, longDate, shortDate, wrapTitle } from "./format";
@@ -60,7 +60,7 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
     ...(t.due !== today ? [{ label: "DUE", value: shortDate(t.due) }] : []),
     ...tagRow,
   ].slice(0, 3); // the paper has room for three
-  const flags = [t.done ? "DONE" : "", high ? "! HIGH" : "", sourceLabel(t)].filter(Boolean);
+  const flags = [t.done ? "DONE" : "", high ? (plusHigh(t, epic) ? "! +HIGH" : "! HIGH") : "", sourceLabel(t)].filter(Boolean);
   return {
     ...common, variant: "today", time: clock12(hm), duration: est(t), source: flags.join(" · "), tag: "", rows, footer: null,
   };

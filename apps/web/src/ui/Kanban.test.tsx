@@ -95,3 +95,14 @@ it("makes a new epic from its sheet", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(a.createEpic).toHaveBeenCalledWith({ title: "Launch", description: null, priority: null, status: "active", colour: "blue" });
 });
+
+it("a column folds to a strip in its place, summing what's in it, and unfolds again", async () => {
+  render(<Kanban work={work([task("a", { status: "doing", estimate_mins: 90, priority: "high" }), task("b", { status: "doing", estimate_mins: 30 })])} actions={actions()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Fold Doing" }));
+  const strip = screen.getByRole("button", { name: "Unfold Doing, 2" });
+  expect(strip).toHaveTextContent("~2h");
+  expect(strip).toHaveTextContent("1 high");
+  expect(screen.queryByRole("region", { name: /Doing/ })).toBeNull();
+  await userEvent.click(strip);
+  expect(screen.getByRole("region", { name: /Doing/ })).toBeInTheDocument();
+});

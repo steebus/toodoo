@@ -1,5 +1,5 @@
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { addDays } from "@shared/planning.ts";
 import { useFitText } from "../lib/useFitText";
 import { go, type Room } from "../lib/useRoute";
@@ -14,11 +14,12 @@ type Props = {
   nav?: { date: string; today: string; onDate: (d: string) => void }; // the Day: the date steps through days
   onFocus?: () => void; // Focus on the task in hand; missing when there is nothing on the line now or next
   onSignOut?: () => void;
+  end?: ReactNode; // a room's own controls in the right-hand corner, in place of Focus and the presets
 };
 
 // The one header row, the same in every room: the wordmark (its chevron opens the menu: theme, share, sign out)
 // and rooms, the date (on the Day, ‹ date › through the days) over the day's line, Focus, and the Plan · Capture presets.
-export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, onSignOut, celebrate = false, offline = false, unsaved = false, reconnecting = false, room, nav }: Props) {
+export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, onSignOut, end, celebrate = false, offline = false, unsaved = false, reconnecting = false, room, nav }: Props) {
   const line = useRef<HTMLParagraphElement>(null);
   useFitText(line, headline, 0.6);
   return (
@@ -33,26 +34,28 @@ export function TopBar({ date, dateShort, headline, total, presets, activePreset
       <p ref={line} className="r-headline headline" title={headline || undefined}>
         <span key={headline} className="headline-line">{headline}</span>
       </p>
-      {/* Focus | Plan · Capture: one row at the right, a rule between, the same gap either side of it. */}
-      <div className="topbar-end">
-      <p className="r-progress focus-slot">
-        <button type="button" className="focus-button" aria-label="Focus" disabled={!onFocus} onClick={onFocus}
-          title={onFocus ? "Focus on the task in hand (f)" : "Nothing on the line now or next"}>
-          <TimerIcon size={19} /> <span className="focus-word">Focus</span>
-        </button>
-      </p>
-      <span className="topbar-sep" aria-hidden />
-      <nav className="r-presets presets" aria-label="Mode">
-        {presets.map((p, i) => (
-          <span key={p} className="preset-slot">
-            {i > 0 && <span className="preset-dot" aria-hidden>·</span>}
-            <button type="button" className="preset" aria-pressed={p === activePreset} aria-label={p} title={p} onClick={() => onPreset?.(p)}>
-              {p === "Plan" ? <PlanModeIcon /> : p === "Capture" ? <CaptureModeIcon /> : p}
+      {/* Focus | Plan · Capture: one row at the right, a rule between, the same gap either side of it. A room
+          other than the Day puts its own controls here instead (`end`). */}
+      {end ? <div className="topbar-end">{end}</div> : (
+        <div className="topbar-end">
+          <p className="r-progress focus-slot">
+            <button type="button" className="focus-button" aria-label="Focus" disabled={!onFocus} onClick={onFocus}
+              title={onFocus ? "Focus on the task in hand (f)" : "Nothing on the line now or next"}>
+              <TimerIcon size={19} /> <span className="focus-word">Focus</span>
             </button>
-          </span>
-        ))}
-      </nav>
-      </div>
+          </p>
+          <span className="topbar-sep" aria-hidden />
+          {/* Plan · Capture: a two-way switch, the lit side sliding across. */}
+          <nav className="r-presets presets mode-switch" aria-label="Mode">
+            {presets.map((p) => (
+              <button key={p} type="button" className="preset" aria-pressed={p === activePreset} aria-label={p} title={p} onClick={() => onPreset?.(p)}>
+                {p === activePreset && <m.span className="mode-ink" layoutId="mode-ink" aria-hidden />}
+                {p === "Plan" ? <PlanModeIcon /> : p === "Capture" ? <CaptureModeIcon /> : p}
+              </button>
+            ))}
+          </nav>
+        </div>
+      )}
       <AnimatePresence>{celebrate && <AllBumped key="bumped" total={total} />}</AnimatePresence>
       <div className="r-topbar-rule topbar-rule" aria-hidden />
     </header>

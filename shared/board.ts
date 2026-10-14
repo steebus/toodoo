@@ -1,4 +1,4 @@
-import { byEpicRank, effectivePriority, epicMap, TASK_STATUS_LABEL, TASK_STATUSES, type Epic } from "./epics.ts";
+import { byEpicRank, effectivePriority, epicMap, plusHigh, TASK_STATUS_LABEL, TASK_STATUSES, type Epic } from "./epics.ts";
 import { addDays, byOrder, daysBetween, toMin, type Priority } from "./planning.ts";
 
 // Coming up is this many days ahead; Later is past it.
@@ -7,7 +7,7 @@ import type { FullTask } from "./snapshot.ts";
 
 // "status" is the rails by when (shown as Due: Carried over, Today, Coming up...); "column" is the Kanban status.
 export type GroupBy = "status" | "column" | "priority" | "tag" | "source" | "epic";
-export type SortBy = "manual" | "due" | "priority" | "time" | "tag";
+export type SortBy = "manual" | "due" | "priority" | "time" | "tag" | "effort";
 // tag: "" all, a tag, or NO_TAG; epic: "" (or missing) all, an epic's id, or NO_EPIC
 export interface View { group: GroupBy; sort: SortBy; tag: string; epic?: string }
 export interface Group { key: string; label: string; tasks: FullTask[] }
@@ -35,13 +35,15 @@ export function filterTasks(tasks: FullTask[], tag: string, epic = ""): FullTask
 // Priority is the task's own as its epic lifts or sinks it.
 export function sortTasks(tasks: FullTask[], sort: SortBy, epics?: Epic[]): FullTask[] {
   const em = epicMap(epics);
-  const eff = (t: FullTask) => rank(effectivePriority(t, t.epic_id ? em.get(t.epic_id) : null));
+  const epicOf = (t: FullTask) => (t.epic_id ? em.get(t.epic_id) : null);
+  const eff = (t: FullTask) => rank(effectivePriority(t, epicOf(t))) - (plusHigh(t, epicOf(t)) ? 0.5 : 0); // +high ahead of high
   const by: Record<SortBy, (a: FullTask, b: FullTask) => number> = {
     manual: () => 0,
     due: (a, b) => cmp(a.due, b.due),
     priority: (a, b) => eff(a) - eff(b),
     time: (a, b) => nullsLast(a.time, b.time),
     tag: (a, b) => nullsLast(firstTag(a), firstTag(b)),
+    effort: (a, b) => (b.estimate_mins ?? -1) - (a.estimate_mins ?? -1), // the biggest first, the unsized last
   };
   return [...tasks].sort((a, b) => by[sort](a, b) || byOrder(a, b));
 }

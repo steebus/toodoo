@@ -36,6 +36,7 @@ it("plots the open tasks, coloured by epic and sized by the work left", () => {
 
 it("filters by status", async () => {
   render(<Matrix work={work} actions={actions()} />);
+  await userEvent.click(screen.getByRole("button", { name: "View" }));
   await userEvent.selectOptions(screen.getByRole("combobox", { name: "Status" }), "done");
   expect(dot("Finished")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /^big,/ })).toBeNull();
