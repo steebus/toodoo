@@ -26,3 +26,13 @@ export function buzz(ms = 10) {
     /* not allowed here: no haptics */
   }
 }
+
+// A Board card on the phone: swiped sideways, it moves a column per step of travel (right is on, left is back).
+export const COLUMN_SWIPE = { first: 56, step: 64 };
+
+// The column a card swiped to x would land in, from column `from` of `count`: as far as it was pulled, never off the ends.
+export function columnAt(x: number, from: number, count: number): number {
+  const d = Math.abs(x);
+  const n = d < COLUMN_SWIPE.first ? 0 : 1 + Math.floor((d - COLUMN_SWIPE.first) / COLUMN_SWIPE.step);
+  return Math.max(0, Math.min(count - 1, from + Math.sign(x) * n));
+}

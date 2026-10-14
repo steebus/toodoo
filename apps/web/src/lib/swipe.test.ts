@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SWIPE, swipeEnd } from "./swipe";
+import { SWIPE, swipeEnd, columnAt } from "./swipe";
 
 describe("swipeEnd", () => {
   it("bumps past the right threshold, however slow", () => {
@@ -21,5 +21,21 @@ describe("swipeEnd", () => {
   });
   it("from open, dragging back past the rest closes", () => {
     expect(swipeEnd(-SWIPE.rest + SWIPE.open + 80, 0)).toBe("close");
+  });
+});
+
+describe("columnAt", () => {
+  it("stays put short of the first step", () => {
+    expect(columnAt(40, 1, 5)).toBe(1);
+    expect(columnAt(-40, 1, 5)).toBe(1);
+  });
+  it("moves a column per step, further for a longer pull", () => {
+    expect(columnAt(60, 1, 5)).toBe(2);
+    expect(columnAt(130, 1, 5)).toBe(3);
+    expect(columnAt(-60, 1, 5)).toBe(0);
+  });
+  it("never runs off either end", () => {
+    expect(columnAt(1000, 1, 5)).toBe(4);
+    expect(columnAt(-1000, 3, 5)).toBe(0);
   });
 });

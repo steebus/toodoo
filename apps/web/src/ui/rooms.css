@@ -172,9 +172,8 @@
   border: 1px solid transparent; border-radius: 5px;
 }
 .room .epic-toggle { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 0; padding: 4px 6px; border-radius: var(--radius); text-align: left; }
-.epic-meta { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; padding-left: 32px; }
-.epic-sum { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0 auto 0 6px; font-family: var(--font-print); font-size: 13px; color: var(--ink-2); }
-.epic-sum .is-high, .epic-sum .is-late { color: var(--red-ink); }
+/* The card's face under the name: a full-width progress line, then the tallies spread across it, icon first. */
+.epic-meta { display: grid; gap: 10px; flex: 1 1 100%; min-width: 0; padding: 0 4px 2px 32px; }
 .epic-sum-soft { color: var(--ink-3); }
 .epic-chevron { flex: none; color: var(--ink-2); transform: rotate(-90deg); transition: transform 0.22s ease; }
 .epic-toggle[aria-expanded="true"] .epic-chevron { transform: none; }
@@ -182,13 +181,21 @@
 .epic.is-high .epic-title::before { content: "!"; margin-right: 0.4em; color: var(--red); }
 .epic.is-on_hold .epic-title, .epic.is-done .epic-title { color: var(--ink-3); }
 .epic.is-none { background: transparent; border-style: dashed; box-shadow: none; }
-.epic-progress { display: inline-flex; flex-direction: column; gap: 5px; width: 64px; font-family: var(--font-print); font-size: 14px; color: var(--ink-2); }
-.epic-track { position: relative; height: 2px; background: var(--rule-soft); overflow: hidden; border-radius: 1px; }
+.epic-progress { display: flex; align-items: center; gap: 10px; font-family: var(--font-print); font-size: 13px; color: var(--ink-2); }
+.epic-track { position: relative; flex: 1; height: 4px; background: var(--rule-soft); overflow: hidden; border-radius: 2px; }
 .epic-fill { position: absolute; inset: 0; background: var(--green); transform-origin: left; transition: transform 0.6s var(--spring); }
-.room .epic-pick { padding: 5px 6px; font-size: 14px; }
-.room .epic-priority.is-high { color: var(--red-ink); border-color: var(--red-soft); }
-.room .epic-edit { font-family: var(--font-print); font-size: 14px; color: var(--ink-3); padding: 6px 4px; }
-.room .epic-edit:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.epic-count { flex: none; white-space: nowrap; }
+.epic-state { flex: none; padding: 1px 7px; font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--rule); border-radius: 999px; }
+.epic-stats {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px 12px; margin: 0; padding: 0; list-style: none;
+  font-family: var(--font-print); font-size: 13.5px; color: var(--ink-2);
+}
+.epic-stat { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+.epic-stat > span { overflow: hidden; text-overflow: ellipsis; }
+.epic-stat svg { flex: none; color: var(--ink-3); }
+.epic-stat.is-red, .epic-stat.is-red svg { color: var(--red-ink); }
+.room .epic-edit { display: grid; place-items: center; flex: none; width: 34px; height: 34px; color: var(--ink-3); border-radius: var(--radius); }
+.room .epic-edit:hover { color: var(--ink); background: var(--well); }
 .epic-body { padding: 0 12px 14px; animation: fade-in 0.2s ease-out both; }
 .epic-desc { margin: 0 0 12px; max-width: 70ch; font-size: 16px; line-height: 1.4; color: var(--ink-2); white-space: pre-line; }
 .epic-empty { margin: 4px 0 6px; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
@@ -259,7 +266,8 @@
   .kanban-col { flex: 0 0 82%; scroll-snap-align: start; }
   .epic-head { padding: 6px 10px 8px 4px; gap: 8px 10px; }
   .room .epic-toggle { flex: 1 1 0; }
-  .epic-meta { padding-left: 0; }
+  .epic-meta { padding: 0 2px 2px 8px; }
+  .epic-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .epic-title { font-size: 19px; }
   .epic-body { padding: 0 10px 12px; }
   .epic-list { grid-template-columns: 1fr; }
@@ -639,17 +647,42 @@
 
 /* ---------- the Board on a phone: one column at a time, under tabs that take drops ---------- */
 .kb-tabs {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin: 0 0 14px; padding: 3px;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; margin: 0 0 12px; padding: 2px;
   background: var(--well); border: 1px solid var(--rule-soft); border-radius: 8px;
   position: sticky; top: calc(var(--room-top, 0px)); z-index: 4;
 }
 .room .kb-tab {
-  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px; border-radius: 6px;
-  font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3);
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 4px 1px; border-radius: 6px;
+  font-family: var(--font-ui); font-weight: 700; font-size: 10.5px; letter-spacing: 0.01em; text-transform: uppercase; color: var(--ink-3);
 }
-.room .kb-tab .count-chip { min-width: 22px; height: 18px; font-size: 12px; }
+.kb-tab-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room .kb-tab .count-chip { min-width: 20px; height: 16px; font-size: 11px; }
 .room .kb-tab[aria-selected="true"] { color: var(--ink); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
 .room .kb-tab.is-over { outline: 1.5px dashed var(--ink-3); outline-offset: -2px; }
+/* A card on the phone swipes across the columns: the paper slides over the name of the column it would land in,
+   and the five columns show in a row under it, the one it left marked and the one it would land in lit. */
+.slip-holder { position: relative; list-style: none; outline: none; }
+.slip-holder:focus-visible > .slip { outline: 2px solid var(--ink); outline-offset: 3px; }
+.slip-holder > .slip { touch-action: pan-y; }
+.cs-under {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding: 0 16px;
+  background: var(--well-strong); border-radius: 3px; pointer-events: none;
+}
+.cs-under.is-right { justify-content: flex-start; }
+.cs-under-name { font-family: var(--font-ui); font-weight: 700; font-size: 15px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
+.cs-track {
+  position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 9px); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px;
+  margin: 0; padding: 3px; list-style: none; pointer-events: none;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.14);
+}
+.cs-col {
+  overflow: hidden; padding: 5px 1px; text-align: center; text-overflow: ellipsis; white-space: nowrap; border-radius: 5px;
+  font-family: var(--font-ui); font-weight: 700; font-size: 10.5px; letter-spacing: 0.01em; text-transform: uppercase; color: var(--ink-3);
+  transition: background-color 0.12s ease-out, color 0.12s ease-out;
+}
+.cs-col.is-from { box-shadow: inset 0 0 0 1px var(--rule); }
+.cs-col.is-to { color: var(--surface); background: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .cs-col { transition: none; } }
 @media (max-width: 819px) {
   .kanban-cols { display: block; margin: 0; padding: 0; overflow: visible; }
   .kanban-col { width: 100%; }
@@ -772,7 +805,11 @@
 /* ---------- a room's own controls in the header's right-hand corner (Board, Epics, Matrix) ---------- */
 .topbar-slot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 @media (max-width: 819px) {
-  .pass .topbar .topbar-slot { grid-area: 1 / 3; }
+  .pass .topbar .topbar-slot { grid-area: 1 / 3; gap: 4px; }
+  .pass .topbar .topbar-slot .viewmenu { margin-right: 0; }
+  /* a room's add button is just its plus on the phone */
+  .room .room-add { width: 34px; padding: 0; justify-content: center; }
+  .room-add-text { display: none; }
 }
 
 /* ---------- between rooms: the page slides across from the side its room sits on, the header row stays put ---------- */

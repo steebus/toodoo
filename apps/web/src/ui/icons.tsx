@@ -238,3 +238,43 @@ export const TimerIcon = ({ size = 16, className }: P) => (
     <path d="M10 11V7.5M8 2.5h4M15 5.5l1.2-1.2" />
   </svg>
 );
+
+export const PencilIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M13.5 3.5l3 3-9.5 9.5-3.8.8.8-3.8z" />
+    <path d="M11.5 5.5l3 3" />
+  </svg>
+);
+
+// An epic's tallies: open (a ring), doing (a play mark), high (a flag), blocked (a barred ring), late (a warning).
+export const OpenIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="10" cy="10" r="6.5" />
+  </svg>
+);
+
+export const PlayIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6.5 4.5v11l9-5.5z" />
+  </svg>
+);
+
+export const FlagIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M5 17.5V3M5 3.5h10l-2.5 3.5L15 10.5H5" />
+  </svg>
+);
+
+export const BlockedIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="10" cy="10" r="6.5" />
+    <path d="M5.5 14.5l9-9" />
+  </svg>
+);
+
+export const AlertIcon = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M10 3l7.5 13.5h-15z" />
+    <path d="M10 8.5v3.5M10 14.3v.1" />
+  </svg>
+);

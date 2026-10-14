@@ -449,7 +449,10 @@
   font-family: var(--font-print); font-size: calc(16 * var(--u)); color: var(--ink-2);
   transform-origin: top right; animation: pop-in 0.6s var(--spring) both;
 }
-.viewmenu-field { display: grid; grid-template-columns: 5ch 1fr; align-items: center; gap: calc(10 * var(--u)); }
+/* The labels share one column as wide as the longest ("Priority"), so the selects line up and no label is cut. */
+.viewmenu-pop { grid-template-columns: max-content minmax(0, 1fr); column-gap: calc(10 * var(--u)); }
+.viewmenu-pop > * { grid-column: 1 / -1; }
+.viewmenu-field { display: grid; grid-template-columns: subgrid; align-items: center; gap: calc(10 * var(--u)); }
 .viewmenu-field select {
   min-width: 0; padding: calc(5 * var(--u)) calc(8 * var(--u)); font: inherit; color: var(--ink);
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);

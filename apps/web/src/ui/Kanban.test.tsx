@@ -83,9 +83,13 @@ it("the Epics screen hides done epics until filtered in, and unfiles a task with
   await userEvent.click(screen.getByRole("button", { name: "Sort and filter" }));
   await userEvent.selectOptions(screen.getByRole("combobox", { name: "Status" }), "all");
   expect(screen.getByRole("heading", { name: "Old" })).toBeTruthy();
+  // Status and priority live in the epic's sheet now, not on its card; the card shows its tallies.
   const hot = screen.getByRole("heading", { name: "Hot" }).closest("section")!;
-  await userEvent.selectOptions(within(hot).getByRole("combobox", { name: "Status of Hot" }), "on_hold");
-  expect(a.updateEpic).toHaveBeenCalledWith("hot", { status: "on_hold" }, "Hot: on hold");
+  expect(within(hot).queryByRole("combobox")).toBeNull();
+  expect(within(hot).getByText("1 open")).toBeTruthy();
+  expect(within(hot).getByRole("button", { name: "Edit Hot" })).toBeTruthy();
+  // Old is done: its card says so.
+  expect(within(screen.getByRole("heading", { name: "Old" }).closest("section")!).getByText("Done")).toBeTruthy();
 });
 
 it("makes a new epic from its sheet", async () => {

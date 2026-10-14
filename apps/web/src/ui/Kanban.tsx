@@ -92,14 +92,20 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   };
 
   // [ and ] move a focused card a column left or right, to the foot of that column.
+  const toFoot = (id: string, to: Column) => drop(id, { lane: to, index: cols[to].filter((x) => x.id !== id).length });
   const onKey = (id: string, e: KeyboardEvent) => {
     if (off || (e.key !== "[" && e.key !== "]")) return;
     const to = laneStep(lanes, id, e.key === "]" ? 1 : -1);
     if (!to) return;
     e.preventDefault();
-    drop(id, { lane: to, index: cols[to as Column].filter((x) => x.id !== id).length });
+    toFoot(id, to as Column);
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-slip="${id}"]`)?.focus());
   };
+  // On the phone a card swipes across the columns, to the foot of the one it lands in.
+  const names = COLUMNS.map(label);
+  const swipeFor = (t: FullTask) => narrow && !off
+    ? { columns: names, from: COLUMNS.indexOf(columnOf(t)), onMove: (i: number) => toFoot(t.id, COLUMNS[i]) }
+    : undefined;
 
   const filterEpic = view.epic && view.epic !== NO_EPIC ? view.epic : null;
   // A column folds to a thin strip where it stands (the phone shows one column at a time, so never there).
@@ -158,7 +164,7 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
               <LaneList id={c} ids={lanes.find((l) => l.id === c)!.ids} className="lane" label={label(c)}>
                 {cols[c].map((t) => (
                   <SortableSlip key={t.id} lane={c} task={t} epic={t.epic_id ? epics.get(t.epic_id) : undefined} today={work.today}
-                    showEpic={!filterEpic} onOpen={setViewing} onKey={onKey} disabled={off} />
+                    showEpic={!filterEpic} onOpen={setViewing} onKey={onKey} disabled={off} swipe={swipeFor(t)} />
                 ))}
               </LaneList>
             </section>
@@ -203,7 +209,7 @@ function ColumnTab({ column, count, on, onSelect }: { column: Column; count: num
   const { setNodeRef, isOver } = useDroppable({ id: `${TAB}${column}`, data: { type: "lane" } });
   return (
     <button ref={setNodeRef} type="button" role="tab" aria-selected={on} className={`kb-tab${isOver ? " is-over" : ""}`} onClick={onSelect}>
-      {label(column)}
+      <span className="kb-tab-name">{label(column)}</span>
       <span className="count-chip">{count}</span>
     </button>
   );

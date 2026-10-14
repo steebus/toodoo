@@ -10,7 +10,7 @@ import { orderAt, type Drop, type Lane } from "../lib/lanes";
 import type { WorkActions, WorkData } from "../lib/useWork";
 import { EpicSheet } from "./EpicSheet";
 import { HeaderControls } from "./RoomShell";
-import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "./icons";
+import { AlertIcon, BlockedIcon, CalendarIcon, ChevronIcon, ClockIcon, CloseIcon, FlagIcon, GripIcon, OpenIcon, PencilIcon, PlayIcon, PlusIcon } from "./icons";
 import { justDropped, LaneDnd, LaneList } from "./LaneDnd";
 import { epicStyle, LaneAdd, when } from "./Slip";
 import { fitOf, listLine } from "./build";
@@ -20,7 +20,6 @@ import { SettingsMenu, SettingsPick } from "./ViewMenu";
 import { Toast } from "./Toast";
 
 const NONE = "__none"; // the lane of tasks with no epic
-const PRIORITY_LABEL = { high: "High", med: "Medium", low: "Low" } as const;
 
 const KEY = "toodoo.epicsView";
 const SORTS = [["rank", "Status & priority"], ["due", "Next due"], ["work", "Most work left"], ["progress", "Furthest along"], ["name", "A–Z"]] as const;
@@ -55,7 +54,7 @@ export function summary(tasks: FullTask[], today: string, epic?: Epic) {
     next: dues.find((d) => d >= today) ?? null,
   };
 }
-// Every epic starts folded (its name, colour, progress and controls still show); opened ones stay open.
+// Every epic starts folded (its name, colour, progress and tallies still show); opened ones stay open.
 const openByDefault = (_e?: Epic) => false;
 
 export function Epics({ work, actions }: { work: WorkData; actions: WorkActions }) {
@@ -128,8 +127,8 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
           <SettingsPick label="Status" value={prefs.show} options={SHOWS} onChange={(show) => setPrefs({ ...prefs, show })} />
           <SettingsPick label="Priority" value={prefs.priority} options={PRIORITIES} onChange={(priority) => setPrefs({ ...prefs, priority })} />
         </SettingsMenu>
-        <button type="button" className="room-button" disabled={off} onClick={() => setSheet("new")}>
-          <PlusIcon size={15} /> New epic
+        <button type="button" className="room-button room-add" disabled={off} aria-label="New epic" title="New epic" onClick={() => setSheet("new")}>
+          <PlusIcon size={15} /><span className="room-add-text">New epic</span>
         </button>
       </HeaderControls>
       <LaneDnd lanes={lanes} disabled={off} titleOf={(id) => byId.get(id)?.title ?? "task"} laneName={nameOf} onDrop={drop}
@@ -152,32 +151,25 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
                     <ChevronIcon size={18} className="epic-chevron" />
                     <h2 id={`epic-${e.id}`} className="epic-title">{e.title}</h2>
                   </button>
-                  <button type="button" className="epic-edit" onClick={() => setSheet(e.id)}>Edit</button>
+                  <button type="button" className="epic-edit" aria-label={`Edit ${e.title}`} title="Edit" onClick={() => setSheet(e.id)}>
+                    <PencilIcon size={17} />
+                  </button>
                   <div className="epic-meta">
-                  <span className="epic-progress" aria-label={`${done} of ${total} done`}>
-                    <span>{done}/{total}</span>
-                    <span className="epic-track" aria-hidden><span className="epic-fill" style={{ transform: `scaleX(${total ? done / total : 0})` }} /></span>
-                  </span>
-                  <p className="epic-sum">
-                    {open.length > 0 && <span>{sum.mins ? `~${formatDuration(sum.mins)} left` : "unsized"}{sum.mins > 0 && sum.unsized > 0 && <span className="epic-sum-soft"> +{sum.unsized} unsized</span>}</span>}
-                    {open.length > 0 && <span>{open.length} open</span>}
-                    {sum.doing > 0 && <span>{sum.doing} doing</span>}
-                    {sum.high > 0 && <span className="is-high">{sum.high} high</span>}
-                    {sum.blocked > 0 && <span className="is-late">{sum.blocked} blocked</span>}
-                    {sum.late > 0 && <span className="is-late">{sum.late} overdue</span>}
-                    {sum.next && <span>next {sum.next === work.today ? "today" : compactDate(sum.next)}</span>}
-                  </p>
-                  <select className={`epic-pick epic-priority is-${e.priority ?? "none"}`} aria-label={`Priority of ${e.title}`} value={e.priority ?? ""} disabled={off}
-                    onChange={(ev) => void actions.updateEpic(e.id, { priority: (ev.target.value || null) as Epic["priority"] }, `${e.title}: ${ev.target.value ? PRIORITY_LABEL[ev.target.value as keyof typeof PRIORITY_LABEL].toLowerCase() : "no"} priority`)}>
-                    <option value="">No priority</option>
-                    <option value="high">High</option>
-                    <option value="med">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                  <select className={`epic-pick epic-status is-${e.status}`} aria-label={`Status of ${e.title}`} value={e.status} disabled={off}
-                    onChange={(ev) => void actions.updateEpic(e.id, { status: ev.target.value as Epic["status"] }, `${e.title}: ${EPIC_STATUS_LABEL[ev.target.value as Epic["status"]].toLowerCase()}`)}>
-                    {EPIC_STATUSES.map((s) => <option key={s} value={s}>{EPIC_STATUS_LABEL[s]}</option>)}
-                  </select>
+                    <span className="epic-progress" aria-label={`${done} of ${total} done`}>
+                      <span className="epic-track" aria-hidden><span className="epic-fill" style={{ transform: `scaleX(${total ? done / total : 0})` }} /></span>
+                      <span className="epic-count">{done}/{total} done</span>
+                      {e.status !== "active" && <span className={`epic-state is-${e.status}`}>{EPIC_STATUS_LABEL[e.status]}</span>}
+                    </span>
+                    <ul className="epic-stats">
+                      {open.length > 0 && <Stat icon={<ClockIcon size={15} />}>{sum.mins ? `~${formatDuration(sum.mins)}` : "unsized"}{sum.mins > 0 && sum.unsized > 0 && <span className="epic-sum-soft"> +{sum.unsized}?</span>}</Stat>}
+                      {open.length > 0 && <Stat icon={<OpenIcon size={15} />}>{open.length} open</Stat>}
+                      {sum.doing > 0 && <Stat icon={<PlayIcon size={15} />}>{sum.doing} doing</Stat>}
+                      {sum.high > 0 && <Stat icon={<FlagIcon size={15} />} tone="red">{sum.high} high</Stat>}
+                      {sum.blocked > 0 && <Stat icon={<BlockedIcon size={15} />} tone="red">{sum.blocked} blocked</Stat>}
+                      {sum.late > 0 && <Stat icon={<AlertIcon size={15} />} tone="red">{sum.late} overdue</Stat>}
+                      {sum.next && <Stat icon={<CalendarIcon size={15} />}>{sum.next === work.today ? "today" : compactDate(sum.next)}</Stat>}
+                      {open.length === 0 && <li className="epic-stat epic-sum-soft">Nothing open</li>}
+                    </ul>
                   </div>
                 </EpicHead>
                 {isOpen(e.id) && (
@@ -230,6 +222,11 @@ export function Epics({ work, actions }: { work: WorkData; actions: WorkActions 
       <Toast toast={actions.toast} onDismiss={actions.dismiss} />
     </main>
   );
+}
+
+// One of an epic's tallies: an icon and a short count, red where it wants attention.
+function Stat({ icon, tone, children }: { icon: ReactNode; tone?: "red"; children: ReactNode }) {
+  return <li className={`epic-stat${tone ? ` is-${tone}` : ""}`}>{icon}<span>{children}</span></li>;
 }
 
 // An epic's header row. Closed, it takes drops itself (its list isn't there to).

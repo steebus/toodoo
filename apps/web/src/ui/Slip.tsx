@@ -10,6 +10,7 @@ import { waitingDays } from "@shared/board.ts";
 import type { WorkTask } from "../lib/useWork";
 import { shortDate } from "./format";
 import { justDropped } from "./LaneDnd";
+import { ColumnSwipe } from "./ColumnSwipe";
 
 type Variant = "card" | "strip";
 type Props = {
@@ -81,19 +82,22 @@ type SortableProps = Props & {
   onOpen: (id: string) => void;
   onKey?: (id: string, e: KeyboardEvent) => void;
   disabled?: boolean;
+  swipe?: { columns: string[]; from: number; onMove: (to: number) => void }; // on the phone: swipe across columns
 };
 
-// A slip in a lane: drag it (mouse, long press, or Space then arrows), click or Enter to open it.
-export function SortableSlip({ lane, onOpen, onKey, disabled, ...p }: SortableProps) {
+// A slip in a lane: drag it (mouse, long press, or Space then arrows), click or Enter to open it. On the phone it
+// also swipes sideways between columns (ColumnSwipe), the paper sliding over what it uncovers.
+export function SortableSlip({ lane, onOpen, onKey, disabled, swipe, ...p }: SortableProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: p.task.id, data: { type: "task", lane }, disabled,
   });
   const v = p.variant ?? "card";
+  const paper = `slip slip-${v}${p.task.done ? " is-done" : ""}${isDragging ? " is-lifted" : ""}${p.epic?.colour ? " has-epic" : ""}`;
   return (
     <li
       ref={setNodeRef}
-      className={`slip slip-${v}${p.task.done ? " is-done" : ""}${isDragging ? " is-lifted" : ""}${p.epic?.colour ? " has-epic" : ""}`}
-      style={{ transform: CSS.Translate.toString(transform), transition, ...epicStyle(p.epic) }}
+      className={swipe ? "slip-holder" : paper}
+      style={{ transform: CSS.Translate.toString(transform), transition, ...(swipe ? undefined : epicStyle(p.epic)) }}
       data-slip={p.task.id}
       {...attributes}
       {...listeners}
@@ -107,7 +111,11 @@ export function SortableSlip({ lane, onOpen, onKey, disabled, ...p }: SortablePr
         onKey?.(p.task.id, e);
       }}
     >
-      <SlipPrint {...p} />
+      {swipe ? (
+        <ColumnSwipe {...swipe} held={isDragging} disabled={!!disabled} className={paper} style={epicStyle(p.epic)}>
+          <SlipPrint {...p} />
+        </ColumnSwipe>
+      ) : <SlipPrint {...p} />}
     </li>
   );
 }
