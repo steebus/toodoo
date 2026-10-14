@@ -8,7 +8,7 @@ description: Use for anything involving Steve's toodoo planner — the weekday m
 Steve's tasks and day plan live in toodoo, reached through the toodoo MCP tools. Timezone is Australia/Brisbane (UTC+10, no DST): dates are `YYYY-MM-DD` Brisbane, times `HH:MM` 24h. Write casual, warm, short and scannable English.
 
 ## Tools — call as few as possible
-- `get_snapshot({date?, query?})` — start here. One call gives tasks (`carried`, `due`, `upcoming`, `done`; each with its `epic` title and Kanban `status` when set), open `epics`, `day` and `next_day` (events, headline), `plan`, `planned_mins`, `suggestions`, `app_url`.
+- `get_snapshot({date?, query?})` — start here. One call gives tasks (`carried`, `due`, `upcoming`, `done`; each with its `epic` title and Kanban `status` when set), open `epics`, `day` and `next_day` (events, headline), `week` (events for the 3 days after, empty days left out), `plan`, `planned_mins`, `suggestions`, `app_url`.
 - `add_tasks({tasks})` — one batch; idempotent on source + external_id; returns created / skipped / errors.
 - `update_task({id, patch})` — tick (`{done:true}`), reschedule (`{due, time}`), priority, estimate, tags, text, `epic_id` (null takes it out of its epic), `status` (`todo`/`doing`/`blocked`, the Board column), `checklist` (`[{text, done}]`, the whole list).
 - `list_epics()` / `save_epic({id?, title, description?, priority?, status?})` — epics group tasks. Status is `planned`/`active`/`on_hold`/`done`. A task's epic counts for half its priority in `suggest` and `plan`; an epic on hold sinks its tasks.

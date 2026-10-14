@@ -30,6 +30,12 @@ describe("buildSnapshot", () => {
     expect(s.planned_mins).toBe(30);
     expect(s.suggestions.map((x) => x.id)).toEqual(["carried"]);
   });
+  it("adds the next few days' events as the week, skipping empty days", () => {
+    const ev = { start: "10:00", end: "10:30", title: "Dentist" };
+    const s = buildSnapshot({ date: T, today: T, nowM: 480, tasks, blocks,
+      days: [...days, { date: "2026-10-14", headline: null, events: [] }, { date: "2026-10-15", headline: null, events: [ev] }, { date: "2026-10-17", headline: null, events: [ev] }] });
+    expect(s.week).toEqual([{ date: "2026-10-15", events: [ev] }]);
+  });
   it("filters by text or #tag", () => {
     const s = buildSnapshot({ date: T, today: T, nowM: 480, tasks, days, blocks, query: "#work" });
     expect(s.tasks.carried).toHaveLength(1);

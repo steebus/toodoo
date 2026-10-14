@@ -16,6 +16,8 @@ export interface ChecklistItem { text: string; done: boolean }
 export const checklistProgress = (c?: ChecklistItem[] | null) =>
   c?.length ? { done: c.filter((x) => x.done).length, total: c.length } : null;
 export interface DayRow { date: string; headline: string | null; events: DayEvent[] }
+export const WEEK_AHEAD = 3; // days past tomorrow in the snapshot's week
+
 export interface State { tasks: FullTask[]; days: DayRow[]; blocks: Block[]; epics?: Epic[] }
 
 const compact = (epics: Map<string, Epic>) => (t: FullTask) =>
@@ -51,6 +53,9 @@ export function buildSnapshot(o: { date: string; today: string; nowM: number; qu
     today: o.today,
     day: dayOf(o.date),
     next_day: dayOf(addDays(o.date, 1)),
+    // the days after that, events only, so a look-ahead needs no more calls
+    week: Array.from({ length: WEEK_AHEAD }, (_, i) => addDays(o.date, i + 2))
+      .map((d) => ({ date: d, events: dayOf(d)?.events ?? [] })).filter((d) => d.events.length),
     tasks: {
       carried: open.filter((t) => t.due < o.today).map(row),
       due: open.filter((t) => t.due >= o.today && t.due <= o.date).map(row),

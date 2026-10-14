@@ -8,7 +8,7 @@ const obj = (properties: Record<string, unknown>, required: string[] = []) =>
 
 export const TOOL_DEFS = [
   { name: "get_snapshot", annotations: { readOnlyHint: true },
-    description: "Start here. Tasks (carried/due/upcoming/done), the day's events+headline and next day's, the day's plan, top suggestions, app_url. date defaults to today (Australia/Brisbane); query filters by text or #tag.",
+    description: "Start here. Tasks (carried/due/upcoming/done), the day's events+headline and next day's, week (events for the 3 days after), the day's plan, top suggestions, app_url. date defaults to today (Australia/Brisbane); query filters by text or #tag.",
     inputSchema: obj({ date, query: { type: "string", maxLength: 100 } }) },
   { name: "add_tasks",
     description: "Add tasks in one batch (max 100). Each: {title, source?, external_id?, due?, time? HH:MM, priority? high|med|low, estimate_mins? (number or '1h 30m'), tags?, link?, note?, description?, epic? (an epic's name) or epic_id?, status? todo|doing|blocked (also 'To Do', 'In Progress', 'On hold'), checklist? [text or {text, done}]}. Every fact goes in its own field: priority, status, epic, estimate, due and tags are never written into note or description. Existing source+external_id are skipped, never changed.",

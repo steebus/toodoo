@@ -3,7 +3,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
-import { buildSnapshot, type FullTask, type State } from "../shared/snapshot.ts";
+import { buildSnapshot, WEEK_AHEAD, type FullTask, type State } from "../shared/snapshot.ts";
 import {
   type AddResult, InputError, parseDay, parseEpic, parseEpicPatch, preparePatch, prepareTasks,
 } from "../shared/validation.ts";
@@ -84,7 +84,7 @@ export async function loadState(db: R, userId: string, t: string, date: string):
   const open = await db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", userId).eq("done", false)).collect();
   const done = await db.query("tasks").withIndex("by_user_done_on", (q) => q.eq("user_id", userId).gte("done_on", lo)).collect();
   const days = await db.query("days")
-    .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", lo).lte("date", addDays(date, 1))).collect();
+    .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", lo).lte("date", addDays(date, 1 + WEEK_AHEAD))).collect();
   const blocks = await db.query("plan_blocks")
     .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", addDays(t, -HISTORY_DAYS))).collect();
   return {
