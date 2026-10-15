@@ -74,6 +74,8 @@ export default defineSchema({
     epic_id: v.union(v.id("epics"), v.null()),
     status: v.optional(v.union(v.literal("backlog"), v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
     checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))),
+    raised_at: v.optional(v.number()), // when the source made it (a Jira issue's created), not when it was proposed
+    project: v.optional(v.string()), // where it comes from in the source (a Jira project)
     task_id: v.optional(v.id("tasks")), // the task it became or went into
     undo: v.optional(v.any()), // combined: the task's fields as they were, for Undo
     created_at: v.number(),

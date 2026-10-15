@@ -921,6 +921,21 @@
 
 /* ---------- Suggested: what Claude and Jira propose, a card each, waiting for Accept · Combine · Reject ---------- */
 .suggested { display: grid; justify-items: center; align-content: start; gap: 18px; }
+/* The piles, one per source, and the sort: the triage area's own bar, styled like All tasks' filters. */
+.sug-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; width: min(560px, 100%); margin: 0 0 6px; }
+.sug-piles { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.room .sug-pile {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px; font-family: var(--font-print); font-size: 14px;
+  color: var(--ink-3); background: var(--surface); border: 1px dashed var(--rule); border-radius: var(--radius);
+}
+.room .sug-pile:hover { border-color: var(--ink-3); }
+.room .sug-pile[aria-pressed="true"] { color: var(--ink); border: 1px solid var(--ink-3); font-weight: 700; }
+.sug-pile-n { font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.sug-sort {
+  height: 32px; padding: 0 8px; font-family: var(--font-print); font-size: 14px; color: var(--ink-2);
+  background: var(--surface); border: 1px dashed var(--rule); border-radius: var(--radius);
+}
+.sug-sort:hover { border-color: var(--ink-3); }
 .sug-list { display: grid; justify-items: center; gap: 22px; width: min(560px, 100%); margin: 0; padding: 0 0 80px; list-style: none; }
 .sug-list > .tidy-card { list-style: none; }
 .sug-card .skel-line { display: block; margin-bottom: 12px; }

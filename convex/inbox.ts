@@ -106,7 +106,7 @@ export async function listInbox(db: R, userId: string) {
       id: r._id as string, origin: r.origin, title: r.title, description: r.description, note: r.note, link: r.link,
       source: r.source, external_id: r.external_id, due: r.due, time: r.time, priority: r.priority,
       estimate_mins: r.estimate_mins, tags: r.tags, epic_id: r.epic_id, status: r.status ?? null,
-      checklist: r.checklist ?? [], created_at: r.created_at,
+      checklist: r.checklist ?? [], created_at: r.created_at, raised_at: r.raised_at ?? null, project: r.project ?? null,
       alike: lookalikes(asMergeable(r), tasks),
     })),
   };

@@ -32,7 +32,48 @@ const failure = (e: unknown, what: string) => {
 const kicker = (x: Item) =>
   x.source === "jira" ? `JIRA  ${(x.external_id ?? "").replace(/^jira:/, "")}` : x.source === "you" ? "SUGGESTED" : x.source.toUpperCase();
 
-// Suggested: what Claude and the Jira link think Steve should take on. Each waits for a call: Accept (onto the
+// The piles: one per source that proposes. The known ones always show, in this order, so Jira can be linked from
+// its own pile; a new source gets a pile of its own the first time it proposes anything.
+const KNOWN: [string, string][] = [["jira", "Jira"], ["agent", "Claude"]];
+const ALL = "all";
+const pileName = (origin: string) => KNOWN.find(([k]) => k === origin)?.[1] ?? origin.charAt(0).toUpperCase() + origin.slice(1);
+
+type Sort = "newest" | "oldest" | "priority" | "due" | "project";
+const SORTS: [Sort, string][] = [["newest", "Newest"], ["oldest", "Oldest"], ["priority", "Priority"], ["due", "Due"], ["project", "Project"]];
+type View = { pile: string; sort: Sort };
+const VIEW_KEY = "toodoo.suggestedView";
+const FRESH: View = { pile: ALL, sort: "newest" };
+function loadView(): View {
+  try {
+    const v = { ...FRESH, ...(JSON.parse(localStorage.getItem(VIEW_KEY) ?? "null") as Partial<View> | null) };
+    return SORTS.some(([k]) => k === v.sort) ? v : FRESH;
+  } catch {
+    return FRESH;
+  }
+}
+
+// When the source made it (a Jira issue's created date), else when it was proposed.
+const raised = (x: Item) => x.raised_at ?? x.created_at;
+const RANK = { high: 0, med: 1, low: 2 } as const;
+const rank = (x: Item) => (x.priority ? RANK[x.priority] : 3);
+const blankLast = (a: string | null | undefined, b: string | null | undefined) => (a && b ? a.localeCompare(b) : a ? -1 : b ? 1 : 0);
+const sorter = (sort: Sort, project: (x: Item) => string | null) => (a: Item, b: Item): number => {
+  const newest = raised(b) - raised(a);
+  if (sort === "oldest") return -newest;
+  if (sort === "priority") return rank(a) - rank(b) || newest;
+  if (sort === "due") return blankLast(a.due, b.due) || rank(a) - rank(b) || newest;
+  if (sort === "project") return blankLast(project(a), project(b)) || rank(a) - rank(b) || newest;
+  return newest;
+};
+
+const DAY_MS = 86_400_000;
+export const since = (t: number, now = Date.now()) => {
+  const d = Math.floor((now - t) / DAY_MS);
+  return d <= 0 ? "today" : d === 1 ? "yesterday" : d < 45 ? `${d}d ago` : d < 365 ? `${Math.round(d / 30)}mo ago` : `${Math.round(d / 365)}y ago`;
+};
+
+// Suggested, the triage area: what Claude and the Jira link think Steve should take on, in a pile per source,
+// sorted by when it was raised, priority, due date or project. Each waits for a call: Accept (onto the
 // list as it is), Combine (into a task he already has, filling its gaps), or Reject (gone, and never proposed again).
 export function Suggested({ offline = false }: { offline?: boolean }) {
   const data = useQuery(api.inbox.list, {});
@@ -65,18 +106,50 @@ export function Suggested({ offline = false }: { offline?: boolean }) {
   };
 
   const epics = useMemo(() => epicMap(data?.epics ?? []), [data?.epics]);
+  const [view, setViewState] = useState(loadView);
+  const setView = (p: Partial<View>) => {
+    const next = { ...view, ...p };
+    setViewState(next);
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify(next)); } catch { /* holds for this visit */ }
+  };
+  const piles = useMemo(() => {
+    const items = data?.items ?? [];
+    const origins = [...KNOWN.map(([k]) => k), ...new Set(items.map((x) => x.origin).filter((o) => !KNOWN.some(([k]) => k === o)))];
+    return [
+      { id: ALL, name: "All", n: items.length },
+      ...origins.map((o) => ({ id: o, name: pileName(o), n: items.filter((x) => x.origin === o).length })),
+    ];
+  }, [data?.items]);
+  const pile = piles.some((p) => p.id === view.pile) ? view.pile : ALL;
+  const shown = useMemo(() => {
+    const project = (x: Item) => x.project ?? (x.epic_id ? epics.get(x.epic_id)?.title : undefined) ?? null;
+    return (data?.items ?? []).filter((x) => pile === ALL || x.origin === pile).sort(sorter(view.sort, project));
+  }, [data?.items, pile, view.sort, epics]);
+
   return (
     <main className="room-main suggested">
       <h1 className="sr-only">Suggested</h1>
-      <JiraLink offline={offline} />
+      <div className="sug-bar">
+        <div className="sug-piles" role="group" aria-label="Sources">
+          {piles.map((p) => (
+            <button key={p.id} type="button" className="sug-pile" aria-pressed={pile === p.id} onClick={() => setView({ pile: p.id })}>
+              {p.name}<span className="sug-pile-n">{p.n}</span>
+            </button>
+          ))}
+        </div>
+        <select className="sug-sort" aria-label="Sort" value={view.sort} onChange={(e) => setView({ sort: e.target.value as Sort })}>
+          {SORTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </div>
+      {(pile === ALL || pile === "jira") && <JiraLink offline={offline} />}
       {!data ? (
         <div className="sug-list" aria-busy>
           {[0, 1].map((i) => <div key={i} className="tidy-card sug-card"><span className="skel skel-line" style={{ width: "30%" }} /><span className="skel skel-line" style={{ width: "80%", height: 26 }} /></div>)}
         </div>
       ) : (
-        <ol className="sug-list" aria-label="Suggestions">
+        <ol key={pile} className="sug-list" aria-label="Suggestions">
           <AnimatePresence mode="popLayout" custom={how} initial={false}>
-            {data.items.map((x) => (
+            {shown.map((x) => (
               <m.li key={x.id} layout className="tidy-card sug-card" style={epicStyle(x.epic_id ? epics.get(x.epic_id) : undefined)}
                 custom={how} variants={CARD} initial="in" animate="at" exit="out" transition={{ type: "spring", stiffness: 420, damping: 36 }}>
                 <Card x={x} data={data} epic={x.epic_id ? epics.get(x.epic_id)?.title : undefined} offline={offline}
@@ -84,9 +157,9 @@ export function Suggested({ offline = false }: { offline?: boolean }) {
               </m.li>
             ))}
           </AnimatePresence>
-          {data.items.length === 0 && (
+          {shown.length === 0 && (
             <m.li key="clear" className="tidy-clear" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-              <p className="tidy-clear-word">Nothing waiting</p>
+              <p className="tidy-clear-word">{pile === ALL ? "Nothing waiting" : `Nothing waiting from ${pileName(pile)}`}</p>
             </m.li>
           )}
         </ol>
@@ -120,6 +193,7 @@ function Card({ x, data, epic, offline, onAccept, onReject, onCombine }: {
         {x.checklist.length > 0 && <span>{x.checklist.length} {x.checklist.length === 1 ? "step" : "steps"}</span>}
         {x.tags.map((t) => <span key={t}>#{t}</span>)}
         {x.note && <span>{x.note}</span>}
+        <span title={new Date(raised(x)).toLocaleString()}>{x.raised_at ? "raised" : "suggested"} {since(raised(x))}</span>
       </p>
       {x.description && (
         <p className={`tidy-desc sug-desc${more ? " is-open" : ""}`} onClick={() => setMore((o) => !o)} title={more ? undefined : "Show all"}>

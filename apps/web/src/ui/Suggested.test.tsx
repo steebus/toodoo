@@ -24,7 +24,8 @@ import { Suggested } from "./Suggested";
 const item = (o: Record<string, unknown>) => ({
   id: "s1", origin: "jira", title: "Fix login redirect", description: "Users bounce to /", note: "Acme · Bug",
   link: "https://acme.atlassian.net/browse/ACME-7", source: "jira", external_id: "jira:ACME-7", due: "2026-10-20", time: null,
-  priority: "high", estimate_mins: 90, tags: ["work"], epic_id: null, status: "doing", checklist: [], created_at: 1, alike: [], ...o,
+  priority: "high", estimate_mins: 90, tags: ["work"], epic_id: null, status: "doing", checklist: [], created_at: 1,
+  raised_at: null, project: "Acme", alike: [], ...o,
 });
 const list = (items: unknown[]) => ({
   today: "2026-10-14", epics: [],
@@ -34,6 +35,7 @@ const list = (items: unknown[]) => ({
 const fn = (name: string) => state.fns[name] as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  localStorage.clear();
   state.fns = {};
   state.data = { "inbox:list": list([item({ alike: [{ id: "t1", title: "Login bug", score: 0.6 }] })]), "jira:link": null };
 });
@@ -78,4 +80,50 @@ it("links Jira from the room", async () => {
   await userEvent.type(screen.getByLabelText(/API token/), "tok");
   await userEvent.click(screen.getByRole("button", { name: "Link Jira" }));
   expect(fn("jira:save")).toHaveBeenCalledWith({ site: "acme", email: "steve@example.com", token: "tok", jql: "" });
+});
+
+const titles = () => screen.getAllByRole("article").map((a) => a.getAttribute("aria-label"));
+const DAY = 86_400_000;
+
+it("keeps a pile per source, and a new source gets its own", async () => {
+  const now = Date.now();
+  state.data["inbox:list"] = list([
+    item({ id: "j1", title: "Jira one", created_at: now }),
+    item({ id: "a1", origin: "agent", source: "you", external_id: null, title: "Claude one", created_at: now - DAY }),
+    item({ id: "g1", origin: "github", source: "github", external_id: "gh:1", title: "GitHub one", created_at: now - 2 * DAY }),
+  ]);
+  render(<Suggested />);
+  const piles = screen.getByRole("group", { name: "Sources" });
+  expect(within(piles).getAllByRole("button").map((b) => b.textContent)).toEqual(["All3", "Jira1", "Claude1", "Github1"]);
+  expect(titles()).toEqual(["Jira one", "Claude one", "GitHub one"]);
+  await userEvent.click(within(piles).getByRole("button", { name: /Claude/ }));
+  expect(titles()).toEqual(["Claude one"]);
+  expect(screen.queryByRole("button", { name: "Link Jira" })).toBeNull(); // the Jira link lives in Jira's pile (and All)
+  await userEvent.click(within(piles).getByRole("button", { name: /Jira/ }));
+  expect(titles()).toEqual(["Jira one"]);
+  expect(screen.getByRole("button", { name: "Link Jira" })).toBeInTheDocument();
+});
+
+it("sorts by when the source raised it, priority, due date or project, and remembers the choice", async () => {
+  const now = Date.now();
+  state.data["inbox:list"] = list([
+    item({ id: "1", title: "Old high", priority: "high", raised_at: now - 40 * DAY, created_at: now, due: null, project: "Zeta" }),
+    item({ id: "2", title: "New low", priority: "low", raised_at: now - DAY, created_at: now, due: "2026-10-16", project: "Acme" }),
+    item({ id: "3", title: "Mid none", priority: null, raised_at: now - 5 * DAY, created_at: now, due: "2026-10-15", project: null }),
+  ]);
+  render(<Suggested />);
+  expect(titles()).toEqual(["New low", "Mid none", "Old high"]);
+  expect(screen.getByRole("article", { name: "New low" })).toHaveTextContent("raised yesterday");
+  const sort = screen.getByRole("combobox", { name: "Sort" });
+  await userEvent.selectOptions(sort, "oldest");
+  expect(titles()).toEqual(["Old high", "Mid none", "New low"]);
+  await userEvent.selectOptions(sort, "priority");
+  expect(titles()).toEqual(["Old high", "New low", "Mid none"]);
+  await userEvent.selectOptions(sort, "due");
+  expect(titles()).toEqual(["Mid none", "New low", "Old high"]);
+  await userEvent.selectOptions(sort, "project");
+  expect(titles()).toEqual(["New low", "Old high", "Mid none"]); // no project last
+  cleanup();
+  render(<Suggested />);
+  expect(screen.getByRole("combobox", { name: "Sort" })).toHaveValue("project");
 });

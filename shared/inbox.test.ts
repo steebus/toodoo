@@ -65,16 +65,17 @@ it("maps a Jira issue to a suggestion: effort, priority, status, epic names", ()
       summary: "Fix login", duedate: "2026-10-20", priority: { name: "Highest" },
       status: { name: "In Review", statusCategory: { key: "indeterminate" } }, timeoriginalestimate: 5400,
       parent: { key: "ACME-1", fields: { summary: "Auth revamp", issuetype: { name: "Epic" } } }, project: { name: "Acme" },
-      issuetype: { name: "Bug" },
+      issuetype: { name: "Bug" }, created: "2026-10-01T09:30:00.000+0100",
     },
   }, "https://acme.atlassian.net");
   expect(s).toMatchObject({
     title: "Fix login", source: "jira", external_id: "jira:ACME-7", link: "https://acme.atlassian.net/browse/ACME-7",
     due: "2026-10-20", priority: "high", status: "doing", estimate_mins: 90, tags: ["work"], note: "Acme · Bug",
-    epic_names: ["Auth revamp", "Acme"],
+    epic_names: ["Auth revamp", "Acme"], raised_at: Date.parse("2026-10-01T08:30:00Z"), project: "Acme",
   });
   expect(fromJira({ key: "ACME-8", fields: { summary: "x", status: { name: "Triage", statusCategory: { key: "new" } } } }, "https://a.atlassian.net"))
     .toMatchObject({ status: "todo", estimate_mins: null, priority: null });
+  expect(fromJira({ key: "ACME-9", fields: { summary: "x", created: "not a date" } }, "https://a.atlassian.net")).not.toHaveProperty("raised_at");
 });
 
 it("makes a prep task keyed to its event", () => {

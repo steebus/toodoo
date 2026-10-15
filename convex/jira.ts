@@ -6,7 +6,7 @@ import { softEpic, upsertProposal } from "./inbox";
 import { DEFAULT_JQL, fromJira, jiraSite, type JiraIssue } from "../shared/inbox.ts";
 
 const FIELDS = [
-  "summary", "description", "priority", "status", "duedate", "labels", "project", "issuetype", "parent",
+  "summary", "description", "priority", "status", "duedate", "created", "labels", "project", "issuetype", "parent",
   "timeoriginalestimate", "timeestimate", "aggregatetimeoriginalestimate",
 ];
 const PAGE = 100, MAX_PAGES = 3; // ponytail: 300 issues at most a sync; narrow the JQL if that's not enough
@@ -91,6 +91,7 @@ const item = v.object({
   priority: v.union(v.literal("high"), v.literal("med"), v.literal("low"), v.null()), estimate_mins: v.union(v.number(), v.null()),
   tags: v.array(v.string()), status: v.optional(v.union(v.literal("backlog"), v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
   checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))), epic_names: v.array(v.string()),
+  raised_at: v.optional(v.number()), project: v.optional(v.string()),
 });
 
 // What a sync found: new issues land in Suggested, waiting ones are refreshed, and waiting ones Jira no longer

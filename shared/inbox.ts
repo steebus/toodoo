@@ -13,6 +13,7 @@ export type Proposal = {
   source: string; external_id: string | null; due: string | null; time: string | null;
   priority: Priority | null; estimate_mins: number | null; tags: string[];
   epic_id: string | null; status?: TaskStatus; checklist?: Checklist;
+  raised_at?: number; project?: string; // when and where the source made it (a Jira issue's created date and project)
 };
 
 // What a task looks like to the matcher and the combiner.
@@ -151,7 +152,7 @@ export function adfText(doc: unknown): { text: string; checklist: Checklist } {
 export type JiraIssue = {
   key: string;
   fields: {
-    summary?: string; description?: unknown; duedate?: string | null; labels?: string[];
+    summary?: string; description?: unknown; duedate?: string | null; labels?: string[]; created?: string | null;
     priority?: { name?: string } | null;
     status?: { name?: string; statusCategory?: { key?: string } } | null;
     timeoriginalestimate?: number | null; timeestimate?: number | null; aggregatetimeoriginalestimate?: number | null;
@@ -171,6 +172,7 @@ export function fromJira(issue: JiraIssue, site: string): Omit<Proposal, "epic_i
   const parent = f.parent?.fields;
   const parentIsEpic = parent && (parent.issuetype?.name === "Epic" || parent.issuetype?.hierarchyLevel === 1);
   const status = jiraStatus(f.status?.name, f.status?.statusCategory?.key);
+  const raised = f.created ? Date.parse(f.created) : NaN;
   return {
     title: (f.summary?.trim() || issue.key).slice(0, 300),
     description: text ? text.slice(0, MAX_DESC) : null,
@@ -185,6 +187,8 @@ export function fromJira(issue: JiraIssue, site: string): Omit<Proposal, "epic_i
     tags: ["work"],
     ...(status ? { status } : {}),
     ...(checklist.length ? { checklist } : {}),
+    ...(Number.isFinite(raised) ? { raised_at: raised } : {}),
+    ...(f.project?.name ? { project: f.project.name.slice(0, 120) } : {}),
     epic_names: [parentIsEpic ? parent?.summary : undefined, f.project?.name].filter((x): x is string => !!x),
   };
 }
