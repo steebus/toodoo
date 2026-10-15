@@ -96,7 +96,15 @@ const strictPriority = z.unknown().transform((v, ctx) => {
   return p;
 });
 
+// The meeting a task is prep for (null: none). See PrepLink in inbox.ts.
+const PrepFor = z.object({
+  date: dateStr,
+  start: hmStr.nullish().transform((v) => (v ? v.padStart(5, "0") : null)),
+  title: z.string().trim().min(1).max(300),
+}).nullable();
+
 export const TaskPatch = Fields.partial().extend({
+  prep_for: PrepFor.optional(),
   priority: strictPriority.optional(),
   done: z.boolean().optional(),
   done_on: dateStr.nullish(),

@@ -125,13 +125,13 @@ it("opens a docket as a ticket, with its actions on it", async () => {
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("lists next up with the first reason, and Plan all is ready", () => {
+it("lists next up with the first reason, and Auto plan is ready", () => {
   show();
   const next = screen.getByRole("region", { name: "NEXT UP" });
   expect(within(next).getByText("Write report")).toBeInTheDocument();
   expect(within(next).getByText(/High priority/)).toBeInTheDocument();
   expect(within(next).queryByText(/Fixed time/)).not.toBeInTheDocument();
-  expect(within(next).getByRole("button", { name: "Plan all" })).toBeEnabled();
+  expect(within(next).getByRole("button", { name: "Auto plan" })).toBeEnabled();
 });
 
 it("next up doesn't say the same thing twice, and its label folds it", async () => {

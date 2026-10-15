@@ -161,4 +161,61 @@ it("makes one prep task per event", async () => {
   expect(b).toMatchObject({ id: a.id, created: false });
   const task = (await t.query(api.agent.board, { date: "2026-10-13" })).tasks.find((x) => x.id === a.id);
   expect(task).toMatchObject({ due: "2026-10-13", estimate_mins: 15, note: "09:15–09:45 · Zoom", source: "calendar" });
+  expect(task?.prep_for).toEqual({ date: "2026-10-13", start: "09:15", title: "Client demo" });
+});
+
+it("links a task (a Jira card, say) to a meeting as its prep, and both sides show it", async () => {
+  const t = setup();
+  await t.mutation(api.agent.setDay, { day: { date: "2026-10-13", events: [{ start: "09:15", end: "09:45", title: "Client demo" }, { start: "11:00", end: "12:00", title: "Review" }] } });
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Demo script", source: "jira", external_id: "jira:ACME-4" }] });
+  const id = created[0].id;
+  const r = await t.mutation(api.agent.updateTask, { id, patch: { prep_for: { date: "2026-10-13", start: "9:15", title: "Client demo" } } });
+  expect(r.prep_for).toEqual({ date: "2026-10-13", start: "09:15", title: "Client demo" });
+  const snap = await t.query(api.agent.getSnapshot, { date: "2026-10-13" });
+  expect(snap.day?.events[0]).toMatchObject({ title: "Client demo", prep: [{ id, title: "Demo script", done: false }] });
+  expect(snap.day?.events[1]).not.toHaveProperty("prep");
+  expect([...snap.tasks.due, ...snap.tasks.undated, ...snap.tasks.carried].find((x) => x.id === id)).toMatchObject({ prep_for: { title: "Client demo" } });
+  expect(await t.query(api.agent.meetings, { now: Date.parse("2026-10-12T22:00:00Z") })).toEqual([
+    { date: "2026-10-13", start: "09:15", end: "09:45", title: "Client demo", where: null },
+    { date: "2026-10-13", start: "11:00", end: "12:00", title: "Review", where: null },
+  ]);
+  await t.mutation(api.agent.updateTask, { id, patch: { prep_for: null } });
+  expect((await t.query(api.agent.getSnapshot, { date: "2026-10-13" })).day?.events[0]).not.toHaveProperty("prep");
+  await expect(t.mutation(api.agent.updateTask, { id, patch: { prep_for: { date: "soon", title: "x" } } })).rejects.toThrow(/date/);
+});
+
+it("auto plan fills a day and, when not keeping, swaps out the blocks ahead", async () => {
+  const t = setup();
+  const now = Date.parse("2026-10-12T22:00:00Z"); // 8am Brisbane, the 13th
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [
+    { title: "Report", due: "2026-10-13", estimate_mins: 60, priority: "high" },
+    { title: "Quick call", due: "2026-10-13", estimate_mins: 10 },
+  ] });
+  await t.mutation(api.agent.placeBlock, { task_id: created[1].id, date: "2026-10-13", start: "11:00", mins: 10 });
+  const dry = await t.mutation(api.agent.fillPlan, { date: "2026-10-13", from: "09:00", until: "10:30", now });
+  expect(dry.proposed.map((p) => [p.title, p.start])).toEqual([["Report", "09:00"]]); // the call is planned already: kept
+  const r = await t.mutation(api.agent.fillPlan, { date: "2026-10-13", from: "09:00", until: "12:00", keep: false, commit: true, now });
+  expect(r.replaced).toEqual([{ task_id: created[1].id, start: "11:00", mins: 10 }]);
+  expect(r.proposed.map((p) => [p.title, p.start])).toEqual([["Quick call", "09:00"], ["Report", "09:10"]]);
+  const blocks = (await t.query(api.agent.board, { date: "2026-10-13", now })).blocks.map((b) => b.start).sort();
+  expect(blocks).toEqual(["09:00", "09:10"]);
+});
+
+it("replan from now takes off today's missed blocks, refills the day, and carries what won't fit to tomorrow", async () => {
+  const t = setup();
+  const now = Date.parse("2026-10-13T04:00:00Z"); // 2pm Brisbane, the 13th
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [
+    { title: "Missed", due: "2026-10-13", estimate_mins: 30 },
+    { title: "Done one", due: "2026-10-13", estimate_mins: 30 },
+  ] });
+  const [missed, doneOne] = created.map((c) => c.id);
+  await t.mutation(api.agent.placeBlock, { task_id: missed, date: "2026-10-13", start: "09:00", mins: 30 });
+  await t.mutation(api.agent.placeBlock, { task_id: doneOne, date: "2026-10-13", start: "10:00", mins: 30 });
+  await t.mutation(api.agent.updateTask, { id: doneOne, patch: { done: true } });
+  const r = await t.mutation(api.agent.replan, { from: "09:00", until: "14:20", lunch: false, commit: true, now });
+  expect(r.removed).toEqual([{ task_id: missed, start: "09:00", mins: 30 }]); // the done one's block stays as history
+  expect(r.proposed).toEqual([]); // 15 minutes left today: not enough
+  expect(r.tomorrow.map((p) => [p.title, p.date, p.start])).toEqual([["Missed", "2026-10-14", "09:00"]]);
+  const today = (await t.query(api.agent.board, { date: "2026-10-13", now })).blocks.filter((b) => b.date === "2026-10-13");
+  expect(today.map((b) => b.start)).toEqual(["10:00"]);
 });

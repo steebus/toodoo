@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useConvexConnectionState, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { toHM } from "@shared/planning.ts";
+import { dayWord, formatDuration, toHM } from "@shared/planning.ts";
 import { clock12 } from "../ui/format";
 import type { BoardData } from "../ui/types";
 import { useNoNetwork, useOffline } from "./offline";
@@ -42,8 +42,24 @@ export type Actions = {
   // A change dragged into being (to another rail), with Undo putting the old values back.
   shift: (id: string, patch: Record<string, unknown>, message: string) => void;
   planTasks: (ids: string[], date: string) => Promise<void>;
+  // Auto plan: fill a day's window around what's there (see fillDay). Undo puts the day back as it was.
+  autoPlan: (o: AutoPlanOptions) => Promise<void>;
+  // The same, proposed only: what it would put where, for the preview on the line. null when it couldn't ask.
+  previewPlan: (o: AutoPlanOptions) => Promise<PlanPreview | null>;
+  // Replan from now: today's passed, unticked blocks off, the rest of today refilled, what won't fit onto tomorrow.
+  replan: (o: AutoPlanOptions) => Promise<void>;
   // A prep task for a calendar event (due that day, 15m); asked again, it finds the first.
   prep: (e: PrepEvent) => Promise<void>;
+};
+
+export type AutoPlanOptions = {
+  date: string; from: string; until: string; keep: boolean;
+  lunch: boolean; buffer: number; slack: boolean; // lunch 12–1 kept free; minutes free after meetings; fill only what gets done
+  seed?: number; // Shuffle
+};
+export type PlanPreview = {
+  proposed: { task_id: string; title: string; start: string; mins: number; why: string }[];
+  free_mins: number; slack_mins: number; from: string; until: string;
 };
 
 export type PrepEvent = { date: string; start?: string; end?: string; title: string; where?: string };
@@ -78,6 +94,8 @@ export function useActions(board: BoardData): Actions {
   const placeBlock = useMutation(api.agent.placeBlock).withOptimisticUpdate((s, a) => opt.placeBlock(s as Store, a));
   const removeBlock = useMutation(api.agent.removeBlock).withOptimisticUpdate((s, a) => opt.removeBlock(s as Store, a));
   const planDay = useMutation(api.agent.plan);
+  const fillPlan = useMutation(api.agent.fillPlan);
+  const replanDay = useMutation(api.agent.replan);
   const prepTask = useMutation(api.agent.prepTask);
 
   const fail = useCallback((what: string, e: unknown) => show({ kind: "error", message: failure(e, what) }), [show]);
@@ -293,6 +311,75 @@ export function useActions(board: BoardData): Actions {
     [planDay, removeBlock, show, fail],
   );
 
+  const ask = (o: AutoPlanOptions) => ({
+    date: o.date, from: o.from, until: o.until, keep: o.keep, lunch: o.lunch, buffer: o.buffer, slack: o.slack,
+    ...(o.seed ? { seed: o.seed } : {}), now: Date.now(),
+  });
+  const autoPlan = useCallback(
+    async (o: AutoPlanOptions) => {
+      try {
+        const r = await fillPlan({ ...ask(o), commit: true });
+        const day = o.date === board.today ? "" : ` for ${dayWord(o.date, board.today)}`;
+        if (!r.proposed.length) {
+          show({ kind: "error", message: r.free_mins ? `Nothing left to plan${day}` : `No free time${day} between ${clock12(r.from)} and ${clock12(r.until)}` });
+          return;
+        }
+        const slack = r.slack_mins >= 15 ? `, ${formatDuration(r.slack_mins)} left as slack` : r.free_mins >= 15 ? `, ${formatDuration(r.free_mins)} still free` : "";
+        show({
+          kind: "undo",
+          message: `Planned ${r.proposed.length}${day}${slack}`,
+          // Back as it was: the new blocks off, the replaced ones back on.
+          undo: () =>
+            void (async () => {
+              for (const p of r.proposed) await removeBlock({ task_id: p.task_id, date: o.date, ...("id" in p ? { block_id: p.id as string } : {}) });
+              for (const b of r.replaced) await placeBlock({ task_id: b.task_id, date: o.date, start: b.start, mins: b.mins });
+            })().catch((e) => fail("Couldn't undo", e)),
+        });
+      } catch (e) {
+        fail("Couldn't auto plan", e);
+      }
+    },
+    [fillPlan, removeBlock, placeBlock, board.today, show, fail], // eslint-disable-line react-hooks/exhaustive-deps -- ask is pure
+  );
+
+  const previewPlan = useCallback(
+    async (o: AutoPlanOptions): Promise<PlanPreview | null> => {
+      try {
+        return await fillPlan({ ...ask(o), commit: false });
+      } catch (e) {
+        fail("Couldn't auto plan", e);
+        return null;
+      }
+    },
+    [fillPlan, fail], // eslint-disable-line react-hooks/exhaustive-deps -- ask is pure
+  );
+
+  const replan = useCallback(
+    async (o: AutoPlanOptions) => {
+      try {
+        const r = await replanDay({ ...ask(o), commit: true });
+        const moved = r.tomorrow.length ? `, ${r.tomorrow.length} moved to tomorrow` : "";
+        if (!r.proposed.length && !r.tomorrow.length && !r.removed.length) {
+          show({ kind: "error", message: "Nothing to replan: no missed blocks and nothing left to fit" });
+          return;
+        }
+        show({
+          kind: "undo",
+          message: `Replanned: ${r.proposed.length} for the rest of today${moved}`,
+          undo: () =>
+            void (async () => {
+              for (const p of r.proposed) await removeBlock({ task_id: p.task_id, date: board.today, ...("id" in p ? { block_id: p.id as string } : {}) });
+              for (const p of r.tomorrow as unknown as { task_id: string; date: string; id: string }[]) await removeBlock({ task_id: p.task_id, date: p.date, block_id: p.id });
+              for (const b of r.removed) await placeBlock({ task_id: b.task_id, date: board.today, start: b.start, mins: b.mins });
+            })().catch((e) => fail("Couldn't undo", e)),
+        });
+      } catch (e) {
+        fail("Couldn't replan", e);
+      }
+    },
+    [replanDay, removeBlock, placeBlock, board.today, show, fail], // eslint-disable-line react-hooks/exhaustive-deps -- ask is pure
+  );
+
   const prep = useCallback(
     async (e: PrepEvent) => {
       try {
@@ -314,6 +401,7 @@ export function useActions(board: BoardData): Actions {
     add: gate(add, Promise.resolve(false)), tick: gate(tick, undefined), remove: gate(remove, undefined),
     save: gate(save, Promise.resolve(false)), place: gate(place, undefined), unplace: gate(unplace, undefined),
     addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined), shift: gate(shift, undefined),
-    planTasks: gate(planTasks, Promise.resolve()),
+    planTasks: gate(planTasks, Promise.resolve()), autoPlan: gate(autoPlan, Promise.resolve()),
+    previewPlan: gate(previewPlan, Promise.resolve(null)), replan: gate(replan, Promise.resolve()),
   };
 }

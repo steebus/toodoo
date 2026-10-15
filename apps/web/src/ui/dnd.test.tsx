@@ -99,21 +99,48 @@ it("p with no room toasts the reason", async () => {
   expect(await within(toast()).findByText(/no room in that window/)).toBeInTheDocument();
 });
 
-it("Plan all plans every suggestion, and Undo removes each block", async () => {
+const ASK = { from: "09:00", until: "17:00", keep: true, lunch: true, buffer: 10, slack: true };
+const planned = (o: Record<string, unknown> = {}) => ({
+  date: T, from: "09:00", until: "17:00", committed: false, free_mins: 45, slack_mins: 30, done_rate: 0.7, replaced: [],
+  proposed: [
+    { task_id: landlord.id, title: "Email landlord", start: "11:00", mins: 30, why: "quick win · due today" },
+    { task_id: plants.id, title: "Water plants", start: "11:30", mins: 60, why: "due today" },
+  ],
+  ...o,
+});
+
+it("Auto plan shows the plan on the line first; Accept saves it, and Undo puts the day back", async () => {
   show();
-  fn("plan").mockResolvedValue({
-    date: T, committed: true, unplaced: [],
-    proposed: [
-      { task_id: landlord.id, title: "Email landlord", start: "11:00", mins: 30 },
-      { task_id: plants.id, title: "Water plants", start: "11:30", mins: 60 },
-    ],
-  });
-  await userEvent.click(screen.getByRole("button", { name: "Plan all" }));
-  expect(fn("plan")).toHaveBeenCalledWith({ date: T, task_ids: [landlord.id, plants.id], commit: true, now: expect.any(Number) });
-  expect(await within(toast()).findByText("Planned 2")).toBeInTheDocument();
+  fn("fillPlan").mockResolvedValueOnce(planned());
+  await userEvent.click(screen.getByRole("button", { name: "Auto plan" }));
+  expect(fn("fillPlan")).toHaveBeenLastCalledWith({ date: T, ...ASK, seed: 1, commit: false, now: expect.any(Number) });
+  const bar = await screen.findByRole("group", { name: "Auto plan preview" });
+  expect(bar).toHaveTextContent("2 blocks · 30m slack");
+  expect(document.querySelectorAll(".plan-preview")).toHaveLength(2);
+  fn("fillPlan").mockResolvedValueOnce(planned({
+    committed: true, replaced: [{ task_id: plants.id, start: "15:00", mins: 30 }],
+    proposed: planned().proposed.map((p, i) => ({ ...p, id: `b${i + 1}` })),
+  }));
+  await userEvent.click(within(bar).getByRole("button", { name: "Accept" }));
+  expect(fn("fillPlan")).toHaveBeenLastCalledWith({ date: T, ...ASK, seed: 1, commit: true, now: expect.any(Number) });
+  expect(document.querySelectorAll(".plan-preview")).toHaveLength(0);
+  expect(await within(toast()).findByText("Planned 2, 30m left as slack")).toBeInTheDocument();
   await userEvent.click(within(toast()).getByRole("button", { name: /undo/i }));
-  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: landlord.id, date: T });
-  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: plants.id, date: T });
+  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: landlord.id, date: T, block_id: "b1" });
+  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: plants.id, date: T, block_id: "b2" });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: plants.id, date: T, start: "15:00", mins: 30 });
+});
+
+it("Shuffle asks again with a new seed, and Cancel drops the preview", async () => {
+  show();
+  fn("fillPlan").mockResolvedValue(planned());
+  await userEvent.click(screen.getByRole("button", { name: "Auto plan" }));
+  const bar = await screen.findByRole("group", { name: "Auto plan preview" });
+  await userEvent.click(within(bar).getByRole("button", { name: "Shuffle" }));
+  expect(fn("fillPlan")).toHaveBeenLastCalledWith(expect.objectContaining({ seed: 2, commit: false }));
+  await userEvent.click(within(await screen.findByRole("group", { name: "Auto plan preview" })).getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("group", { name: "Auto plan preview" })).toBeNull();
+  expect(fn("fillPlan")).not.toHaveBeenCalledWith(expect.objectContaining({ commit: true }));
 });
 
 it("picking a docket up with the keyboard announces it in plain English", async () => {
@@ -160,15 +187,40 @@ it("p on an already planned docket adds another block; Undo takes just that one 
   expect(fn("placeBlock")).not.toHaveBeenCalled();
 });
 
-it("Plan all says how many did not fit", async () => {
+it("Auto plan's options are remembered, and another day is planned straight away", async () => {
   show();
-  const p = (task_id: string, start: string) => ({ task_id, title: "x", start, mins: 30 });
-  fn("plan").mockResolvedValue({
-    date: T, committed: true, proposed: [p("a", "11:00"), p("b", "11:30"), p("c", "12:00")],
-    unplaced: [{ task_id: "d", title: "d", reason: "no room" }, { task_id: "e", title: "e", reason: "no room" }],
+  fn("fillPlan").mockResolvedValue(planned({ proposed: [], free_mins: 240, slack_mins: 0 }));
+  await userEvent.click(screen.getByRole("button", { name: "Auto plan options" }));
+  const menu = screen.getByRole("dialog", { name: "Auto plan options" });
+  const [from, until] = within(menu).getAllByDisplayValue(/\d\d:\d\d/) as HTMLInputElement[];
+  fireEvent.change(from, { target: { value: "08:00" } });
+  fireEvent.change(until, { target: { value: "12:00" } });
+  await userEvent.click(within(menu).getByRole("checkbox", { name: "Keep what's already planned" }));
+  await userEvent.click(within(menu).getByRole("checkbox", { name: "Keep lunch free (12–1)" }));
+  await userEvent.click(within(menu).getByRole("checkbox", { name: "Leave slack, from how my days go" }));
+  await userEvent.selectOptions(within(menu).getByRole("combobox", { name: "After meetings" }), "15");
+  await userEvent.selectOptions(within(menu).getByRole("combobox", { name: "Day" }), "Tomorrow");
+  await userEvent.click(within(menu).getByRole("button", { name: "Plan tomorrow" }));
+  const ask = { from: "08:00", until: "12:00", keep: false, lunch: false, buffer: 15, slack: false };
+  expect(fn("fillPlan")).toHaveBeenCalledWith({ date: "2026-03-11", ...ask, commit: true, now: expect.any(Number) });
+  expect(await within(toast()).findByText("Nothing left to plan for tomorrow")).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem("toodoo.autoPlan")!)).toEqual(ask);
+});
+
+it("Replan from now moves missed blocks on, and Undo puts them back", async () => {
+  show();
+  fn("replan").mockResolvedValue({
+    ...planned({ committed: true }), removed: [{ task_id: landlord.id, start: "09:00", mins: 30 }],
+    proposed: [{ id: "b1", task_id: landlord.id, title: "Email landlord", start: "14:00", mins: 30, why: "due today" }],
+    tomorrow: [{ id: "b2", task_id: plants.id, title: "Water plants", start: "09:00", mins: 60, why: "due today", date: "2026-03-11" }],
   });
-  await userEvent.click(screen.getByRole("button", { name: "Plan all" }));
-  expect(await within(toast()).findByText("Planned 3, 2 didn't fit")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Auto plan options" }));
+  await userEvent.click(screen.getByRole("button", { name: /Replan from now/ }));
+  expect(fn("replan")).toHaveBeenCalledWith({ date: T, ...ASK, commit: true, now: expect.any(Number) });
+  expect(await within(toast()).findByText("Replanned: 1 for the rest of today, 1 moved to tomorrow")).toBeInTheDocument();
+  await userEvent.click(within(toast()).getByRole("button", { name: /undo/i }));
+  expect(fn("removeBlock")).toHaveBeenCalledWith({ task_id: plants.id, date: "2026-03-11", block_id: "b2" });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: landlord.id, date: T, start: "09:00", mins: 30 });
 });
 
 it("a keyboard drag never says it was dropped on the day plan, and a manual-sort docket is announced as sortable", async () => {

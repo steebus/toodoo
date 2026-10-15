@@ -389,3 +389,17 @@ it("an event opens its menu and makes a prep task, with undo", async () => {
   await userEvent.click(await screen.findByRole("button", { name: "Undo" }));
   expect(fn("deleteTask")).toHaveBeenCalledWith({ id: "prep1" });
 });
+
+it("an event lists its prep tasks, and an open task can be used as its prep", async () => {
+  const demo = { start: "14:00", end: "15:00", title: "Client demo" };
+  const script = task({ title: "Demo script", source: "jira", external_id: "jira:ACME-4", prep_for: { date: T, start: "14:00", title: "Client demo" } });
+  show(board({ tasks: [report, landlord, plants, filed, script], day: { date: T, headline: null, events: [demo] } }));
+  await userEvent.click(screen.getByRole("button", { name: "Client demo, 2:00–3:00" }));
+  const menu = screen.getByRole("menu", { name: "Client demo" });
+  expect(within(menu).getByRole("menuitem", { name: /PREP\s*Demo script/ })).toBeInTheDocument();
+  await userEvent.click(within(menu).getByRole("menuitem", { name: "Use a task as prep…" }));
+  expect(within(menu).queryByRole("menuitem", { name: "Demo script" })).toBeNull(); // already its prep
+  await userEvent.type(within(menu).getByRole("textbox", { name: "Find a task to use as prep" }), "landl");
+  await userEvent.click(within(menu).getByRole("menuitem", { name: "Email landlord" }));
+  expect(fn("updateTask")).toHaveBeenCalledWith({ id: landlord.id, patch: { prep_for: { date: T, start: "14:00", title: "Client demo" } } });
+});

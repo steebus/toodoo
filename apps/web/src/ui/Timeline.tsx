@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, animate, m } from "motion/react";
-import { layoutLanes, SLOT, toHM } from "@shared/planning.ts";
+import { layoutLanes, SLOT, toHM, toMin } from "@shared/planning.ts";
 import { TIMELINE } from "../lib/dnd";
 import { isOptimistic, type Actions } from "../lib/useActions";
 import { clampBlock, dragBlock, moveBlock, openHour, slotAt, widenRange, type Placed } from "../lib/timeline";
@@ -11,6 +11,7 @@ import { useDropHint } from "./DndProvider";
 import { clock12, hourLabel } from "./format";
 import { ChevronIcon, DrawnCheck, NowMarker } from "./icons";
 import { reducedMotion, SNAPPY, useLayoutDependency } from "./motion";
+import { prepLink, prepsOf, words } from "@shared/inbox.ts";
 import { BLOCK_LEAD, blockHeight, blockTop, gridHeight, HOUR_PX, LINE_DROP, minToPx, NOW_LEAD } from "./plan";
 import { SlotPicker } from "./SlotPicker";
 import type { BoardData, PlanBlock, PlanData } from "./types";
@@ -38,12 +39,15 @@ export const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)
 const clockOf = (m: number) => (m >= DAY ? "12:00" : clock12(toHM(m)));
 const range = (s: number, mins: number) => `${clockOf(s)}–${clockOf(s + mins)}`;
 
-type Props = { plan: PlanData; board?: BoardData; actions?: Actions; onOpen?: (id: string) => void; zoom?: number; onZoom?: (z: number) => void };
+type Props = {
+  plan: PlanData; board?: BoardData; actions?: Actions; onOpen?: (id: string) => void; zoom?: number; onZoom?: (z: number) => void;
+  preview?: { task_id: string; title: string; start: string; mins: number; why: string }[]; // an auto plan waiting to be accepted
+};
 
 // The line: hour grid, events and planned blocks. With actions, blocks drag (body moves, bottom edge
 // resizes) and take arrow keys; an empty slot opens the SlotPicker (on touch, after a long press). Without
 // (fixture), it only draws.
-export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Props) {
+export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, preview }: Props) {
   const { blocks, nowM, anchorM } = plan;
   const date = board?.date ?? "";
   const live = !!(actions && board);
@@ -622,6 +626,16 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
             <span className="plan-ghost-time">{range(ghost.start, ghost.mins)}</span>
           </m.p>
         )}
+        {preview?.map((p) => {
+          const s = toMin(p.start) ?? 0;
+          return (
+            <p key={`${p.task_id}@${p.start}`} className="plan-ghost plan-preview" style={{ top: px(blockTop(s, startM)), height: px(blockHeight(p.mins)) }}>
+              <span className="plan-ghost-time">{clockOf(s)}</span>
+              <span className="plan-preview-title">{p.title}</span>
+              {p.mins * zoom >= ROOM_FOR_META && <span className="plan-preview-why">{p.why}</span>}
+            </p>
+          );
+        })}
         {live && hint && (
           <m.p {...glide} className="plan-ghost plan-drop" aria-hidden style={{ top: px(slotTop(hint.start)), height: px(blockHeight(hint.mins)) }}>
             <span className="plan-ghost-time">{range(hint.start, hint.mins)}</span>
@@ -641,6 +655,10 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
             title={menuBlock.title}
             where={menuBlock.event.where}
             offline={offline}
+            preps={prepsOf(board!.tasks, date, menuBlock.event, board!.day?.events ?? [])}
+            tasks={board!.tasks.filter((t) => !t.done)}
+            onOpenTask={(id) => { setEventMenu(null); onOpen?.(id); }}
+            onLink={(id) => { setEventMenu(null); void actions!.save(id, { prep_for: prepLink(date, menuBlock.event!) }); }}
             onPrep={() => { setEventMenu(null); void actions!.prep({ date, ...menuBlock.event! }); }}
             onClose={() => setEventMenu(null)}
           />
@@ -686,11 +704,21 @@ function OutOfSight({ dir, n, onClick }: { dir: "above" | "below"; n: number; on
   );
 }
 
-// An event's menu, under it on the line: Create prep task. Escape or a click away closes it.
-function EventMenu({ style, title, where, offline, onPrep, onClose }: {
-  style: CSSProperties; title: string; where?: string; offline: boolean; onPrep: () => void; onClose: () => void;
+// An event's menu, under it on the line: its prep tasks (each opens its ticket), Create prep task, and Use a task as
+// prep (an open task, a Jira card say, found by its title). Escape or a click away closes it.
+type MenuTask = { id: string; title: string; done: boolean };
+function EventMenu({ style, title, where, offline, preps, tasks, onOpenTask, onLink, onPrep, onClose }: {
+  style: CSSProperties; title: string; where?: string; offline: boolean; preps: MenuTask[]; tasks: MenuTask[];
+  onOpenTask: (id: string) => void; onLink: (id: string) => void; onPrep: () => void; onClose: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const [finding, setFinding] = useState(false);
+  const [q, setQ] = useState("");
+  const found = useMemo(() => {
+    const want = words(q);
+    const linked = new Set(preps.map((p) => p.id));
+    return tasks.filter((t) => !linked.has(t.id) && (!want.size || [...want].every((w) => [...words(t.title)].some((x) => x.startsWith(w))))).slice(0, 6);
+  }, [q, tasks, preps]);
   useEffect(() => {
     root.current?.querySelector("button")?.focus();
     const away = (e: MouseEvent) => { if (!root.current?.contains(e.target as Node)) onClose(); };
@@ -706,7 +734,26 @@ function EventMenu({ style, title, where, offline, onPrep, onClose }: {
     <m.div ref={root} className="event-menu" role="menu" aria-label={title} style={style}
       initial={{ opacity: 0, y: -4, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.14 }}>
       <p className="event-menu-head">{title}{where ? ` · ${where}` : ""}</p>
-      <button type="button" role="menuitem" disabled={offline} onClick={onPrep}>Create prep task</button>
+      {preps.map((p) => (
+        <button key={p.id} type="button" role="menuitem" className={`event-menu-prep${p.done ? " is-done" : ""}`} onClick={() => onOpenTask(p.id)}>
+          <span className="event-menu-tag">PREP</span>{p.title}
+        </button>
+      ))}
+      {finding ? (
+        <div className="event-menu-find">
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a task" aria-label="Find a task to use as prep"
+            autoComplete="off" spellCheck={false} />
+          {found.map((t) => (
+            <button key={t.id} type="button" role="menuitem" disabled={offline} onClick={() => onLink(t.id)}>{t.title}</button>
+          ))}
+          {!found.length && <p className="event-menu-none">No open task matches</p>}
+        </div>
+      ) : (
+        <>
+          <button type="button" role="menuitem" disabled={offline} onClick={onPrep}>Create prep task</button>
+          <button type="button" role="menuitem" disabled={offline || !tasks.length} onClick={() => setFinding(true)}>Use a task as prep…</button>
+        </>
+      )}
     </m.div>
   );
 }

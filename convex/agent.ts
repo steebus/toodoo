@@ -22,6 +22,22 @@ export const addTasks = mutation({
   args: { tasks: v.array(v.any()) },
   handler: async (ctx, a) => m.addTasks(ctx.db, await requireUser(ctx), a.tasks, m.clock().t),
 });
+const fillArgs = {
+  date, from: v.optional(v.string()), until: v.optional(v.string()), keep: v.optional(v.boolean()), buffer: v.optional(v.number()),
+  lunch: v.optional(v.boolean()), slack: v.optional(v.boolean()), seed: v.optional(v.number()), commit: v.optional(v.boolean()), now,
+};
+export const fillPlan = mutation({
+  args: fillArgs,
+  handler: async (ctx, { now = Date.now(), ...a }) => m.fillPlan(ctx.db, await requireUser(ctx), a, new Date(now)).catch(m.asConvexError),
+});
+export const replan = mutation({
+  args: fillArgs,
+  handler: async (ctx, { now = Date.now(), date: _d, ...a }) => m.replan(ctx.db, await requireUser(ctx), a, new Date(now)).catch(m.asConvexError),
+});
+export const meetings = query({
+  args: { now },
+  handler: async (ctx, { now = Date.now() }) => m.meetings(ctx.db, await requireUser(ctx), new Date(now)),
+});
 export const updateTask = mutation({
   args: { id: v.string(), patch: v.any() },
   handler: async (ctx, a) =>

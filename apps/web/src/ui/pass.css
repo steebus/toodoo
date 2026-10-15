@@ -167,6 +167,14 @@
 .event-menu button { display: flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(9 * var(--u)) calc(10 * var(--u)); border-radius: calc(3 * var(--u)); text-align: left; color: inherit; }
 .event-menu button:hover, .event-menu button:focus-visible { background: var(--well); }
 .event-menu button:disabled { opacity: 0.5; }
+.event-menu-tag { flex: none; font-family: var(--font-print); font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink-3); }
+.event-menu-prep.is-done { color: var(--ink-3); text-decoration: line-through; }
+.event-menu-find { display: grid; gap: 2px; padding: calc(6 * var(--u)) 0 0; }
+.event-menu-find input {
+  margin: 0 calc(6 * var(--u)) calc(4 * var(--u)); padding: calc(6 * var(--u)) calc(8 * var(--u)); font: inherit; color: inherit;
+  background: var(--surface); border: 1px dashed var(--rule); border-radius: calc(3 * var(--u));
+}
+.event-menu-none { margin: 0; padding: calc(8 * var(--u)) calc(10 * var(--u)); color: var(--ink-3); }
 .plan-task { --block-bg: var(--paper); background: var(--block-bg); color: var(--paper-ink); border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); box-shadow: 0 2px 5px rgb(0 0 0 / 0.12); }
 .plan-block.is-current { border-left: calc(3 * var(--u)) solid var(--ink); padding-left: calc(17 * var(--u)); }
 .plan-time { width: calc(71 * var(--u)); flex: none; }
@@ -477,6 +485,37 @@
 .plan-all { font-family: var(--font-print); font-size: calc(14 * var(--u)); line-height: 1; color: var(--ink-3); }
 .plan-all:disabled { cursor: default; }
 .plan-all:not(:disabled):hover { color: var(--ink); text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
+/* Auto plan: the button, and its arrow opening the day's window, the day and keep what's planned. */
+.autoplan { position: relative; display: inline-flex; align-items: center; gap: calc(2 * var(--u)); }
+.pass .autoplan-more { display: grid; place-items: center; width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: var(--ink-3); border-radius: calc(3 * var(--u)); }
+.pass .autoplan-more:not(:disabled):hover { color: var(--ink); background: var(--well); }
+.autoplan-menu {
+  position: absolute; right: 0; top: calc(100% + 6 * var(--u)); z-index: 6; display: grid; gap: calc(10 * var(--u)); width: max-content;
+  padding: calc(12 * var(--u)); font-family: var(--font-print); font-size: calc(14 * var(--u)); color: var(--ink);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: 0 calc(8 * var(--u)) calc(24 * var(--u)) rgb(0 0 0 / 0.14);
+}
+.autoplan-row { display: flex; align-items: center; gap: calc(10 * var(--u)); }
+.autoplan-row label { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); }
+.autoplan-menu :is(input[type="time"], select) {
+  padding: calc(4 * var(--u)) calc(6 * var(--u)); font: inherit; color: inherit; background: var(--surface);
+  border: 1px dashed var(--rule); border-radius: calc(3 * var(--u));
+}
+.autoplan-keep input { width: calc(16 * var(--u)); height: calc(16 * var(--u)); accent-color: var(--ink); }
+.autoplan-bad { margin: 0; color: var(--red-ink); font-size: calc(13 * var(--u)); }
+.pass .autoplan-go { flex: 1; padding: calc(8 * var(--u)) calc(12 * var(--u)); font: inherit; color: var(--surface); background: var(--ink); border-radius: calc(3 * var(--u)); }
+.pass .autoplan-go:disabled { opacity: 0.5; }
+.pass .autoplan-replan { display: grid; gap: calc(2 * var(--u)); padding: calc(8 * var(--u)) 0 0; text-align: left; font: inherit; color: var(--ink); border-top: 1px solid var(--rule-soft); }
+.autoplan-replan span { max-width: calc(260 * var(--u)); font-size: calc(12 * var(--u)); color: var(--ink-3); }
+.pass .autoplan-replan:hover { text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
+/* An auto plan waiting on the line: dashed, with why, under the Accept bar in Next up's place. */
+.autoplan-preview { display: flex; align-items: center; gap: calc(10 * var(--u)); margin-top: calc(8 * var(--u)); font-family: var(--font-print); font-size: calc(14 * var(--u)); }
+.autoplan-preview-says { flex: 1; margin: 0; color: var(--ink-2); }
+.pass .autoplan-preview button { padding: calc(5 * var(--u)) calc(10 * var(--u)); font: inherit; color: var(--ink); border: 1px dashed var(--rule); border-radius: calc(3 * var(--u)); }
+.pass .autoplan-preview .autoplan-accept { color: var(--surface); background: var(--ink); border-style: solid; border-color: var(--ink); }
+.pass .autoplan-preview button:disabled { opacity: 0.5; }
+.plan-preview { z-index: 2; gap: calc(8 * var(--u)); overflow: hidden; white-space: nowrap; border-style: dashed; border-width: 1.5px; box-shadow: none; opacity: 0.92; }
+.plan-preview-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.plan-preview-why { flex: none; margin-left: auto; padding-right: calc(10 * var(--u)); font-size: calc(12 * var(--u)); color: var(--ink-3); }
 
 /* ---------- docket actions: the title opens the sheet, the bump ticks ---------- */
 .dk-open {

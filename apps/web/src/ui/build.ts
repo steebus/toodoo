@@ -2,6 +2,7 @@ import { groupTasks, waitingDays, type View } from "@shared/board.ts";
 import { effectivePriority, epicMap, plusHigh, type Epic } from "@shared/epics.ts";
 import { DAY_END, DAY_START, dayWord, formatDuration, timedEvents, toHM, toMin } from "@shared/planning.ts";
 import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
+import { prepsOf } from "@shared/inbox.ts";
 import { clock12, longDate, shortDate, wrapTitle } from "./format";
 import type { BoardData, DocketData, GroupData, MetaRow, NextUpItem, PlanBlock, PlanData } from "./types";
 
@@ -75,10 +76,14 @@ const planMeta = (t: FullTask) => {
 function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTask) => string | null): PlanData {
   const isToday = b.date === b.today;
   const blocks: PlanBlock[] = [];
-  timedEvents(b.day?.events ?? []).forEach((e, i) => {
+  const dayEvents = b.day?.events ?? [];
+  timedEvents(dayEvents).forEach((e, i) => {
+    // Its prep tasks, counted under the title: "prep 1/2" once one is ticked.
+    const prep = prepsOf(b.tasks, b.date, { start: toHM(e.s), title: e.title }, dayEvents);
     blocks.push({
       id: `event-${i}`, kind: "event", startM: e.s, mins: e.e - e.s, time: clock12(toHM(e.s)), title: e.title,
       event: { start: toHM(e.s), end: toHM(e.e), title: e.title, ...(e.where ? { where: e.where } : {}) },
+      ...(prep.length ? { meta: `prep ${prep.filter((t) => t.done).length}/${prep.length}` } : {}),
     });
   });
   for (const pb of b.blocks) {

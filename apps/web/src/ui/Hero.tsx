@@ -133,7 +133,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           <DayPlan plan={model.plan} board={board} actions={actions}
             nextUp={{
               items: model.nextUp, onOpen: showTask,
-              onPlanAll: actions && !offline ? (() => void actions.planTasks(board.suggestions.map((s) => s.id), board.date)) : undefined,
+              autoPlan: actions && !offline ? { date: board.date, today: board.today } : undefined,
             }} />
           <TodoPanel
             model={model}

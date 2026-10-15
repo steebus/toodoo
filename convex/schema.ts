@@ -31,6 +31,8 @@ export default defineSchema({
     epic_id: v.optional(v.union(v.id("epics"), v.null())),
     status: v.optional(v.union(v.literal("backlog"), v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
     checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))),
+    // The meeting it's prep for, by day, start and title (events have no ids of their own); null or absent: none.
+    prep_for: v.optional(v.union(v.object({ date: v.string(), start: v.union(v.string(), v.null()), title: v.string() }), v.null())),
   })
     .index("by_user_done", ["user_id", "done"])
     .index("by_user_epic", ["user_id", "epic_id"])

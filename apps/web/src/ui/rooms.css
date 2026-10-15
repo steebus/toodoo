@@ -373,6 +373,17 @@
 .tk-epic { display: flex; align-items: center; gap: 8px; font-size: 14px; letter-spacing: 0.04em; }
 .tk-epic-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--epic, color-mix(in srgb, var(--paper-ink) 40%, var(--paper))); }
 .tk-epic-status { color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
+.tk-prep { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; letter-spacing: 0.04em; }
+.tk-prep-label { flex: none; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
+.tk-prep-meeting { min-width: 0; overflow-wrap: anywhere; }
+:is(.pass, .room) .tk-prep-x { flex: none; padding: 0 6px; font-size: 18px; line-height: 1; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
+:is(.pass, .room) .tk-prep-add { padding: 3px 0; font: inherit; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
+:is(.pass, .room) :is(.tk-prep-x, .tk-prep-add):hover { color: var(--paper-ink); }
+.tk-prep select {
+  min-width: 0; max-width: 100%; padding: 3px 4px; font: inherit; color: var(--paper-ink); background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); border-radius: 2px;
+}
+.tk-prep select option { color: initial; background: initial; }
 .tk-progress { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; font-size: 13px; }
 .tk-progress .pen-progress { height: 7px; }
 .tk-body { white-space: pre-line; overflow-wrap: anywhere; }

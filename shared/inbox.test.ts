@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { adfText, fromJira, jiraSite, likeness, lookalikes, mergePatch, prepFor, type Mergeable } from "./inbox.ts";
+import { adfText, fromJira, jiraSite, likeness, linksTo, lookalikes, mergePatch, prepFor, prepLink, prepsOf, type Mergeable } from "./inbox.ts";
 
 const task = (o: Partial<Mergeable> & { title: string }): Mergeable => ({
   description: null, note: null, link: null, source: "you", external_id: null, due: null, time: null,
@@ -82,5 +82,18 @@ it("makes a prep task keyed to its event", () => {
   expect(prepFor({ date: "2026-10-14", start: "09:15", end: "09:45", title: "Team standup", where: "Zoom" })).toEqual({
     title: "Prep: Team standup", source: "calendar", external_id: "prep:2026-10-14:09:15:team-standup", due: "2026-10-14",
     note: "09:15–09:45 · Zoom", estimate_mins: 15, tags: ["prep"],
+    prep_for: { date: "2026-10-14", start: "09:15", title: "Team standup" },
   });
+});
+
+it("finds a task's meeting by day, start and title, and follows it when it moves", () => {
+  const link = prepLink("2026-10-14", { start: "09:15", title: "Team standup" });
+  const day = [{ start: "10:00", title: "team  Standup" }, { start: "11:00", title: "Review" }];
+  expect(linksTo(link, "2026-10-14", day[0], day)).toBe(true); // moved to 10:00, the only one of that name
+  expect(linksTo(link, "2026-10-14", day[1], day)).toBe(false);
+  expect(linksTo(link, "2026-10-15", day[0], day)).toBe(false);
+  const twice = [{ start: "10:00", title: "Team standup" }, { start: "16:00", title: "Team standup" }];
+  expect(linksTo(link, "2026-10-14", twice[0], twice)).toBe(false); // two of them, neither at 9:15: no guessing
+  const tasks = [{ id: "a", prep_for: link }, { id: "b", prep_for: null }, { id: "c" }];
+  expect(prepsOf(tasks, "2026-10-14", { start: "09:15", title: "Team standup" }, [{ start: "09:15", title: "Team standup" }]).map((t) => t.id)).toEqual(["a"]);
 });

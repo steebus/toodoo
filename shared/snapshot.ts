@@ -1,4 +1,5 @@
 import type { Epic } from "./epics.ts";
+import { prepsOf, type PrepLink } from "./inbox.ts";
 import { addDays, byOrder, suggestions, toHM, toMin, type Block, type DayEvent, type Task } from "./planning.ts";
 
 export interface FullTask extends Task {
@@ -9,6 +10,7 @@ export interface FullTask extends Task {
   note: string | null;
   description: string | null;
   checklist?: ChecklistItem[];
+  prep_for?: PrepLink | null; // the meeting it's prep for
 }
 export interface ChecklistItem { text: string; done: boolean }
 
@@ -27,7 +29,7 @@ const compact = (epics: Map<string, Epic>) => (t: FullTask) =>
       epic: t.epic_id ? epics.get(t.epic_id)?.title : null, status: t.status && t.status !== "todo" ? t.status : null,
       checklist: t.checklist?.length ? t.checklist : null,
       tags: t.tags.length ? t.tags : null, source: t.source === "you" ? null : t.source, external_id: t.external_id,
-      link: t.link, note: t.note,
+      link: t.link, note: t.note, prep_for: t.prep_for,
     }).filter(([, v]) => v != null),
   );
 
@@ -43,7 +45,16 @@ export function buildSnapshot(o: { date: string; today: string; nowM: number; qu
   const epics = new Map((o.epics ?? []).map((e) => [e.id, e]));
   const row = compact(epics);
   const titles = new Map(o.tasks.map((t) => [t.id, t.title]));
-  const dayOf = (d: string) => o.days.find((x) => x.date === d) ?? null;
+  // Each event with the tasks that are prep for it (open or done), when it has any.
+  const dayOf = (d: string) => {
+    const day = o.days.find((x) => x.date === d);
+    if (!day) return null;
+    const events = day.events.map((e) => {
+      const prep = prepsOf(o.tasks, d, e, day.events).map((t) => ({ id: t.id, title: t.title, done: t.done }));
+      return prep.length ? { ...e, prep } : e;
+    });
+    return { ...day, events };
+  };
   const plan = o.blocks
     .filter((b) => b.date === o.date)
     .sort((a, b) => (toMin(a.start) ?? 0) - (toMin(b.start) ?? 0))

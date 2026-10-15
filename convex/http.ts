@@ -33,6 +33,10 @@ function callTool(ctx: ActionCtx, name: string, a: any): Promise<unknown> {
     case "set_day": return ctx.runMutation(api.agent.setDay, { day: a ?? {} });
     case "suggest": return ctx.runQuery(api.agent.suggest, { ...pick(a, ["date", "limit"]), now: Date.now() });
     case "plan": return ctx.runMutation(api.agent.plan, { ...pick(a, ["date", "task_ids", "from", "until", "mins", "commit"]), now: Date.now() });
+    case "auto_plan": {
+      const ask = { ...pick(a, ["date", "from", "until", "keep", "buffer", "lunch", "slack", "seed", "commit"]), now: Date.now() };
+      return a?.replan ? ctx.runMutation(api.agent.replan, ask) : ctx.runMutation(api.agent.fillPlan, ask);
+    }
     case "unplan": return ctx.runMutation(api.agent.unplan, { date: String(a?.date ?? ""), ...pick(a, ["task_ids"]) });
     case "list_epics": return ctx.runQuery(api.epics.list, {});
     case "save_epic": {

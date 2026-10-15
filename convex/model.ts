@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { addDays, autoPlan, busySpans, effortMap, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
+import { addDays, autoPlan, busySpans, effortMap, fillDay, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
 import { prepFor } from "../shared/inbox.ts";
 import { piles, QUIET_DAYS, tidyCount } from "../shared/tidy.ts";
@@ -36,6 +36,7 @@ const toTask = (d: Doc<"tasks">): FullTask => ({
   done: d.done, done_on: d.done_on, sort_order: d.sort_order, source: d.source, external_id: d.external_id,
   tags: d.tags, link: d.link, note: d.note, description: d.description,
   epic_id: d.epic_id ?? null, status: d.status ?? "todo", ...(d.checklist?.length ? { checklist: d.checklist } : {}),
+  ...(d.prep_for ? { prep_for: d.prep_for } : {}),
 });
 
 const toEpic = (d: Doc<"epics">): Epic => ({
@@ -174,7 +175,7 @@ export async function updateTask(
   const d = (await db.get(doc._id))!;
   return {
     id: d._id, title: d.title, due: d.due, time: d.time, priority: d.priority, done: d.done, done_on: d.done_on, tags: d.tags,
-    epic_id: d.epic_id ?? null, status: d.status ?? "todo", checklist: d.checklist ?? [],
+    epic_id: d.epic_id ?? null, status: d.status ?? "todo", checklist: d.checklist ?? [], prep_for: d.prep_for ?? null,
   };
 }
 
@@ -192,13 +193,27 @@ export async function setDay(db: W, userId: string, input: unknown) {
 // A prep task for a calendar event, made once: a second ask finds the first.
 export async function prepTask(db: W, userId: string, e: { date: string; start?: string; end?: string; title: string; where?: string }) {
   checkDate(e.date);
-  const p = prepFor(e);
+  const { prep_for, ...p } = prepFor(e);
   const hit = await db.query("tasks").withIndex("by_user_source_ext", (q) =>
     q.eq("user_id", userId).eq("source", p.source).eq("external_id", p.external_id)).first();
-  if (hit) return { id: hit._id as string, title: hit.title, created: false };
+  if (hit) {
+    if (!hit.prep_for) await db.patch(hit._id, { prep_for, updated_at: Date.now() }); // made before tasks knew their meeting
+    return { id: hit._id as string, title: hit.title, created: false };
+  }
   const r = await addTasks(db, userId, [p], e.date);
   if (!r.created[0]) throw new InputError(r.errors[0]?.error ?? "couldn't make that");
+  await db.patch(r.created[0].id as Id<"tasks">, { prep_for });
   return { id: r.created[0].id, title: r.created[0].title, created: true };
+}
+
+// The meetings ahead (today and the week after), for linking a task to one as its prep.
+export async function meetings(db: R, userId: string, now = new Date()) {
+  const { t } = clock(now);
+  const days = await db.query("days")
+    .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", t).lte("date", addDays(t, 7))).collect();
+  return days.sort((a, b) => a.date.localeCompare(b.date)).flatMap((d) => d.events
+    .filter((e) => !e.allDay && e.start)
+    .map((e) => ({ date: d.date, start: e.start!, end: e.end ?? null, title: e.title, where: e.where ?? null })));
 }
 
 export async function deleteTask(db: W, userId: string, id: string) {
@@ -248,6 +263,79 @@ export async function planDay(
     proposed.push(id ? { id, ...p } : p);
   }
   return { date, committed: !!a.commit && r.proposed.length > 0, proposed, unplaced: r.unplaced };
+}
+
+// What auto plan is asked: the window, keep, the day's breathing room (a buffer after meetings, lunch on or off),
+// slack from history, and a Shuffle seed.
+export type FillAsk = {
+  date?: string; from?: string; until?: string; keep?: boolean; buffer?: number; lunch?: boolean; slack?: boolean; seed?: number;
+};
+const LUNCH = { s: 12 * 60, e: 13 * 60 };
+
+// Auto plan: fill a day's window (see fillDay). Proposes only; with commit, takes off the blocks it replaces (when
+// not keeping them) and saves the new ones, each with its id.
+export async function fillPlan(db: W, userId: string, a: FillAsk & { commit?: boolean }, now = new Date()) {
+  checkDate(a.date);
+  const { t, nowM } = clock(now);
+  const date = a.date ?? t;
+  const s = await loadState(db, userId, t, date);
+  const r = fillDay({ ...(await fillInput(db, userId, s, t, nowM, date, a)) });
+  if (!a.commit) return { ...r, committed: false };
+  await dropBlocks(db, userId, date, r.replaced);
+  const proposed = await saveBlocks(db, userId, date, r.proposed);
+  return { ...r, proposed, committed: proposed.length > 0 || r.replaced.length > 0 };
+}
+
+// Replan from now: today's blocks that have passed with their task unticked come off; the rest of today fills again
+// (they're back in the running), and whichever of them doesn't fit goes onto tomorrow.
+export async function replan(db: W, userId: string, a: FillAsk & { commit?: boolean }, now = new Date()) {
+  const { t, nowM } = clock(now);
+  const s = await loadState(db, userId, t, t);
+  const done = new Set(s.tasks.filter((x) => x.done).map((x) => x.id));
+  const missed = s.blocks.filter((b) => b.date === t && (toMin(b.start) ?? 0) + b.mins <= nowM && !done.has(b.task_id));
+  const left = { ...s, blocks: s.blocks.filter((b) => !missed.includes(b)) };
+  const today = fillDay({ ...(await fillInput(db, userId, left, t, nowM, t, { ...a, keep: true })) });
+  const placed = new Set(today.proposed.map((p) => p.task_id));
+  const carry = [...new Set(missed.map((b) => b.task_id))].filter((id) => !placed.has(id));
+  const tomorrowDate = addDays(t, 1);
+  const tomorrow = carry.length
+    ? fillDay({ ...(await fillInput(db, userId, left, t, nowM, tomorrowDate, { ...a, keep: true })), only: carry })
+    : null;
+  const removed = missed.map((b) => ({ task_id: b.task_id, start: b.start, mins: b.mins }));
+  if (!a.commit) return { ...today, removed, tomorrow: (tomorrow?.proposed ?? []).map((p) => ({ ...p, date: tomorrowDate })), committed: false };
+  await dropBlocks(db, userId, t, removed);
+  const proposed = await saveBlocks(db, userId, t, today.proposed);
+  const later = tomorrow ? await saveBlocks(db, userId, tomorrowDate, tomorrow.proposed) : [];
+  return { ...today, proposed, removed, tomorrow: later.map((p) => ({ ...p, date: tomorrowDate })), committed: true };
+}
+
+async function fillInput(db: R, userId: string, s: State, t: string, nowM: number, date: string, a: FillAsk) {
+  // Tasks ticked in the last four weeks: how much of a plan gets done, and how long untimed work really takes.
+  const done = (await db.query("tasks").withIndex("by_user_done_on", (q) => q.eq("user_id", userId).gte("done_on", addDays(t, -28))).collect())
+    .filter((d) => d.done).map((d) => ({ id: d._id as string, done_on: d.done_on, epic_id: d.epic_id ?? null, tags: d.tags, source: d.source }));
+  return {
+    date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics, done,
+    events: s.days.find((d) => d.date === date)?.events ?? [],
+    from: toMin(a.from) ?? undefined, until: toMin(a.until) ?? undefined, keep: a.keep,
+    buffer: a.buffer, lunch: a.lunch === false ? null : LUNCH, slack: a.slack, seed: a.seed,
+  };
+}
+
+async function dropBlocks(db: W, userId: string, date: string, gone: { task_id: string; start: string }[]) {
+  const keys = new Set(gone.map((b) => `${b.task_id}@${b.start}`));
+  if (!keys.size) return;
+  for (const b of await db.query("plan_blocks").withIndex("by_user_date", (q) => q.eq("user_id", userId).eq("date", date)).collect()) {
+    if (keys.has(`${b.task_id}@${b.start}`)) await db.delete(b._id);
+  }
+}
+
+async function saveBlocks<T extends { task_id: string; start: string; mins: number }>(db: W, userId: string, date: string, list: T[]) {
+  const out: (T & { id: string })[] = [];
+  for (const p of list) {
+    const id = await db.insert("plan_blocks", { user_id: userId, date, task_id: p.task_id as Id<"tasks">, start: p.start, mins: p.mins });
+    out.push({ ...p, id: id as string });
+  }
+  return out;
 }
 
 export async function unplan(db: W, userId: string, date: string, taskIds?: string[]) {

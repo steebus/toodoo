@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
+import type { PrepLink } from "@shared/inbox.ts";
 import { effectivePriority, EPIC_STATUS_LABEL, TASK_STATUS_LABEL, TASK_STATUSES, type Epic } from "@shared/epics.ts";
 import { dayWord, fmtTime, formatDuration, parseDuration, type Priority } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
@@ -120,6 +123,7 @@ export function TaskView({
             ))}
           </select>
         </label>
+        <PrepFor link={t.prep_for ?? null} today={today} disabled={offline} onSave={(prep_for) => save({ prep_for })} />
         {progress && (
           <div className="tk-progress">
             <PenProgress {...progress} />
@@ -159,6 +163,46 @@ export function TaskView({
         </div>
       </article>
     </dialog>
+  );
+}
+
+// The meeting a task is prep for: shown as a line ("PREP FOR TUE 15 OCT 9:15AM · CLIENT DEMO"), unlinked with its x,
+// picked from the meetings of the week ahead. The meetings are only fetched once the picker is opened.
+const meetingText = (l: PrepLink, today: string) =>
+  `${dayWord(l.date, today).toUpperCase()}${l.start ? ` ${fmtTime(l.start).toUpperCase()}` : ""} · ${l.title.toUpperCase()}`;
+function PrepFor({ link, today, disabled, onSave }: { link: PrepLink | null; today: string; disabled: boolean; onSave: (l: PrepLink | null) => Promise<boolean> }) {
+  const [picking, setPicking] = useState(false);
+  if (link && !picking) {
+    return (
+      <p className="tk-prep">
+        <span className="tk-prep-label">PREP FOR</span>
+        <span className="tk-prep-meeting">{meetingText(link, today)}</span>
+        <button type="button" className="tk-prep-x" aria-label="Not prep for this meeting" disabled={disabled} onClick={() => void onSave(null)}>×</button>
+      </p>
+    );
+  }
+  if (!picking) {
+    return (
+      <p className="tk-prep">
+        <button type="button" className="tk-prep-add" disabled={disabled} onClick={() => setPicking(true)}>+ PREP FOR A MEETING</button>
+      </p>
+    );
+  }
+  return <MeetingPick today={today} disabled={disabled} onPick={(l) => { setPicking(false); if (l) void onSave(l); }} />;
+}
+function MeetingPick({ today, disabled, onPick }: { today: string; disabled: boolean; onPick: (l: PrepLink | null) => void }) {
+  const list = useQuery(api.agent.meetings, {});
+  const key = (m: { date: string; start: string; title: string }) => `${m.date} ${m.start} ${m.title}`;
+  return (
+    <label className="tk-prep">
+      <span className="tk-prep-label">PREP FOR</span>
+      <select autoFocus aria-label="Meeting" disabled={disabled || !list} defaultValue=""
+        onChange={(e) => { const m = list?.find((x) => key(x) === e.target.value); onPick(m ? { date: m.date, start: m.start, title: m.title } : null); }}
+        onBlur={(e) => !e.target.value && onPick(null)}>
+        <option value="">{!list ? "LOADING…" : list.length ? "PICK A MEETING" : "NO MEETINGS THIS WEEK"}</option>
+        {list?.map((m) => <option key={key(m)} value={key(m)}>{meetingText({ date: m.date, start: m.start, title: m.title }, today)}</option>)}
+      </select>
+    </label>
   );
 }
 

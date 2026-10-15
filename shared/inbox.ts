@@ -195,6 +195,23 @@ export function fromJira(issue: JiraIssue, site: string): Omit<Proposal, "epic_i
 
 // ---------- prep for an event ----------
 
+// A task's meeting: the one it is prep for. Events have no ids of their own (the calendar feed rewrites them), so
+// the meeting is named by its day, start and title.
+export type PrepLink = { date: string; start: string | null; title: string };
+export const prepLink = (date: string, e: { start?: string; title?: string; allDay?: boolean }): PrepLink =>
+  ({ date, start: e.allDay ? null : e.start ?? null, title: (e.title || "Untitled").trim().slice(0, 300) });
+const sameTitle = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+// Whether a link means this event on this day: the same title, at the same start, or at any start when the meeting
+// was moved and is the only one of that name that day.
+export function linksTo(link: PrepLink, date: string, e: { start?: string; title?: string; allDay?: boolean }, day: { title?: string }[]) {
+  if (link.date !== date || !sameTitle(link.title, e.title || "Untitled")) return false;
+  if (link.start === (e.allDay ? null : e.start ?? null)) return true;
+  return day.filter((x) => sameTitle(link.title, x.title || "Untitled")).length === 1;
+}
+// The tasks that are prep for an event, from any list of tasks.
+export const prepsOf = <T extends { prep_for?: PrepLink | null }>(tasks: T[], date: string, e: { start?: string; title?: string; allDay?: boolean }, day: { title?: string }[]) =>
+  tasks.filter((t) => t.prep_for && linksTo(t.prep_for, date, e, day));
+
 const slug = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 
 // A prep task for a calendar event: due the day of it, sized small, keyed so a second click finds the first.
@@ -208,5 +225,6 @@ export function prepFor(e: { date: string; start?: string; end?: string; title: 
     note: [e.start && `${e.start}${e.end ? `–${e.end}` : ""}`, e.where].filter(Boolean).join(" · ").slice(0, 500) || null,
     estimate_mins: 15,
     tags: ["prep"],
+    prep_for: prepLink(e.date, e),
   };
 }
