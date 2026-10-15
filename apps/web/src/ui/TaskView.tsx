@@ -18,6 +18,7 @@ export type TaskViewActions = {
   onPlan?: () => void; // put it on the day's line
   onTomorrow?: () => void;
   onDelete?: () => void;
+  onCreate?: () => Promise<boolean>; // a ticket not yet filed (its edits are held by the caller): Save files it
 };
 
 type Props = TaskViewActions & {
@@ -40,7 +41,7 @@ const PRIORITIES: [Priority | null, string][] = [["high", "! HIGH"], ["med", "ME
 // is printed: click the title, the date, a tag, the description... and type; Enter (or leaving it) keeps it,
 // Escape puts it back. A native modal dialog: side sheet on desktop, bottom sheet on the phone.
 export function TaskView({
-  task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete,
+  task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete, onCreate,
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
@@ -64,6 +65,8 @@ export function TaskView({
     : !t.due ? "" : late ? `${n} ${n === 1 ? "DAY" : "DAYS"} OVER` : t.due === today || dayWord(t.due, today) === "tomorrow" ? dayWord(t.due, today).toUpperCase() : shortDate(t.due);
   const act = (fn?: () => void) => fn && (() => { fn(); onClose(); });
   const save = (patch: Record<string, unknown>) => (offline ? Promise.resolve(false) : onSave(patch));
+  const creating = !!onCreate;
+  const [filing, setFiling] = useState(false);
   const open = epics.filter((e) => e.status !== "done" || e.id === t.epic_id);
 
   return (
@@ -74,7 +77,7 @@ export function TaskView({
       aria-labelledby="ticket-title"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onKeyDown={(e) => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); } }}
-      onClick={(e) => e.target === dialog.current && onClose()}
+      onClick={(e) => e.target === dialog.current && !creating && onClose()} // a ticket being written is not lost to a stray tap
     >
       {focus && <KitchenTimer startM={focus.startM} endM={focus.endM} />}
       <article className={`ticket${t.done ? " is-done" : ""}${high ? " is-high" : ""}`}>
@@ -94,7 +97,7 @@ export function TaskView({
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-title-row">
           <h2 id="ticket-title" className="tk-title">
-            <Field label="Title" kind="line" value={t.title} startOpen={editTitle} display={<span className="tk-title-text">{t.title.toUpperCase()}</span>}
+            <Field label="Title" kind="line" value={t.title} startOpen={editTitle || (creating && !t.title)} placeholder="+ TITLE" display={<span className="tk-title-text">{t.title.toUpperCase()}</span>}
               check={(v) => (v.trim() ? null : "Needs a title")} onSave={(v) => save({ title: v.trim() })} />
           </h2>
           {t.done && <PenTick on draw className="tk-tick" />}
@@ -123,7 +126,7 @@ export function TaskView({
             ))}
           </select>
         </label>
-        <PrepFor link={t.prep_for ?? null} today={today} disabled={offline} onSave={(prep_for) => save({ prep_for })} />
+        {!creating && <PrepFor link={t.prep_for ?? null} today={today} disabled={offline} onSave={(prep_for) => save({ prep_for })} />}
         {progress && (
           <div className="tk-progress">
             <PenProgress {...progress} />
@@ -145,6 +148,12 @@ export function TaskView({
         <Tags tags={t.tags} pool={tagPool} disabled={offline} onSave={(tags) => save({ tags })} />
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-actions">
+          {onCreate && (
+            <button type="button" className="tk-act tk-primary tk-save" disabled={offline || filing || !t.title.trim()} onClick={async () => {
+              setFiling(true);
+              if (await onCreate()) onClose(); else setFiling(false);
+            }}>Save</button>
+          )}
           {onTick && (
             <button type="button" className="tk-act tk-primary" disabled={offline} onClick={act(() => onTick(!t.done))}>
               {t.done ? "Reopen" : "Done"}

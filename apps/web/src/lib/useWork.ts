@@ -4,7 +4,7 @@ import { api } from "@convex/_generated/api";
 import type { Epic } from "@shared/epics.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 import type { NewTask, ToastData } from "./useActions";
-import { useMinuteTick } from "./useBoard";
+import { useHeld, useMinuteTick } from "./useBoard";
 import { loadWork, saveWork, useNoNetwork } from "./offline";
 import { isOptimistic } from "./optimistic";
 import * as w from "./workOptimistic";
@@ -15,7 +15,7 @@ export type { WorkData } from "./workOptimistic";
 // The live workspace, kept on the device as it comes; until it comes, what was kept last.
 export function useWorkspace(userId?: string): w.WorkData | undefined {
   const now = useMinuteTick();
-  const live = useQuery(api.epics.workspace, { now });
+  const live = useHeld(useQuery(api.epics.workspace, { now }), "");
   useEffect(() => {
     if (live && userId) saveWork(userId, live);
   }, [live, userId]);
@@ -150,5 +150,5 @@ export function useWorkActions(work: w.WorkData | undefined): WorkActions {
 
 // Stats and All tasks: the whole account, live (nothing kept on the device: it can be big, and both need the network).
 export function useEverything(): Everything | undefined {
-  return useQuery(api.stats.everything, { now: useMinuteTick() });
+  return useHeld(useQuery(api.stats.everything, { now: useMinuteTick() }), "");
 }

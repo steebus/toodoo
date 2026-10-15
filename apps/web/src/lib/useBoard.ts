@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { loadBoard, localDate, saveBoard } from "./offline";
@@ -13,9 +13,16 @@ export function useMinuteTick() {
   return now;
 }
 
+// The last answer, kept while the next one (new clock, same question) is on its way, so a tick never blanks the screen.
+export function useHeld<T>(value: T | undefined, key: string): T | undefined {
+  const held = useRef<{ key: string; value: T } | null>(null);
+  if (value !== undefined) held.current = { key, value };
+  return value ?? (held.current?.key === key ? held.current.value : undefined);
+}
+
 export function useBoard(date?: string, userId?: string) {
   const now = useMinuteTick();
-  const live = useQuery(api.agent.board, date ? { date, now } : { now });
+  const live = useHeld(useQuery(api.agent.board, date ? { date, now } : { now }), date ?? "");
   useEffect(() => {
     if (live && userId) saveBoard(userId, live.date, live);
   }, [live, userId]);

@@ -34,7 +34,7 @@ export function Checklist({ items, onChange, disabled, label = "Checklist" }: Pr
     setLine("");
   };
   const enter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter") return;
+    if (e.key !== "Enter" && e.keyCode !== 13) return;
     e.preventDefault(); // inside a form: add a step, don't submit it
     add();
   };
@@ -83,7 +83,7 @@ export function Checklist({ items, onChange, disabled, label = "Checklist" }: Pr
         ))}
       </ul>
       {items.length < MAX && (
-        <input className="cl-add" value={line} placeholder="+ Add a step" aria-label="Add a step" maxLength={200} disabled={disabled}
+        <input className="cl-add" value={line} placeholder="+ Add a step" aria-label="Add a step" maxLength={200} disabled={disabled} enterKeyHint="done"
           onChange={(e) => setLine(e.target.value)} onKeyDown={enter} onBlur={add} onPaste={(e) => paste(e, items.length)} />
       )}
     </div>
@@ -106,10 +106,12 @@ function Step({ text, index, disabled, onSave, onNext, onPaste }: {
     onSave(t);
   };
   return (
-    <input className="cl-text" value={draft} maxLength={200} aria-label={`Step ${index + 1}`} disabled={disabled}
+    <input className="cl-text" value={draft} maxLength={200} aria-label={`Step ${index + 1}`} disabled={disabled} enterKeyHint="next"
       onChange={(e) => setDraft(e.target.value)} onBlur={keep} onPaste={onPaste}
+      // phone keyboards may send Enter as a line break rather than a key: same thing, and never the browser's own "next field"
+      onBeforeInput={(e) => { if ((e.nativeEvent as InputEvent).inputType === "insertLineBreak") { e.preventDefault(); keep(); onNext(); } }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") { e.preventDefault(); keep(); onNext(); }
+        if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); keep(); onNext(); }
         else if (e.key === "Escape" && draft !== text) { e.preventDefault(); e.stopPropagation(); setDraft(text); }
       }} />
   );

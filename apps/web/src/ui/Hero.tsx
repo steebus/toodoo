@@ -19,6 +19,8 @@ import { AddButton, AddSheet, useSwipeTabs, type Tab } from "./Mobile";
 import { MotionRoot, useArrivals, useCelebration } from "./motion";
 import { COMPACT_AT, PLAN_SPLIT, PRESET_SPLIT, Panes, useSplit } from "./Panes";
 import { Toast } from "./Toast";
+import { parseQuickAdd } from "@shared/quickadd.ts";
+import type { FullTask } from "@shared/snapshot.ts";
 import { TaskView } from "./TaskView";
 import { TodoPanel } from "./TodoPanel";
 import { TopBar } from "./TopBar";
@@ -41,7 +43,16 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
   const narrow = useNarrow();
   const [tab, setTab] = useState<Tab>("today");
   const [adding, setAdding] = useState<string | null>(null);
-  useSwipeTabs(narrow && viewing === null && adding === null, tab, setTab);
+  // A blank ticket slid in from the add sheet: held here, and only a task once Save is pressed.
+  const [draft, setDraft] = useState<FullTask | null>(null);
+  const draftFrom = (line: string): FullTask => {
+    const p = parseQuickAdd(line, board.today, board.nowM, board.epics ?? []);
+    return {
+      id: "new", title: p.title, due: p.due, time: p.time, priority: p.priority, estimate_mins: p.estimate_mins, done: false, done_on: null,
+      sort_order: 0, epic_id: p.epic_id, status: "todo", tags: p.tags, source: "you", external_id: null, link: null, note: null, description: null, checklist: [],
+    };
+  };
+  useSwipeTabs(narrow && viewing === null && adding === null && !draft, tab, setTab);
   const split = useSplit();
   const setSplit = split[1];
   const [stored, setView] = useStoredView();
@@ -160,7 +171,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           <AddSheet today={board.today} nowM={board.nowM} initial={adding} epics={board.epics} tags={model.tags} onAdd={(t) => {
             setTab("today");
             return actions.add(t);
-          }} onClose={() => setAdding(null)} onFailed={setAdding} />
+          }} onClose={() => setAdding(null)} onFailed={setAdding} onExpand={(line) => setDraft(draftFrom(line))} />
         )}
         {actions && viewTask && (
           <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline} epics={board.epics} tagPool={model.tags} editTitle={editTitle}
@@ -174,6 +185,20 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
             onTomorrow={() => void actions.save(viewTask.id, { due: addDays(board.today, 1) })}
             onSave={(patch) => actions.save(viewTask.id, patch)}
             onDelete={() => actions.remove(viewTask.id)} />
+        )}
+        {actions && draft && (
+          <TaskView key="new" task={draft} today={board.today} offline={offline} epics={board.epics} tagPool={model.tags}
+            epic={draft.epic_id ? board.epics?.find((e) => e.id === draft.epic_id) : undefined}
+            onClose={() => setDraft(null)}
+            onSave={(patch) => { setDraft((d) => d && { ...d, ...patch }); return Promise.resolve(true); }}
+            onCreate={async () => {
+              const { title, due, time, priority, estimate_mins, tags, epic_id, description, note, link, status, checklist } = draft;
+              setTab("today");
+              return actions.add({
+                title: title.trim(), due, time, priority, estimate_mins, tags, source: "you", epic_id, description, note, link, status,
+                ...(checklist?.length ? { checklist } : null),
+              });
+            }} />
         )}
         {help && <HelpSheet onClose={() => setHelp(false)} />}
         {actions && <Toast toast={actions.toast} onDismiss={actions.dismiss} />}

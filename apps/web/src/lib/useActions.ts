@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useConvexConnectionState, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { dayWord, formatDuration, toHM } from "@shared/planning.ts";
+import type { FullTask } from "@shared/snapshot.ts";
 import { clock12 } from "../ui/format";
 import type { BoardData } from "../ui/types";
 import { useNoNetwork, useOffline } from "./offline";
@@ -21,6 +22,9 @@ export type NewTask = {
   estimate_mins: number | null;
   source: "you";
   epic_id?: string | null;
+  // from the full ticket
+  description?: string | null; note?: string | null; link?: string | null;
+  status?: FullTask["status"]; checklist?: { text: string; done: boolean }[];
 };
 
 export type Actions = {

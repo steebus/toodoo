@@ -56,13 +56,14 @@ type SheetProps = {
   onAdd: (t: NewTask) => Promise<boolean>;
   onClose: () => void;
   onFailed: (line: string) => void; // the add did not take: open again with what was typed
+  onExpand: (line: string) => void; // swiped up: the full ticket, blank but for what was typed
   epics?: Epic[];
   tags?: string[];
 };
 
 // The quick add in a bottom sheet. Enter files the line and the sheet drops away, so the new docket can fly
 // from where the input was to its rail.
-export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, epics, tags }: SheetProps) {
+export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, onExpand, epics, tags }: SheetProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = dialog.current!;
@@ -85,6 +86,7 @@ export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, epics
       onClick={(e) => e.target === dialog.current && onClose()}
     >
       <QuickAdd today={today} nowM={nowM} initial={initial} epics={epics} tags={tags} tools
+        onExpand={(line) => { onClose(); onExpand(line); }}
         onAdd={(t, line) => {
           onClose();
           return onAdd(t).then((ok) => {
