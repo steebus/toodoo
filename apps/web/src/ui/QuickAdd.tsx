@@ -61,10 +61,14 @@ const turn = (from: number, by: number, n: number) => ((((from + 1 + by) % (n + 
 
 function DialButton({ dial, at, typed, disabled, onTurn }: { dial: Dial; at: number; typed?: string; disabled?: boolean; onTurn: (i: number) => void }) {
   const drag = useRef<{ y: number; from: number; turned: boolean } | null>(null);
+  const hold = useRef<number>(0); // a long press clears the dial
   const stop = at >= 0 ? dial.stops[at] : undefined;
   const set = typed !== undefined;
   const down = (e: RPointerEvent<HTMLButtonElement>) => {
-    drag.current = { y: e.clientY, from: at, turned: false };
+    const d = { y: e.clientY, from: at, turned: false };
+    drag.current = d;
+    window.clearTimeout(hold.current);
+    hold.current = window.setTimeout(() => { if (!d.turned && drag.current === d) { d.turned = true; onTurn(-1); navigator.vibrate?.(15); } }, 500);
     e.currentTarget.setPointerCapture?.(e.pointerId);
     e.preventDefault(); // keep the keyboard up
   };
@@ -73,19 +77,21 @@ function DialButton({ dial, at, typed, disabled, onTurn }: { dial: Dial; at: num
     if (!d) return;
     const by = Math.round((d.y - e.clientY) / STEP_PX); // up turns on to the next
     if (!by && !d.turned) return;
+    window.clearTimeout(hold.current);
     const to = turn(d.from, by, dial.stops.length);
     if (to !== at || !d.turned) { d.turned = true; onTurn(to); }
   };
   const up = () => {
     const d = drag.current;
     drag.current = null;
+    window.clearTimeout(hold.current);
     if (d && !d.turned) onTurn(turn(at, 1, dial.stops.length)); // a tap: the next stop
   };
   return (
     <button type="button" className="qa-tool qa-dial" disabled={disabled} aria-pressed={set} data-kind={dial.kind}
-      aria-label={`${dial.label}${set ? `: ${stop?.label ?? typed}` : ""}. Drag up or down to change`}
+      aria-label={`${dial.label}${set ? `: ${stop?.label ?? typed}` : ""}. Drag up or down to change, hold to clear`}
       onClick={(e) => e.detail === 0 && onTurn(turn(at, 1, dial.stops.length))} // a key press (a pointer's tap is handled on release)
-      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; }}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; window.clearTimeout(hold.current); }}
       onContextMenu={(e) => e.preventDefault()}
       onKeyDown={(e) => {
         if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); onTurn(turn(at, e.key === "ArrowUp" ? 1 : -1, dial.stops.length)); }
@@ -173,7 +179,8 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
           })}
         </div>
       )}
-      <ParsedChips parsed={parsed} epics={epics} className="r-chips chips">
+      {(!tools || offer) && ( // the phone's dials already show what was understood
+      <ParsedChips parsed={tools ? { ...parsed, chips: [] } : parsed} epics={epics} className="r-chips chips">
         {offer && (
           <li className="chip chip-offer">
             <button type="button" aria-label={`Use tag ${offer}`} onPointerDown={(e) => e.preventDefault()} onClick={takeOffer}>
@@ -182,6 +189,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
           </li>
         )}
       </ParsedChips>
+      )}
     </form>
   );
 }
