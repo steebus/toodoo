@@ -228,6 +228,8 @@ function JiraLink({ offline }: { offline: boolean }) {
     }
   };
   const syncing = !!link?.tried_at && (!link.synced_at || link.tried_at > link.synced_at) && Date.now() - link.tried_at < STUCK_MS && !link.error;
+  // Nothing matched: say who Jira thinks we are and what was asked, the two things to check.
+  const empty = !!link && !link.error && !syncing && link.synced_at !== null && link.count === 0;
 
   if (editing) {
     return (
@@ -268,13 +270,20 @@ function JiraLink({ offline }: { offline: boolean }) {
     );
   }
   return (
-    <p className="sug-jira">
-      <span className="sug-jira-name" title={link.jql}>Jira · {link.site.replace(/^https:\/\//, "")}</span>
-      <span className={`sug-jira-state${link.error ? " is-bad" : ""}`}>
-        {link.error ?? (syncing ? "syncing…" : link.synced_at ? `${link.count ?? 0} open · synced ${ago(link.synced_at)}` : "waiting to sync")}
-      </span>
-      <button type="button" className="room-button is-quiet" disabled={offline || syncing} onClick={() => void syncNow()}>Sync now</button>
-      <button type="button" className="room-button is-quiet" onClick={open}>Edit</button>
-    </p>
+    <>
+      <p className="sug-jira">
+        <span className="sug-jira-name" title={link.account ? `Signed in as ${link.account}\n${link.jql}` : link.jql}>Jira · {link.site.replace(/^https:\/\//, "")}</span>
+        <span className={`sug-jira-state${link.error ? " is-bad" : ""}`}>
+          {link.error ?? (syncing ? "syncing…" : link.synced_at ? `${link.count ?? 0} open · synced ${ago(link.synced_at)}` : "waiting to sync")}
+        </span>
+        <button type="button" className="room-button is-quiet" disabled={offline || syncing} onClick={() => void syncNow()}>Sync now</button>
+        <button type="button" className="room-button is-quiet" onClick={open}>Edit</button>
+      </p>
+      {empty && (
+        <p className="sug-jira sug-jira-hint">
+          No issues matched. Signed in as {link.account ?? link.email}; searched <code>{link.jql}</code>
+        </p>
+      )}
+    </>
   );
 }

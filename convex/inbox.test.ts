@@ -107,15 +107,39 @@ it("syncs Jira: refreshes waiting issues and drops ones Jira no longer returns",
 it("fetches issues from Jira's search with the saved token", async () => {
   const t = setup();
   await t.run((ctx) => ctx.db.insert("jira_links", { user_id: "user_steve", site: "https://acme.atlassian.net", email: "s@x.io", token: "k", jql: "assignee = currentUser()" }));
-  const fetch = vi.fn(async () => Response.json({ issues: [{ key: "ACME-9", fields: { summary: "Do it", timeoriginalestimate: 1800 } }], isLast: true }));
+  const fetch = vi.fn(async (url: string) => url.endsWith("/myself")
+    ? Response.json({ displayName: "Steve", emailAddress: "s@x.io" })
+    : Response.json({ issues: [{ key: "ACME-9", fields: { summary: "Do it", timeoriginalestimate: 1800 } }], isLast: true }));
   vi.stubGlobal("fetch", fetch);
   await t.action(internal.jira.syncUser, { user_id: "user_steve" });
-  const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+  const [url, init] = fetch.mock.calls[1] as unknown as [string, RequestInit];
   expect(url).toBe("https://acme.atlassian.net/rest/api/3/search/jql");
   expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${btoa("s@x.io:k")}`);
   expect(JSON.parse(init.body as string)).toMatchObject({ jql: "assignee = currentUser()" });
   const { items } = await t.query(api.inbox.list, {});
   expect(items[0]).toMatchObject({ title: "Do it", estimate_mins: 30 });
+  expect(await t.query(api.jira.link, {})).toMatchObject({ count: 1, error: null, account: "Steve <s@x.io>" });
+});
+
+it("calls a bad email or token a failed login, not an empty search", async () => {
+  const t = setup();
+  await t.run((ctx) => ctx.db.insert("jira_links", { user_id: "user_steve", site: "https://acme.atlassian.net", email: "typo@x.io", token: "k", jql: "x" }));
+  // Jira answers a bad login with 401 on /myself, but 200 and no issues on the search.
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => url.endsWith("/myself")
+    ? new Response(null, { status: 401 })
+    : Response.json({ issues: [], isLast: true }, { headers: { "x-seraph-loginreason": "AUTHENTICATED_FAILED" } })));
+  await t.action(internal.jira.syncUser, { user_id: "user_steve" });
+  expect((await t.query(api.jira.link, {}))?.error).toMatch(/didn't accept that email/);
+});
+
+it("passes on Jira's words about bad JQL", async () => {
+  const t = setup();
+  await t.run((ctx) => ctx.db.insert("jira_links", { user_id: "user_steve", site: "https://acme.atlassian.net", email: "s@x.io", token: "k", jql: "assigned = x" }));
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => url.endsWith("/myself")
+    ? Response.json({ displayName: "Steve" })
+    : Response.json({ errorMessages: ["Field 'assigned' does not exist or you do not have permission to view it."] }, { status: 400 })));
+  await t.action(internal.jira.syncUser, { user_id: "user_steve" });
+  expect(await t.query(api.jira.link, {})).toMatchObject({ error: expect.stringMatching(/JQL: Field 'assigned' does not exist/), account: "Steve" });
 });
 
 it("makes one prep task per event", async () => {

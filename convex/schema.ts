@@ -85,7 +85,7 @@ export default defineSchema({
   jira_links: defineTable({
     user_id: v.string(), site: v.string(), email: v.string(), token: v.string(), jql: v.string(),
     synced_at: v.optional(v.number()), tried_at: v.optional(v.number()), error: v.optional(v.string()),
-    count: v.optional(v.number()),
+    count: v.optional(v.number()), account: v.optional(v.string()),
   }).index("by_user", ["user_id"]),
   plan_blocks: defineTable({
     user_id: v.string(), date: v.string(), task_id: v.id("tasks"), start: v.string(), mins: v.number(),

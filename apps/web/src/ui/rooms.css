@@ -956,6 +956,8 @@
 .sug-jira-name { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sug-jira-state { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-3); }
 .sug-jira-state.is-bad { color: var(--red); }
+.sug-jira-hint { display: block; padding-top: 0; font-size: 13px; color: var(--ink-3); overflow-wrap: anywhere; }
+.sug-jira-hint code { font: inherit; color: var(--ink-2); }
 .sug-jira-form { --u: 1px; display: grid; padding: 12px 0 18px; }
 .sug-jira-form .sheet-field a { margin-left: 6px; color: var(--biro); }
 @media (max-width: 640px) { .sug-jira-form .sheet-pair { grid-template-columns: 1fr; } }

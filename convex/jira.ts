@@ -21,7 +21,7 @@ export const link = query({
     const r = await linkOf(ctx.db, await requireUser(ctx));
     return r && {
       site: r.site, email: r.email, jql: r.jql, default_jql: DEFAULT_JQL, synced_at: r.synced_at ?? null,
-      tried_at: r.tried_at ?? null, error: r.error ?? null, count: r.count ?? null,
+      tried_at: r.tried_at ?? null, error: r.error ?? null, count: r.count ?? null, account: r.account ?? null,
     };
   },
 });
@@ -40,7 +40,7 @@ export const save = mutation({
     const hit = await linkOf(ctx.db, user_id);
     const token = a.token?.trim() || hit?.token;
     if (!token || token.length > 500) throw new ConvexError({ code: "input", message: "needs an API token" });
-    if (hit) await ctx.db.patch(hit._id, { site, email, token, jql, error: undefined });
+    if (hit) await ctx.db.patch(hit._id, { site, email, token, jql, error: undefined, account: undefined });
     else await ctx.db.insert("jira_links", { user_id, site, email, token, jql });
     await ctx.scheduler.runAfter(0, internal.jira.syncUser, { user_id });
   },
@@ -96,23 +96,31 @@ const item = v.object({
 // What a sync found: new issues land in Suggested, waiting ones are refreshed, and waiting ones Jira no longer
 // returns (done, reassigned) go. A failed sync touches no suggestions.
 export const writeSync = internalMutation({
-  args: { user_id: v.string(), items: v.union(v.array(item), v.null()), error: v.optional(v.string()) },
+  args: { user_id: v.string(), items: v.union(v.array(item), v.null()), error: v.optional(v.string()), account: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const hit = await linkOf(ctx.db, a.user_id);
     if (!hit) return;
-    if (!a.items) return void (await ctx.db.patch(hit._id, { error: a.error ?? "sync failed" }));
+    if (!a.items) return void (await ctx.db.patch(hit._id, { error: a.error ?? "sync failed", account: a.account }));
     for (const { epic_names, ...p } of a.items) {
       await upsertProposal(ctx.db, a.user_id, { ...p, epic_id: await softEpic(ctx.db, a.user_id, epic_names) }, "jira");
     }
     const seen = new Set(a.items.map((x) => x.external_id));
     const waiting = await ctx.db.query("inbox").withIndex("by_user_state", (q) => q.eq("user_id", a.user_id).eq("state", "pending")).collect();
     for (const r of waiting) if (r.origin === "jira" && !seen.has(r.external_id)) await ctx.db.delete(r._id);
-    await ctx.db.patch(hit._id, { synced_at: Date.now(), error: undefined, count: a.items.length });
+    await ctx.db.patch(hit._id, { synced_at: Date.now(), error: undefined, count: a.items.length, account: a.account });
   },
 });
 
-const why = (status: number) =>
-  status === 401 || status === 403 ? "Jira said no: check the email and API token" : status === 400 ? "Jira didn't like the JQL" : `Jira said ${status}`;
+const LOGIN_FAILED = "Jira didn't accept that email and API token: the email must be the Atlassian account that made the token";
+
+// Jira's own words for a failure ("Field 'assigned' does not exist…"), falling back to the status.
+async function why(res: Response): Promise<string> {
+  if (res.status === 401 || res.status === 403) return LOGIN_FAILED;
+  if (res.status === 404) return "No Jira site there: check the site name";
+  const body = (await res.json().catch(() => null)) as { errorMessages?: string[]; errors?: Record<string, string> } | null;
+  const said = [...(body?.errorMessages ?? []), ...Object.values(body?.errors ?? {})].join(" ");
+  return res.status === 400 ? `Jira didn't like the JQL${said ? `: ${said}` : ""}` : `Jira said ${res.status}${said ? `: ${said}` : ""}`;
+}
 
 export const syncUser = internalAction({
   args: { user_id: v.string() },
@@ -120,26 +128,33 @@ export const syncUser = internalAction({
     const l = await ctx.runQuery(internal.jira.linkFor, { user_id });
     if (!l) return;
     await ctx.runMutation(internal.jira.startSync, { user_id });
+    const headers = { authorization: `Basic ${btoa(`${l.email}:${l.token}`)}`, accept: "application/json", "content-type": "application/json" };
+    let account: string | undefined;
     try {
+      // Who we're signed in as first: a bad email or token doesn't fail the search, Jira just runs it as an anonymous
+      // user and answers 200 with no issues, which would read as "0 open" rather than as the real problem.
+      const me = await fetch(`${l.site}/rest/api/3/myself`, { headers });
+      if (!me.ok) throw new Error(await why(me));
+      const who = (await me.json()) as { displayName?: string; emailAddress?: string };
+      account = [who.displayName, who.emailAddress && `<${who.emailAddress}>`].filter(Boolean).join(" ") || undefined;
+
       const issues: JiraIssue[] = [];
       let nextPageToken: string | undefined;
       for (let page = 0; page < MAX_PAGES; page++) {
         const res = await fetch(`${l.site}/rest/api/3/search/jql`, {
-          method: "POST",
-          headers: {
-            authorization: `Basic ${btoa(`${l.email}:${l.token}`)}`, accept: "application/json", "content-type": "application/json",
-          },
+          method: "POST", headers,
           body: JSON.stringify({ jql: l.jql, fields: FIELDS, maxResults: PAGE, ...(nextPageToken ? { nextPageToken } : {}) }),
         });
-        if (!res.ok) throw new Error(why(res.status));
+        if (!res.ok) throw new Error(await why(res));
+        if (/AUTHENTICATED_FAILED|AUTHENTICATION_DENIED/i.test(res.headers.get("x-seraph-loginreason") ?? "")) throw new Error(LOGIN_FAILED);
         const body = (await res.json()) as { issues?: JiraIssue[]; nextPageToken?: string; isLast?: boolean };
         issues.push(...(body.issues ?? []));
         nextPageToken = body.nextPageToken;
         if (!nextPageToken || body.isLast) break;
       }
-      await ctx.runMutation(internal.jira.writeSync, { user_id, items: issues.filter((i) => i?.key).map((i) => fromJira(i, l.site)) });
+      await ctx.runMutation(internal.jira.writeSync, { user_id, account, items: issues.filter((i) => i?.key).map((i) => fromJira(i, l.site)) });
     } catch (e) {
-      await ctx.runMutation(internal.jira.writeSync, { user_id, items: null, error: e instanceof Error ? e.message.slice(0, 200) : "sync failed" });
+      await ctx.runMutation(internal.jira.writeSync, { user_id, account, items: null, error: e instanceof Error ? e.message.slice(0, 300) : "sync failed" });
     }
   },
 });
