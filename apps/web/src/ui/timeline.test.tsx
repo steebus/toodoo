@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { FullTask } from "@shared/snapshot.ts";
 import { BLOCK_LEAD, minToPx } from "./plan";
+import { LONG_PRESS } from "./Timeline";
 import type { BoardData } from "./types";
 
 const auth = vi.hoisted(() => ({ signIn: vi.fn(), signOut: vi.fn() }));
@@ -274,6 +275,43 @@ it("a drag that ends drops the block at the snapped time", () => {
   fireEvent.pointerMove(body, { clientY: 100 + 68.6, pointerId: 1 });
   fireEvent.pointerUp(body, { clientY: 100 + 68.6, pointerId: 1 });
   expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "10:00", mins: 60, block_id: "blk1" });
+});
+
+it("on touch, a long press lifts a block and the finger moves it", () => {
+  vi.useFakeTimers();
+  show();
+  const body = block();
+  const touch = { pointerType: "touch", button: 0, pointerId: 2 };
+  fireEvent.pointerDown(body, { ...touch, clientY: 100 });
+  fireEvent.pointerMove(body, { ...touch, clientY: 100 + 68.6 }); // too soon: a scroll, not a lift
+  fireEvent.pointerUp(body, { ...touch, clientY: 100 + 68.6 });
+  expect(fn("placeBlock")).not.toHaveBeenCalled();
+  fireEvent.pointerDown(body, { ...touch, clientY: 100 });
+  act(() => void vi.advanceTimersByTime(LONG_PRESS));
+  fireEvent.pointerMove(body, { ...touch, clientY: 100 + 68.6 });
+  fireEvent.pointerUp(body, { ...touch, clientY: 100 + 68.6 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "10:00", mins: 60, block_id: "blk1" });
+});
+
+it("on touch, a tap on empty time opens nothing; a long press opens the picker there", () => {
+  vi.useFakeTimers();
+  show();
+  const y = minToPx(14 * 60, 360) - BLOCK_LEAD;
+  const touch = { pointerType: "touch", button: 0, pointerId: 3, clientY: y };
+  fireEvent.pointerDown(slots(), touch);
+  fireEvent.pointerUp(slots(), touch);
+  fireEvent.click(slots(), { clientY: y });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.pointerDown(slots(), touch);
+  fireEvent.pointerMove(slots(), { ...touch, clientY: y + 30 }); // a swipe: still nothing
+  act(() => void vi.advanceTimersByTime(LONG_PRESS));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.pointerDown(slots(), touch);
+  act(() => void vi.advanceTimersByTime(LONG_PRESS));
+  expect(screen.getByRole("dialog", { name: "Plan 2:00" })).toBeInTheDocument();
+  fireEvent.pointerUp(slots(), touch);
+  fireEvent.click(slots(), { clientY: y }); // the lift: eaten, the picker stays
+  expect(screen.getByRole("dialog", { name: "Plan 2:00" })).toBeInTheDocument();
 });
 
 it("Tab out of the picker closes it", async () => {

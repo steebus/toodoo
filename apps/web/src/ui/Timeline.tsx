@@ -41,7 +41,8 @@ const range = (s: number, mins: number) => `${clockOf(s)}–${clockOf(s + mins)}
 type Props = { plan: PlanData; board?: BoardData; actions?: Actions; onOpen?: (id: string) => void; zoom?: number; onZoom?: (z: number) => void };
 
 // The line: hour grid, events and planned blocks. With actions, blocks drag (body moves, bottom edge
-// resizes) and take arrow keys; an empty slot opens the SlotPicker. Without (fixture), it only draws.
+// resizes) and take arrow keys; an empty slot opens the SlotPicker (on touch, after a long press). Without
+// (fixture), it only draws.
 export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Props) {
   const { blocks, nowM, anchorM } = plan;
   const date = board?.date ?? "";
@@ -69,6 +70,8 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
   const [pressed, setPressed] = useState<string | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastPointer = useRef("mouse");
+  // A finger on empty time: the picker opens on a long press, so a tap or a swipe over the line never opens it.
+  const slotPress = useRef<{ x: number; y: number } | null>(null);
   // Blocks, the drag ghost and the drop hint spring between 15-minute slots instead of jumping.
   const layoutDependency = useLayoutDependency();
   const glide = { layout: "position" as const, transition: SNAPPY };
@@ -427,6 +430,48 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
     e.preventDefault();
   };
 
+  // A long press that opened the picker lifts after it's open: that lift's click must not land on the sheet's
+  // backdrop and close it again.
+  const eatNextClick = () => {
+    const eat = (e: Event) => {
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    const done = () => setTimeout(() => document.removeEventListener("click", eat, true), 100);
+    document.addEventListener("click", eat, { capture: true, once: true });
+    window.addEventListener("pointerup", done, { once: true });
+    window.addEventListener("pointercancel", done, { once: true });
+  };
+  const endSlotPress = () => {
+    if (!slotPress.current) return;
+    slotPress.current = null;
+    clearTimeout(pressTimer.current);
+  };
+  const slotPointer = {
+    onPointerDown: (e: PointerEvent<HTMLElement>) => {
+      lastPointer.current = e.pointerType;
+      if (e.pointerType !== "touch" || offline || e.target !== e.currentTarget) return;
+      const el = e.currentTarget, y = e.clientY;
+      slotPress.current = { x: e.clientX, y };
+      clearTimeout(pressTimer.current);
+      pressTimer.current = setTimeout(() => {
+        slotPress.current = null;
+        const m = slotAt(y - el.getBoundingClientRect().top, scale(), startM);
+        buzz(8);
+        eatNextClick();
+        setRevealed(null);
+        setCursor(m);
+        setPicker(m);
+      }, LONG_PRESS);
+    },
+    onPointerMove: (e: PointerEvent<HTMLElement>) => {
+      const p = slotPress.current;
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > PRESS_SLOP) endSlotPress(); // a scroll
+    },
+    onPointerUp: endSlotPress,
+    onPointerCancel: endSlotPress,
+  };
+
   const ghost = draft?.via === "pointer" ? draft : null;
   const menuBlock = eventMenu ? lanes.find((b) => b.id === eventMenu) : undefined;
   const slotTop = (m: number) => blockTop(m, startM);
@@ -448,9 +493,12 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom }: Pro
             onFocus={() => cursor === null && setCursor(defaultSlot())}
             onBlur={() => picker === null && setCursor(null)}
             onKeyDown={onSlotsKey}
+            {...slotPointer}
+            onContextMenu={(e) => lastPointer.current === "touch" && e.preventDefault()}
             onClick={(e) => {
               setRevealed(null);
-              if (offline || e.target !== e.currentTarget) return;
+              // A mouse clicks; a finger long-presses (slotPointer), and its tap only puts away a tapped block's tools.
+              if (offline || e.target !== e.currentTarget || lastPointer.current === "touch") return;
               const m = slotAt(e.clientY - e.currentTarget.getBoundingClientRect().top, scale(), startM);
               setCursor(m);
               setPicker(m);

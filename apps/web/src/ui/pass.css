@@ -612,7 +612,7 @@
 }
 
 /* ---------- the line, live: blocks drag and take keys, empty time opens the picker ---------- */
-.plan-slots { position: absolute; inset: 0; cursor: cell; }
+.plan-slots { position: absolute; inset: 0; cursor: cell; user-select: none; -webkit-touch-callout: none; }
 .pass .plan-slots:focus-visible { outline: none; }
 .plan-cursor {
   position: absolute; left: var(--lane-left); width: var(--lane-w); pointer-events: none;
@@ -653,7 +653,7 @@
   position: absolute; top: 50%; right: 0; height: max(100%, calc(28 * var(--u))); translate: 0 -50%; box-sizing: border-box;
   display: flex; align-items: center; gap: calc(4 * var(--u)); padding: 0 calc(8 * var(--u)) 0 calc(22 * var(--u)); border-radius: var(--radius);
   background: linear-gradient(to right, transparent, var(--block-bg, var(--surface)) calc(18 * var(--u)));
-  opacity: 0; transition: opacity 0.14s ease-out;
+  opacity: 0; transition: opacity 0.14s ease-out; z-index: 1; /* above the grips, where a short block brings them close */
 }
 .plan-block:hover .plan-acts, .plan-block:focus-within .plan-acts, .plan-block.is-done .plan-acts { opacity: 1; }
 /* a done block shows its tick at rest: inside its own edges, so it never sits over a neighbour */
@@ -680,12 +680,17 @@
   border-radius: 2px; background: var(--ink-3); opacity: 0; transition: opacity 0.14s ease-out;
 }
 .plan-block:hover .plan-resize::after { opacity: 0.7; }
-/* A finger: the grips wake on the tapped block only (so a swipe over the line still scrolls it), big enough to take a thumb. */
+/* A finger: the grips wake on the tapped block only (so a swipe over the line still scrolls it), big enough to take a
+   thumb. They stand just outside the block's edges, never over it: over it, they took every press on a short block,
+   so a long press resized instead of lifting it and the unplan × couldn't be reached. */
 @media (hover: none) {
   .plan-block:not(.is-revealed) .plan-resize { pointer-events: none; }
-  .plan-block.is-revealed .plan-resize { height: 30px; bottom: -15px; }
-  .plan-block.is-revealed .plan-resize-top { top: -15px; bottom: auto; }
-  .plan-block.is-revealed .plan-resize::after { width: 34px; height: 5px; opacity: 1; background: var(--ink-2); box-shadow: 0 0 0 2px var(--surface); }
+  .plan-block.is-revealed .plan-resize { left: 50%; right: auto; width: 72px; translate: -50% 0; height: 26px; bottom: -26px; }
+  .plan-block.is-revealed .plan-resize-top { top: -26px; bottom: auto; }
+  .plan-block.is-revealed .plan-resize::after {
+    top: 5px; translate: -50% 0; width: 34px; height: 5px; opacity: 1; background: var(--ink-2); box-shadow: 0 0 0 2px var(--surface);
+  }
+  .plan-block.is-revealed .plan-resize-top::after { top: auto; bottom: 5px; }
 }
 .plan-scroll { touch-action: pan-y; } /* two fingers on the line zoom it rather than the page */
 
