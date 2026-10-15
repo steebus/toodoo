@@ -4,7 +4,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import { requireUser } from "./lib/user";
 import * as m from "./model";
 import { lookalikes, mergePatch, type Mergeable, type Proposal } from "../shared/inbox.ts";
-import { InputError, prepareTasks } from "../shared/validation.ts";
+import { InputError, preparePatch, prepareTasks } from "../shared/validation.ts";
 
 type R = QueryCtx["db"];
 type W = MutationCtx["db"];
@@ -121,18 +121,23 @@ async function pending(db: R, userId: string, id: string) {
 
 const liveEpic = async (db: R, id: Id<"epics"> | null) => (id && (await db.get(id)) ? id : null);
 
-export async function accept(db: W, userId: string, id: string) {
+const EDITABLE = ["title", "description", "note", "link", "due", "time", "priority", "estimate_mins", "tags", "epic_id", "status", "checklist"] as const;
+
+// Onto the list as proposed, or as edited first: `edits` is a task patch (the Edit sheet's changes) laid over the suggestion.
+export async function accept(db: W, userId: string, id: string, edits?: Record<string, unknown>) {
   const row = await pending(db, userId, id);
   const now = Date.now();
+  const e: Record<string, unknown> = edits && Object.keys(edits).length ? preparePatch(edits, m.clock().t) : {};
+  const r = { ...row, ...Object.fromEntries(EDITABLE.filter((k) => k in e).map((k) => [k, e[k]])) } as Row;
   const task_id = await db.insert("tasks", {
-    user_id: userId, title: row.title, description: row.description, note: row.note, link: row.link, source: row.source,
-    external_id: row.external_id, due: row.due, time: row.time, priority: row.priority, estimate_mins: row.estimate_mins,
-    tags: row.tags, epic_id: await liveEpic(db, row.epic_id), ...(row.status ? { status: row.status } : {}),
-    ...(row.checklist?.length ? { checklist: row.checklist } : {}),
+    user_id: userId, title: r.title, description: r.description, note: r.note, link: r.link, source: r.source,
+    external_id: r.external_id, due: r.due, time: r.time, priority: r.priority, estimate_mins: r.estimate_mins,
+    tags: r.tags, epic_id: await liveEpic(db, await mine(db, userId, r.epic_id)), ...(r.status ? { status: r.status } : {}),
+    ...(r.checklist?.length ? { checklist: r.checklist } : {}),
     done: false, done_on: null, sort_order: now / 1000, created_at: new Date(now).toISOString(), updated_at: now,
   });
   await db.patch(row._id, { state: "accepted", task_id, updated_at: now });
-  return { id, task_id, title: row.title };
+  return { id, task_id, title: r.title };
 }
 
 export async function reject(db: W, userId: string, id: string) {
@@ -179,7 +184,10 @@ export const proposeTasks = mutation({
     return propose(ctx.db, await requireUser(ctx), a.tasks, m.clock().t);
   },
 });
-export const acceptOne = mutation({ args: { id: v.string() }, handler: async (ctx, a) => wrap(accept(ctx.db, await requireUser(ctx), a.id)) });
+export const acceptOne = mutation({
+  args: { id: v.string(), edits: v.optional(v.any()) },
+  handler: async (ctx, a) => wrap(accept(ctx.db, await requireUser(ctx), a.id, a.edits)),
+});
 export const rejectOne = mutation({ args: { id: v.string() }, handler: async (ctx, a) => wrap(reject(ctx.db, await requireUser(ctx), a.id)) });
 export const combineOne = mutation({
   args: { id: v.string(), task_id: v.string() },

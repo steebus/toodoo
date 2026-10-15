@@ -62,6 +62,21 @@ it("accepts, rejects, and combines into a lookalike, each with undo", async () =
   expect(fn("inbox:combineOne")).toHaveBeenCalledWith({ id: "s1", task_id: "t1" });
 });
 
+it("edits a suggestion on its ticket and accepts it with the changes; closing the ticket cancels", async () => {
+  render(<Suggested />);
+  await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+  const ticket = await screen.findByRole("dialog", { hidden: true });
+  expect(within(ticket).getByText("FIX LOGIN REDIRECT")).toBeInTheDocument();
+  await userEvent.click(within(ticket).getByRole("button", { name: "Close", hidden: true }));
+  expect(fn("inbox:acceptOne")).not.toHaveBeenCalled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+  const again = await screen.findByRole("dialog", { hidden: true });
+  await userEvent.click(within(again).getByRole("button", { name: "LOW", hidden: true }));
+  await userEvent.click(within(again).getByRole("button", { name: "Accept", hidden: true }));
+  expect(fn("inbox:acceptOne")).toHaveBeenCalledWith({ id: "s1", edits: expect.objectContaining({ title: "Fix login redirect", priority: "low", due: "2026-10-20" }) });
+});
+
 it("combines into any open task found by search", async () => {
   render(<Suggested />);
   await userEvent.click(screen.getByRole("button", { name: "Combine…" }));

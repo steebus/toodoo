@@ -36,3 +36,15 @@ export function columnAt(x: number, from: number, count: number): number {
   const n = d < COLUMN_SWIPE.first ? 0 : 1 + Math.floor((d - COLUMN_SWIPE.first) / COLUMN_SWIPE.step);
   return Math.max(0, Math.min(count - 1, from + Math.sign(x) * n));
 }
+
+// A suggestion on the phone: swiped right it is accepted, swiped left rejected; let go short of either and it springs back.
+export const SUGGEST_SWIPE = { commit: 110, flick: 600, flickMin: 40 };
+
+export type SuggestEnd = "accept" | "reject" | null;
+
+// What a suggestion swiped to x (px) and let go at vx (px/s) decides: a fling counts from a shorter travel.
+export function suggestEnd(x: number, vx: number): SuggestEnd {
+  if (vx >= SUGGEST_SWIPE.flick && x >= SUGGEST_SWIPE.flickMin) return "accept";
+  if (vx <= -SUGGEST_SWIPE.flick && x <= -SUGGEST_SWIPE.flickMin) return "reject";
+  return x >= SUGGEST_SWIPE.commit ? "accept" : x <= -SUGGEST_SWIPE.commit ? "reject" : null;
+}

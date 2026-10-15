@@ -56,6 +56,17 @@ it("accepts a suggestion as a task, with undo", async () => {
   expect(await t.query(api.inbox.count, {})).toBe(1);
 });
 
+it("accepts a suggestion with Steve's edits laid over it", async () => {
+  const t = setup();
+  await t.mutation(api.inbox.proposeTasks, { tasks: [{ title: "Reply to Sam", priority: "low", due: "2026-10-20" }] });
+  const { items } = await t.query(api.inbox.list, {});
+  const a = await t.mutation(api.inbox.acceptOne, { id: items[0].id, edits: { title: "Reply to Sam today", due: "2026-10-13", priority: "high", status: "blocked" } });
+  expect(a.title).toBe("Reply to Sam today");
+  const made = (await t.query(api.agent.board, {})).tasks.find((x) => x.id === a.task_id);
+  expect(made).toMatchObject({ title: "Reply to Sam today", due: "2026-10-13", priority: "high", status: "blocked" });
+  await expect(t.mutation(api.inbox.acceptOne, { id: items[0].id, edits: { due: "nope" } })).rejects.toThrow();
+});
+
 it("combines a Jira suggestion into Steve's own task, which then stays linked", async () => {
   const t = setup();
   const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Login bug", priority: "low" }] });

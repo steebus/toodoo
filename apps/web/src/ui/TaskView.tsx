@@ -19,6 +19,7 @@ export type TaskViewActions = {
   onTomorrow?: () => void;
   onDelete?: () => void;
   onCreate?: () => Promise<boolean>; // a ticket not yet filed (its edits are held by the caller): Save files it
+  createLabel?: string; // what that button says (Save)
 };
 
 type Props = TaskViewActions & {
@@ -41,7 +42,7 @@ const PRIORITIES: [Priority | null, string][] = [["high", "! HIGH"], ["med", "ME
 // is printed: click the title, the date, a tag, the description... and type; Enter (or leaving it) keeps it,
 // Escape puts it back. A native modal dialog: side sheet on desktop, bottom sheet on the phone.
 export function TaskView({
-  task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete, onCreate,
+  task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete, onCreate, createLabel = "Save",
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
@@ -152,7 +153,7 @@ export function TaskView({
             <button type="button" className="tk-act tk-primary tk-save" disabled={offline || filing || !t.title.trim()} onClick={async () => {
               setFiling(true);
               if (await onCreate()) onClose(); else setFiling(false);
-            }}>Save</button>
+            }}>{createLabel}</button>
           )}
           {onTick && (
             <button type="button" className="tk-act tk-primary" disabled={offline} onClick={act(() => onTick(!t.done))}>

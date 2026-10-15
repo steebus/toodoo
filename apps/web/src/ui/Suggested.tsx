@@ -1,28 +1,44 @@
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, animate, m, useDragControls, useMotionValue, useTransform, type PanInfo } from "motion/react";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation, useQuery } from "convex/react";
-import { useCallback, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent, type Ref } from "react";
 import { api } from "@convex/_generated/api";
 import { epicMap } from "@shared/epics.ts";
 import { words } from "@shared/inbox.ts";
 import { formatDuration } from "@shared/planning.ts";
+import type { FullTask } from "@shared/snapshot.ts";
 import type { ToastData } from "../lib/useActions";
+import { buzz, SUGGEST_SWIPE, suggestEnd } from "../lib/swipe";
 import { compactDate } from "./format";
-import { OpenIcon } from "./icons";
+import { CheckIcon, CloseIcon, OpenIcon } from "./icons";
 import { epicStyle } from "./Slip";
+import { reducedMotion, SNAPPY } from "./motion";
+import { TaskView } from "./TaskView";
 import { Toast } from "./Toast";
 
 type Data = NonNullable<ReturnType<typeof useQuery<typeof api.inbox.list>>>;
 type Item = Data["items"][number];
 type Exit = "accept" | "reject" | "combine";
+// How a card leaves: the three calls, or the two a swipe makes (it carries on in the direction it was pulled).
+type Leave = Exit | "swipe-accept" | "swipe-reject";
 
-// Accepted goes up onto the list, rejected slides off aside, combined drops into the task below it.
+// Accepted goes up onto the list, rejected slides off aside, combined drops into the task below it; swiped, it goes on the way it was pulled.
 const CARD = {
   in: { opacity: 0, y: 18, scale: 0.98 },
   at: { opacity: 1, y: 0, x: 0, scale: 1, rotate: 0 },
-  out: (how: Exit) =>
-    how === "reject" ? { opacity: 0, x: 160, rotate: 4 } : how === "combine" ? { opacity: 0, y: 30, scale: 0.9 } : { opacity: 0, y: -50, rotate: -2 },
+  out: (how: Leave) =>
+    how === "swipe-accept" ? { opacity: 0, x: 260, rotate: 3 }
+    : how === "swipe-reject" ? { opacity: 0, x: -260, rotate: -3 }
+    : how === "reject" ? { opacity: 0, x: 160, rotate: 4 } : how === "combine" ? { opacity: 0, y: 30, scale: 0.9 } : { opacity: 0, y: -50, rotate: -2 },
 };
+
+// The task fields the Edit sheet can change, handed to Accept.
+const EDITS = ["title", "due", "time", "priority", "estimate_mins", "tags", "epic_id", "description", "note", "link", "status", "checklist"] as const;
+const draftOf = (x: Item): FullTask => ({
+  id: x.id, title: x.title, due: x.due, time: x.time, priority: x.priority, estimate_mins: x.estimate_mins, done: false, done_on: null,
+  sort_order: 0, epic_id: x.epic_id, status: x.status ?? "todo", tags: x.tags, source: x.source, external_id: x.external_id, link: x.link,
+  note: x.note, description: x.description, checklist: x.checklist,
+});
 
 const failure = (e: unknown, what: string) => {
   const msg = (e as { data?: { message?: string } })?.data?.message;
@@ -74,14 +90,16 @@ export const since = (t: number, now = Date.now()) => {
 
 // Suggested, the triage area: what Claude and the Jira link think Steve should take on, in a pile per source,
 // sorted by when it was raised, priority, due date or project. Each waits for a call: Accept (onto the
-// list as it is), Combine (into a task he already has, filling its gaps), or Reject (gone, and never proposed again).
+// list as it is), Edit (open its ticket, change it, then accept), Combine (into a task he already has, filling its gaps), or
+// Reject (gone, and never proposed again). On a phone the cards swipe: right accepts, left rejects.
 export function Suggested({ offline = false }: { offline?: boolean }) {
   const data = useQuery(api.inbox.list, {});
   const [toast, setToast] = useState<ToastData | null>(null);
   const seq = useRef(0);
   const show = useCallback((t: Omit<ToastData, "id">) => setToast({ ...t, id: ++seq.current }), []);
   const dismiss = useCallback(() => setToast(null), []);
-  const [how, setHow] = useState<Exit>("accept");
+  const [how, setHow] = useState<Leave>("accept");
+  const [editing, setEditing] = useState<FullTask | null>(null); // a suggestion opened on its ticket, its changes held until Accept
 
   // Each settles at once on screen: the card leaves and the count drops before the server answers.
   const settle = (s: OptimisticLocalStore, id: string) => {
@@ -95,17 +113,18 @@ export function Suggested({ offline = false }: { offline?: boolean }) {
   const combine = useMutation(api.inbox.combineOne).withOptimisticUpdate((s, a) => settle(s, a.id));
   const undo = useMutation(api.inbox.undoOne);
 
-  const act = (x: Item, kind: Exit, task?: { id: string; title: string }) => {
+  const act = (x: Item, kind: Exit, task?: { id: string; title: string }, o: { swiped?: boolean; edits?: Record<string, unknown> } = {}) => {
     if (offline) return;
-    setHow(kind);
+    setHow(o.swiped && kind !== "combine" ? `swipe-${kind}` : kind);
     const back = () => void undo({ id: x.id }).catch((e) => show({ kind: "error", message: failure(e, "Couldn't undo") }));
     const done = kind === "accept" ? `Added: ${x.title}` : kind === "reject" ? `Rejected: ${x.title}` : `Combined into: ${task!.title}`;
-    const p = kind === "accept" ? accept({ id: x.id }) : kind === "reject" ? reject({ id: x.id }) : combine({ id: x.id, task_id: task!.id });
+    const p = kind === "accept" ? accept({ id: x.id, ...(o.edits ? { edits: o.edits } : {}) }) : kind === "reject" ? reject({ id: x.id }) : combine({ id: x.id, task_id: task!.id });
     p.then(() => show({ kind: "undo", message: done, undo: back }))
       .catch((e) => show({ kind: "error", message: failure(e, "Couldn't do that") }));
   };
 
   const epics = useMemo(() => epicMap(data?.epics ?? []), [data?.epics]);
+  const tagPool = useMemo(() => [...new Set([...(data?.items ?? []).flatMap((x) => x.tags)])].sort(), [data?.items]);
   const [view, setViewState] = useState(loadView);
   const setView = (p: Partial<View>) => {
     const next = { ...view, ...p };
@@ -150,11 +169,12 @@ export function Suggested({ offline = false }: { offline?: boolean }) {
         <ol key={pile} className="sug-list" aria-label="Suggestions">
           <AnimatePresence mode="popLayout" custom={how} initial={false}>
             {shown.map((x) => (
-              <m.li key={x.id} layout className="tidy-card sug-card" style={epicStyle(x.epic_id ? epics.get(x.epic_id) : undefined)}
-                custom={how} variants={CARD} initial="in" animate="at" exit="out" transition={{ type: "spring", stiffness: 420, damping: 36 }}>
+              <SugItem key={x.id} id={x.id} how={how} style={epicStyle(x.epic_id ? epics.get(x.epic_id) : undefined)} offline={offline}
+                onSwipe={(kind) => act(x, kind, undefined, { swiped: true })}>
                 <Card x={x} data={data} epic={x.epic_id ? epics.get(x.epic_id)?.title : undefined} offline={offline}
-                  onAccept={() => act(x, "accept")} onReject={() => act(x, "reject")} onCombine={(t) => act(x, "combine", t)} />
-              </m.li>
+                  onAccept={() => act(x, "accept")} onReject={() => act(x, "reject")} onCombine={(t) => act(x, "combine", t)}
+                  onEdit={() => setEditing(draftOf(x))} />
+              </SugItem>
             ))}
           </AnimatePresence>
           {shown.length === 0 && (
@@ -165,13 +185,65 @@ export function Suggested({ offline = false }: { offline?: boolean }) {
         </ol>
       )}
       <Toast toast={toast} onDismiss={dismiss} />
+      {data && editing && (
+        <TaskView key={editing.id} task={editing} today={data.today} offline={offline} epics={data.epics} tagPool={tagPool}
+          epic={editing.epic_id ? epics.get(editing.epic_id) : undefined} createLabel="Accept"
+          onClose={() => setEditing(null)}
+          onSave={(patch) => { setEditing((d) => d && { ...d, ...patch }); return Promise.resolve(true); }}
+          onCreate={async () => {
+            const item = data.items.find((i) => i.id === editing.id);
+            if (!item) return false;
+            act(item, "accept", undefined, { edits: Object.fromEntries(EDITS.map((k) => [k, editing[k]])) });
+            return true;
+          }} />
+      )}
     </main>
   );
 }
 
-function Card({ x, data, epic, offline, onAccept, onReject, onCombine }: {
+// One suggestion's card. On a touch screen it swipes: right accepts, left rejects, and short of that it springs back,
+// tinted and labelled as it goes. The drag starts anywhere but on a control, so the buttons, links and fields keep working.
+function SugItem({ how, style, offline, onSwipe, children, ref }: {
+  id: string; how: Leave; style?: CSSProperties; offline: boolean; onSwipe: (kind: "accept" | "reject") => void;
+  children: React.ReactNode; ref?: Ref<HTMLLIElement>;
+}) {
+  const dx = useMotionValue(0);
+  const controls = useDragControls();
+  const moved = useRef(0);
+  const armed = useRef<"accept" | "reject" | null>(null);
+  const yes = useTransform(dx, [0, SUGGEST_SWIPE.commit], [0, 1]);
+  const no = useTransform(dx, [-SUGGEST_SWIPE.commit, 0], [1, 0]);
+  const start = (e: PointerEvent<HTMLLIElement>) => {
+    if (offline || (e.target as Element).closest("a, button, input, select, textarea")) return;
+    controls.start(e);
+  };
+  const end = (_: unknown, info: PanInfo) => {
+    moved.current = Date.now();
+    const r = suggestEnd(dx.get(), info.velocity.x);
+    armed.current = null;
+    if (r) { buzz(12); onSwipe(r); } else animate(dx, 0, reducedMotion() ? { duration: 0 } : SNAPPY);
+  };
+  return (
+    <m.li ref={ref} layout className="tidy-card sug-card" style={{ ...style, x: dx }}
+      custom={how} variants={CARD} initial="in" animate="at" exit="out" transition={{ type: "spring", stiffness: 420, damping: 36 }}
+      drag={offline ? false : "x"} dragControls={controls} dragListener={false} dragDirectionLock dragMomentum={false}
+      onPointerDown={start}
+      onDrag={() => {
+        const r = suggestEnd(dx.get(), 0);
+        if (r !== armed.current) { armed.current = r; if (r) buzz(6); }
+      }}
+      onDragEnd={end}
+      onClickCapture={(e) => { if (Date.now() - moved.current < 250) { e.preventDefault(); e.stopPropagation(); } }}>
+      <m.span className="sug-swipe is-accept" style={{ opacity: yes }} aria-hidden><CheckIcon size={20} /> Accept</m.span>
+      <m.span className="sug-swipe is-reject" style={{ opacity: no }} aria-hidden>Reject <CloseIcon size={18} /></m.span>
+      {children}
+    </m.li>
+  );
+}
+
+function Card({ x, data, epic, offline, onAccept, onReject, onCombine, onEdit }: {
   x: Item; data: Data; epic?: string; offline: boolean;
-  onAccept: () => void; onReject: () => void; onCombine: (t: { id: string; title: string }) => void;
+  onAccept: () => void; onReject: () => void; onCombine: (t: { id: string; title: string }) => void; onEdit: () => void;
 }) {
   const [picking, setPicking] = useState(false);
   const [more, setMore] = useState(false);
@@ -222,6 +294,7 @@ function Card({ x, data, epic, offline, onAccept, onReject, onCombine }: {
         <div className="tidy-keys">
           <button type="button" className="tidy-key is-accept" disabled={offline} onClick={onAccept}>Accept</button>
           <button type="button" className="tidy-key" disabled={offline || data.tasks.length === 0} onClick={() => setPicking(true)}>Combine…</button>
+          <button type="button" className="tidy-key" disabled={offline} onClick={onEdit}>Edit</button>
           <button type="button" className="tidy-key is-delete" disabled={offline} onClick={onReject}>Reject</button>
         </div>
       )}

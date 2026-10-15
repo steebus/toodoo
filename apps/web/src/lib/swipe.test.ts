@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SWIPE, swipeEnd, columnAt } from "./swipe";
+import { SWIPE, SUGGEST_SWIPE, suggestEnd, swipeEnd, columnAt } from "./swipe";
 
 describe("swipeEnd", () => {
   it("bumps past the right threshold, however slow", () => {
@@ -37,5 +37,21 @@ describe("columnAt", () => {
   it("never runs off either end", () => {
     expect(columnAt(1000, 1, 5)).toBe(4);
     expect(columnAt(-1000, 3, 5)).toBe(0);
+  });
+});
+
+describe("suggestEnd", () => {
+  it("accepts a swipe right and rejects a swipe left, past the distance", () => {
+    expect(suggestEnd(SUGGEST_SWIPE.commit, 0)).toBe("accept");
+    expect(suggestEnd(-SUGGEST_SWIPE.commit, 0)).toBe("reject");
+  });
+  it("springs back short of it", () => {
+    expect(suggestEnd(60, 100)).toBeNull();
+    expect(suggestEnd(-60, -100)).toBeNull();
+  });
+  it("takes a fling from a shorter travel, but not against its direction", () => {
+    expect(suggestEnd(SUGGEST_SWIPE.flickMin, SUGGEST_SWIPE.flick)).toBe("accept");
+    expect(suggestEnd(-SUGGEST_SWIPE.flickMin, -SUGGEST_SWIPE.flick)).toBe("reject");
+    expect(suggestEnd(10, SUGGEST_SWIPE.flick)).toBeNull();
   });
 });

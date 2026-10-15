@@ -31,10 +31,14 @@ function loadPrefs(): Prefs {
 
 const PRIORITY_WORD: Record<string, string> = { high: "high", med: "med", low: "low", none: "no priority" };
 const word = (p: Priority | null) => PRIORITY_WORD[p ?? "none"];
+const blocked = (t: FullTask) => !t.done && t.status === "blocked";
 const statusOf = (t: FullTask) => (t.done ? "done" : t.status ?? "todo");
 const DRAG_SLOP = 4;
 // A dot as drawn: a blot of marker, and a pen ring round it that doesn't quite close.
 const BLOT = "M20.6 4.2c8.9.4 15.6 7.3 15.2 16.3-.4 8.8-7.6 15.4-16.5 15-8.6-.4-15-7.4-14.7-16.1C4.9 10.6 11.8 3.8 20.6 4.2z";
+// A blocked task is no blot but a diamond, struck through, so it reads as stuck at a glance and apart by shape as well as by marks.
+const DIAMOND = "M20.4 3.6L36.5 20.3 19.8 36.6 3.7 19.9z";
+const BAR = "M10 30L30 10";
 const RING = "M23.5 4.6c7.9 1.3 13.2 8.6 12.1 16.9-1.2 8.6-8.9 14.4-17.4 13.2C9.7 33.5 4 25.9 5.2 17.4 6.3 9.7 12.8 4.1 20.9 4.3";
 // Day marks under the plot, so a drag can be aimed at a date.
 const MARKS: [number, string][] = [[-7, "last week"], [0, "today"], [2, "+2 days"], [7, "next week"], [14, "+2 wks"], [30, "a month"]];
@@ -171,8 +175,8 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
             const lifted = held(t.id);
             const e = t.epic_id ? epics.get(t.epic_id) : undefined;
             return (
-              <m.button key={t.id} type="button" className={`mx-dot${t.done ? " is-done" : ""}${lifted ? " is-held" : ""}`}
-                aria-label={`${t.title}, ${t.due ? `due ${compactDate(t.due)}` : "no due date"}, ${word(t.priority)}`}
+              <m.button key={t.id} type="button" className={`mx-dot${t.done ? " is-done" : ""}${blocked(t) ? " is-blocked" : ""}${lifted ? " is-held" : ""}`}
+                aria-label={`${t.title}${blocked(t) ? ", blocked" : ""}, ${t.due ? `due ${compactDate(t.due)}` : "no due date"}, ${word(t.priority)}`}
                 data-r={r} style={{ width: `calc(${r * 2}px * var(--mx-k, 1))`, height: `calc(${r * 2}px * var(--mx-k, 1))`, ["--dot" as string]: e?.colour ? `var(--epic-${e.colour})` : "var(--ink-3)" }}
                 initial={false}
                 animate={{ left: `${(lifted ? drag!.x : x) * 100}%`, top: `${(lifted ? drag!.y : y) * 100}%` }}
@@ -180,8 +184,18 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
                 onKeyDown={(ev) => onKey(t, ev)} {...pointer(t, x, y)}>
                 {/* a marker blot, ringed in pen; each one turned its own way so no two look stamped */}
                 <svg viewBox="0 0 40 40" aria-hidden style={{ rotate: `${turn}deg` }}>
-                  <path className="mx-blot" d={BLOT} />
-                  <path className="mx-ring" d={RING} />
+                  {blocked(t) ? (
+                    <>
+                      <path className="mx-blot" d={DIAMOND} />
+                      <path className="mx-ring" d={DIAMOND} />
+                      <path className="mx-bar" d={BAR} />
+                    </>
+                  ) : (
+                    <>
+                      <path className="mx-blot" d={BLOT} />
+                      <path className="mx-ring" d={RING} />
+                    </>
+                  )}
                 </svg>
               </m.button>
             );

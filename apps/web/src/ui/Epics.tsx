@@ -263,16 +263,18 @@ export function MiniTicket({ task: t, epic, today, disabled, onOpen, onUnfile, l
   const w = when(t, today);
   const high = !t.done && effectivePriority(t, epic) === "high";
   const list = checklistProgress(t.checklist);
-  const flags = [high ? "! HIGH" : "", t.status && t.status !== "todo" ? TASK_STATUS_LABEL[t.status].toUpperCase() : "",
+  const blocked = !t.done && t.status === "blocked";
+  const flags = [high ? "! HIGH" : "", t.status && t.status !== "todo" && !blocked ? TASK_STATUS_LABEL[t.status].toUpperCase() : "",
     t.source !== "you" ? t.source.toUpperCase() : ""].filter(Boolean).join(" · ");
   const Tag = ghost ? "div" : "li";
   return (
     <Tag {...(li as HTMLAttributes<HTMLElement>)} data-slip={ghost ? undefined : t.id}
-      className={`docket docket-today mini-ticket fit-${fitOf(t.title)}${high ? " is-high" : ""}${lifted ? " is-lifted" : ""}${ghost ? " is-ghost" : ""}`}>
+      className={`docket docket-today mini-ticket fit-${fitOf(t.title)}${high ? " is-high" : ""}${blocked ? " is-blocked" : ""}${lifted ? " is-lifted" : ""}${ghost ? " is-ghost" : ""}`}>
       <div className="dk-paper">
         <article className="dk-print" aria-label={t.title}>
           <p className="dk-head">
             <span className={w.late ? "mt-late" : undefined}>{w.text}</span>
+            {blocked && <span className="dk-blocked"><BlockedIcon size={14} />BLOCKED</span>}
             <span className="dk-dur">{t.estimate_mins ? `~${formatDuration(t.estimate_mins)}` : ""}</span>
           </p>
           <h4 className="dk-title">

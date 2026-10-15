@@ -809,6 +809,9 @@
 .mx-dot:focus-visible .mx-ring { stroke: var(--paper-ink); stroke-width: 2.6; }
 .room .mx-dot.is-held { z-index: 10; cursor: grabbing; scale: 1.2; filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.2)); }
 .mx-dot.is-done .mx-blot { opacity: 0.12; }
+.mx-dot.is-blocked .mx-ring { stroke: var(--red-ink); stroke-width: 3; }
+.mx-dot.is-blocked .mx-blot { opacity: 0.9; }
+.mx-bar { fill: none; stroke: var(--paper); stroke-width: 3.2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .mx-dot.is-done { opacity: 0.6; }
 /* Hovered (or tapped on a phone): its ticket as it hangs on the Day, over the dot, or under it near the top. */
 .mx-card {
@@ -980,13 +983,28 @@
   padding: 10px 0 14px; border-bottom: 1px solid var(--rule-soft); font-family: var(--font-print);
 }
 .sug-jira-name { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sug-jira-state { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-3); }
+.sug-jira-state { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--ink-3); }
 .sug-jira-state.is-bad { color: var(--red); }
 .sug-jira-hint { display: block; padding-top: 0; font-size: 13px; color: var(--ink-3); overflow-wrap: anywhere; }
 .sug-jira-hint code { font: inherit; color: var(--ink-2); }
 .sug-jira-form { --u: 1px; display: grid; padding: 12px 0 18px; }
 .sug-jira-form .sheet-field a { margin-left: 6px; color: var(--biro); }
-@media (max-width: 640px) { .sug-jira-form .sheet-pair { grid-template-columns: 1fr; } }
+/* On a phone the name takes its own line, so the sync state has room to read in one piece beside the buttons. */
+@media (max-width: 640px) {
+  .sug-jira-form .sheet-pair { grid-template-columns: 1fr; }
+  .sug-jira-name { flex: 1 0 100%; }
+  .sug-jira-state { flex: 1 1 8em; }
+  .sug-jira .room-button { flex: none; }
+}
+/* A suggestion swiped on the phone: right accepts, left rejects. The labels sit in the card and fade up as it is pulled. */
+.sug-card { position: relative; touch-action: pan-y; }
+.sug-swipe {
+  position: absolute; top: 0; bottom: 0; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 0 18px; pointer-events: none;
+  font-family: var(--font-print); font-size: 15px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.sug-swipe.is-accept { left: 0; right: 50%; color: var(--paper-ink); background: linear-gradient(90deg, color-mix(in srgb, var(--paper-ink) 22%, transparent), transparent); }
+.sug-swipe.is-reject { right: 0; left: 50%; justify-content: flex-end; color: var(--red-ink); background: linear-gradient(270deg, color-mix(in srgb, var(--red) 28%, transparent), transparent); }
+
 
 /* The wordmark's count of tasks to tidy: a small stamp hung on the name's last letter. It takes no room, so the
    header's spacing (which knows the wordmark's width) holds with or without it. */

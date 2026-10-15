@@ -431,6 +431,15 @@
 .docket-today .dk-source { flex: none; font-size: calc(14 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .docket-today.is-high .dk-head, .docket-today.is-high .dk-title, .docket-today.is-high .dk-source { color: var(--paper-red); }
 .docket-carried.is-high .dk-title { color: var(--paper-red); }
+/* Blocked: hatched paper and a red BLOCKED stamp (a bare icon on a stub), so it stands out from what can be worked on. */
+.docket.is-blocked .dk-print { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--paper-red) 16%, transparent) 0 5px, transparent 5px 12px); }
+.dk-blocked {
+  display: inline-flex; align-items: center; gap: 0.3em; flex: none; padding: 0.08em 0.45em 0.08em 0.3em; transform: rotate(-2deg);
+  font-size: calc(12 * var(--u)); font-weight: 700; letter-spacing: 0.1em; line-height: 1.3; color: var(--paper-red);
+  border: 1.5px solid currentColor; border-radius: 2px; background: var(--paper);
+}
+.dk-blocked svg { flex: none; }
+.dk-blocked-icon { display: inline-block; vertical-align: -2px; margin-right: 0.3em; color: var(--paper-red); }
 
 /* Time spent against the estimate: one pen line at the foot of the paper. */
 .pen-progress { display: block; flex: none; width: 100%; height: calc(6 * var(--u)); overflow: visible; }
@@ -585,7 +594,7 @@
 }
 
 /* ---------- toast: one at a time, bottom centre ---------- */
-.toast-slot { position: fixed; left: 50%; bottom: calc(28 * var(--u)); transform: translateX(-50%); z-index: 20; pointer-events: none; }
+.toast-slot { position: fixed; left: 50%; bottom: calc(28 * var(--u)); transform: translateX(-50%); z-index: 20; pointer-events: none; max-width: calc(100vw - 32px); }
 .toast {
   display: flex; align-items: center; gap: calc(18 * var(--u)); padding: calc(10 * var(--u)) calc(12 * var(--u)) calc(10 * var(--u)) calc(18 * var(--u)); pointer-events: auto;
   background: var(--ink); color: var(--surface); border-radius: var(--radius);
@@ -595,7 +604,9 @@
 /* An error is a red-ruled slip: a full hairline and red print, AA in both themes. */
 .toast-error { background: var(--surface); color: var(--red-ink); border: 1px solid var(--red); }
 :is(.pass, .room) .toast-error .toast-undo { color: var(--red-ink); }
-.toast-msg { margin: 0; max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast { box-sizing: border-box; max-width: 100%; }
+.toast-msg { margin: 0; max-width: 42ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-undo { flex: none; }
 :is(.pass, .room) .toast-undo { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(6 * var(--u)); font-size: calc(16 * var(--u)); color: var(--surface); }
 .toast-undo:hover { text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
 .toast-ring { transform: rotate(-90deg); }

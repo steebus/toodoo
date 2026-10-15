@@ -5,7 +5,7 @@ import { m } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type Ref } from "react";
 import biroRing from "../assets/plates/biro-ring.webp";
 import { isOptimistic } from "../lib/useActions";
-import { PenLoop, PenProgress, PenTick } from "./icons";
+import { BlockedIcon, PenLoop, PenProgress, PenTick } from "./icons";
 import { reducedMotion, useLayoutDependency } from "./motion";
 import { Swipe } from "./Swipe";
 import type { DocketData, MetaRow } from "./types";
@@ -100,7 +100,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
     hold.current = { timer: setTimeout(() => { send(); setInked(false); }, TICK_HOLD), send };
   };
   const done = d.done || inked;
-  const cls = `docket docket-${d.variant} fit-${d.fit ?? 0}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}${d.colour ? " has-epic" : ""}`;
+  const cls = `docket docket-${d.variant} fit-${d.fit ?? 0}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.blocked ? " is-blocked" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}${d.colour ? " has-epic" : ""}`;
   const open = (children: React.ReactNode) => (
     <button type="button" className="dk-open" disabled={busy} aria-label={`Open ${d.title}`} onClick={(e) => !afterKeyDrag(e) && onOpen?.(d.id)}
       tabIndex={ghost ? -1 : undefined} {...openProps}
@@ -142,14 +142,14 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
           {compact ? (
             <>
               <span className={d.variant === "carried" ? "dk-stub-tag" : "dk-time"}>{d.variant === "carried" ? d.tag : d.time}</span>
-              <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
+              <h4 className="dk-title">{d.blocked && <BlockedIcon size={14} className="dk-blocked-icon" />}{open(<span className="dk-title-text">{d.title}</span>)}</h4>
               {d.list && <span className="dk-list" aria-label={`Checklist ${d.list.done} of ${d.list.total}`}>{d.list.done}/{d.list.total}</span>}
               <span className="dk-dur">{d.duration}</span>
               {d.progress && <PenProgress {...d.progress} className="dk-progress" />}
             </>
           ) : d.variant === "carried" ? (
             <>
-              <p className="dk-tag">{d.tag}{d.duration && <span className="dk-dur">{d.duration}</span>}</p>
+              <p className="dk-tag">{d.tag}{d.blocked && <span className="dk-blocked"><BlockedIcon size={14} />BLOCKED</span>}{d.duration && <span className="dk-dur">{d.duration}</span>}</p>
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
               {d.note && <p className="dk-note">{d.note}</p>}
               <Rows rows={d.rows} />
@@ -161,6 +161,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             <>
               <p className="dk-head">
                 <span className="dk-time">{d.time}</span>
+                {d.blocked && <span className="dk-blocked"><BlockedIcon size={14} />BLOCKED</span>}
                 <span className="dk-dur">{d.duration}</span>
               </p>
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>

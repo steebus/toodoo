@@ -51,6 +51,7 @@ export type DocketData = {
   variant: "carried" | "today";
   done: boolean;
   high: boolean;
+  blocked?: boolean; // its Kanban status is Blocked: stamped on the paper so it stands out
   hm: string | null; // HH:MM, planned or fixed
   time: string;
   duration: string;
