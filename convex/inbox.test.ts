@@ -100,6 +100,14 @@ it("syncs Jira: refreshes waiting issues and drops ones Jira no longer returns",
   await t.mutation(internal.jira.writeSync, { user_id: "user_steve", items: null, error: "Jira said 500" });
   expect(await t.query(api.inbox.count, {})).toBe(1);
   expect((await t.query(api.jira.link, {}))?.error).toBe("Jira said 500");
+  // The morning run sees a broken link as no link, and why: it gathers Jira itself and tells Steve.
+  expect(await t.query(api.agent.getSnapshot, {})).toMatchObject({
+    jira_link: false, jira_error: "Jira said 500", suggested_waiting: 1, suggested_by_source: { jira: 1 },
+  });
+  await t.mutation(internal.jira.writeSync, { user_id: "user_steve", items: [jiraItem("A-1", { estimate_mins: 30 })] });
+  expect(await t.query(api.agent.getSnapshot, {})).toMatchObject({ jira_link: true, jira_error: null });
+  vi.setSystemTime(Date.now() + 3 * 3_600_000); // the cron stalled
+  expect(await t.query(api.agent.getSnapshot, {})).toMatchObject({ jira_link: false, jira_error: "no sync for 3h" });
   await t.mutation(api.jira.remove, {});
   expect(await t.query(api.inbox.count, {})).toBe(0);
 });
@@ -109,7 +117,9 @@ it("fetches issues from Jira's search with the saved token", async () => {
   await t.run((ctx) => ctx.db.insert("jira_links", { user_id: "user_steve", site: "https://acme.atlassian.net", email: "s@x.io", token: "k", jql: "assignee = currentUser()" }));
   const fetch = vi.fn(async (url: string) => url.endsWith("/myself")
     ? Response.json({ displayName: "Steve", emailAddress: "s@x.io" })
-    : Response.json({ issues: [{ key: "ACME-9", fields: { summary: "Do it", timeoriginalestimate: 1800 } }], isLast: true }));
+    : Response.json({ issues: [{ key: "ACME-9", fields: {
+      summary: "Do it", timeoriginalestimate: 1800, created: "2026-10-01T09:30:00.000+0000", project: { name: "Acme" },
+    } }], isLast: true }));
   vi.stubGlobal("fetch", fetch);
   await t.action(internal.jira.syncUser, { user_id: "user_steve" });
   const [url, init] = fetch.mock.calls[1] as unknown as [string, RequestInit];
@@ -117,7 +127,7 @@ it("fetches issues from Jira's search with the saved token", async () => {
   expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${btoa("s@x.io:k")}`);
   expect(JSON.parse(init.body as string)).toMatchObject({ jql: "assignee = currentUser()" });
   const { items } = await t.query(api.inbox.list, {});
-  expect(items[0]).toMatchObject({ title: "Do it", estimate_mins: 30 });
+  expect(items[0]).toMatchObject({ title: "Do it", estimate_mins: 30, raised_at: Date.parse("2026-10-01T09:30:00Z"), project: "Acme" });
   expect(await t.query(api.jira.link, {})).toMatchObject({ count: 1, error: null, account: "Steve <s@x.io>" });
 });
 

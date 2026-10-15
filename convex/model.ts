@@ -97,10 +97,23 @@ export async function loadState(db: R, userId: string, t: string, date: string):
   };
 }
 
-const hasJira = async (db: R, userId: string) =>
-  (await db.query("jira_links").withIndex("by_user", (q) => q.eq("user_id", userId)).first()) !== null;
-const inboxWaiting = async (db: R, userId: string) =>
-  (await db.query("inbox").withIndex("by_user_state", (q) => q.eq("user_id", userId).eq("state", "pending")).collect()).length;
+const JIRA_STALE_MS = 2 * 60 * 60_000; // the cron syncs every 15 minutes; two hours without one is broken
+// The Jira link as the morning run needs it: `linked` only while it's actually syncing, so a broken link (bad
+// token, bad JQL, stalled) sends the run back to gathering Jira itself, and `error` says why.
+async function jiraState(db: R, userId: string, now: number) {
+  const l = await db.query("jira_links").withIndex("by_user", (q) => q.eq("user_id", userId)).first();
+  if (!l) return { linked: false, error: null };
+  const stale = l.synced_at && now - l.synced_at > JIRA_STALE_MS ? `no sync for ${Math.round((now - l.synced_at) / 3_600_000)}h` : null;
+  const error = l.error ?? stale;
+  return { linked: !error, error };
+}
+// What waits in Suggested, in all and by the source's pile (jira, agent, …).
+async function inboxWaiting(db: R, userId: string) {
+  const rows = await db.query("inbox").withIndex("by_user_state", (q) => q.eq("user_id", userId).eq("state", "pending")).collect();
+  const by: Record<string, number> = {};
+  for (const r of rows) by[r.origin] = (by[r.origin] ?? 0) + 1;
+  return { n: rows.length, by };
+}
 
 const hasFeed = async (db: R, userId: string) =>
   (await db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", userId)).first()) !== null;
@@ -112,8 +125,8 @@ export async function snapshot(db: R, userId: string, a: { date?: string; query?
   return {
     app_url: process.env.APP_URL ?? null,
     calendar_feed: await hasFeed(db, userId),
-    jira_link: await hasJira(db, userId),
-    suggested_waiting: await inboxWaiting(db, userId),
+    ...(await jiraState(db, userId, now.getTime()).then((j) => ({ jira_link: j.linked, jira_error: j.error }))),
+    ...(await inboxWaiting(db, userId).then((w) => ({ suggested_waiting: w.n, suggested_by_source: w.by }))),
     ...buildSnapshot({ date, today: t, nowM, query: a.query, ...(await loadState(db, userId, t, date)) }),
   };
 }
