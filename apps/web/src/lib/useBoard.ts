@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { mergeRuns } from "@shared/planning.ts";
 import { api } from "@convex/_generated/api";
 import { loadBoard, localDate, saveBoard } from "./offline";
 
@@ -26,6 +27,16 @@ export function useBoard(date?: string, userId?: string) {
   useEffect(() => {
     if (live && userId) saveBoard(userId, live.date, live);
   }, [live, userId]);
+  // A task never has two plans that overlap or touch: any that came before that rule are folded into one.
+  const merge = useMutation(api.agent.mergeBlocks);
+  const tried = useRef("");
+  useEffect(() => {
+    if (!live || !mergeRuns(live.blocks).length) return;
+    const key = `${live.date}:${live.blocks.map((b) => b.id).join()}`;
+    if (tried.current === key) return;
+    tried.current = key;
+    void merge({ date: live.date }).catch(() => {});
+  }, [live, merge]);
   // Nothing from the server yet (a cold start, sign-in still being checked, back from the background with the
   // socket still coming up, or a day just asked for): the last board kept for that day, at once, with the clock
   // brought up to date. Live data replaces it as soon as it lands.

@@ -497,8 +497,28 @@ export function fillDay(o: {
 }
 
 // Side-by-side columns for overlapping timeline items.
-export function layoutLanes<T extends Span>(items: T[]): (T & { col: number; cols: number })[] {
-  const out = items.map((it) => ({ ...it, col: 0, cols: 1 })).sort((x, y) => x.s - y.s || (y.e - y.s) - (x.e - x.s));
+// A task's plans that overlap or touch, in runs of two or more (each run sorted by start): they are one plan.
+export function mergeRuns<T extends { task_id: string; start: string; mins: number }>(blocks: T[]): T[][] {
+  const by = new Map<string, T[]>();
+  for (const b of blocks) by.set(b.task_id, [...(by.get(b.task_id) ?? []), b]);
+  const runs: T[][] = [];
+  for (const list of by.values()) {
+    list.sort((x, y) => (toMin(x.start) ?? 0) - (toMin(y.start) ?? 0));
+    let run: T[] = [], end = -1;
+    for (const b of list) {
+      const s = toMin(b.start) ?? 0;
+      if (run.length && s > end) { if (run.length > 1) runs.push(run); run = []; }
+      run.push(b);
+      end = Math.max(end, s + b.mins);
+    }
+    if (run.length > 1) runs.push(run);
+  }
+  return runs;
+}
+
+// An item spreads across the columns to its right that nothing overlapping it uses (span).
+export function layoutLanes<T extends Span>(items: T[]): (T & { col: number; cols: number; span: number })[] {
+  const out = items.map((it) => ({ ...it, col: 0, cols: 1, span: 1 })).sort((x, y) => x.s - y.s || (y.e - y.s) - (x.e - x.s));
   let cluster: typeof out = [];
   let end = -1;
   const flush = () => {
@@ -509,7 +529,10 @@ export function layoutLanes<T extends Span>(items: T[]): (T & { col: number; col
       cols[c] = it.e;
       it.col = c;
     }
-    for (const it of cluster) it.cols = cols.length;
+    for (const it of cluster) {
+      it.cols = cols.length;
+      while (it.col + it.span < it.cols && !cluster.some((o) => o.col === it.col + it.span && o.s < it.e && o.e > it.s)) it.span++;
+    }
     cluster = [];
   };
   for (const it of out) {

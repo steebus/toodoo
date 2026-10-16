@@ -10,7 +10,17 @@ import { compactDate } from "./format";
 import { epicStyle } from "./Slip";
 import { Toast } from "./Toast";
 
-const LABEL: Record<Pile, string> = { quiet: "Gone quiet", undated: "No date", unsized: "No estimate" };
+const LABEL: Record<Pile, string> = { quiet: "Gone quiet", undated: "No date", unsized: "No estimate", jira: "Jira out of sync" };
+const HIDE = "toodoo.tidyJiraHidden";
+// Ids marked "done in Jira": hidden until the next sync (a new synced_at) brings the truth back.
+function loadHidden(at: number | null | undefined): Set<string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HIDE) ?? "null") as { at?: number; ids?: string[] } | null;
+    return new Set(raw && raw.at === at && Array.isArray(raw.ids) ? raw.ids : []);
+  } catch {
+    return new Set();
+  }
+}
 const SIZES: [string, number][] = [["5m", 5], ["15m", 15], ["30m", 30], ["1h", 60], ["2h", 120], ["4h", 240]];
 type Exit = "file" | "skip";
 // A card filed goes up off the pile; a skipped one slides aside.
@@ -23,7 +33,16 @@ const CARD = {
 // Tidy up: the open tasks that want a look, in piles, one card at a time with the one thing it needs ready to
 // take: a date, an estimate, or (gone quiet) what becomes of it. Enter files it and the next comes up.
 export function Tidy({ all, actions }: { all: Everything; actions: WorkActions }) {
-  const p = useMemo(() => piles(all.tasks, all.blocks, all.today), [all]);
+  const [hidden, setHidden] = useState(() => loadHidden(all.jira_synced_at));
+  const p = useMemo(() => {
+    const r = piles(all.tasks, all.blocks, all.today, all.jira_open ?? null);
+    return { ...r, jira: r.jira.filter((t) => !hidden.has(t.id)) };
+  }, [all, hidden]);
+  const hide = (t: TidyTask) => {
+    const next = new Set(hidden).add(t.id);
+    setHidden(next);
+    try { localStorage.setItem(HIDE, JSON.stringify({ at: all.jira_synced_at ?? null, ids: [...next] })); } catch { /* hides for this visit */ }
+  };
   const [pile, setPile] = useState<Pile>(() => PILES.find((k) => p[k].length) ?? "quiet");
   // Filed here and not yet gone from the pile (the server is a beat behind); skipped, for this visit.
   const [gone, setGone] = useState<Set<string>>(new Set());
@@ -52,7 +71,7 @@ export function Tidy({ all, actions }: { all: Everything; actions: WorkActions }
     <main className="room-main tidy">
       <h1 className="sr-only">Tidy up</h1>
       <div className="tidy-piles" role="tablist" aria-label="Piles">
-        {PILES.map((k) => (
+        {PILES.filter((k) => k !== "jira" || all.jira_open).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={pile === k} className="tidy-pile" onClick={() => setPile(k)}>
             {LABEL[k]}
             <span className="count-chip">{p[k].filter((t) => !gone.has(t.id)).length}</span>
@@ -65,10 +84,11 @@ export function Tidy({ all, actions }: { all: Everything; actions: WorkActions }
             <m.article key={card.id} className="tidy-card" style={epicStyle(card.epic_id ? epics.get(card.epic_id) : undefined)}
               custom={how} variants={CARD} initial="in" animate="at" exit="out" transition={{ type: "spring", stiffness: 420, damping: 34 }}
               aria-label={card.title}>
-              <CardFace t={card} today={all.today} epic={card.epic_id ? epics.get(card.epic_id)?.title : undefined} left={queue.length} />
+              <CardFace t={card} today={all.today} pile={pile} epic={card.epic_id ? epics.get(card.epic_id)?.title : undefined} left={queue.length} />
               {pile === "quiet" && <QuietKeys key={card.id} t={card} today={all.today} off={off} file={file} skip={skip} drop={drop} />}
               {pile === "undated" && <DateKey key={card.id} t={card} today={all.today} nowM={all.nowM} off={off} file={file} skip={skip} />}
               {pile === "unsized" && <SizeKey key={card.id} t={card} off={off} file={file} skip={skip} />}
+              {pile === "jira" && <JiraKeys key={card.id} t={card} off={off} file={file} skip={skip} hide={hide} />}
             </m.article>
           ) : (
             <m.div key={`clear-${pile}`} className="tidy-clear" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
@@ -85,12 +105,12 @@ export function Tidy({ all, actions }: { all: Everything; actions: WorkActions }
   );
 }
 
-function CardFace({ t, today, epic, left }: { t: TidyTask; today: string; epic?: string; left: number }) {
+function CardFace({ t, today, epic, left, pile }: { t: TidyTask; today: string; epic?: string; left: number; pile: Pile }) {
   const quiet = daysBetween(t.touched_on, today);
   return (
     <>
       <p className="tidy-kicker">
-        <span>{quiet <= 0 ? "TOUCHED TODAY" : `${quiet} ${quiet === 1 ? "DAY" : "DAYS"} ${t.status === "backlog" ? "IN BACKLOG" : t.status === "blocked" ? "BLOCKED" : "QUIET"}`}</span>
+        <span>{pile === "jira" ? (t.done ? "DONE HERE · OPEN IN JIRA" : "NOT IN JIRA'S OPEN LIST") : quiet <= 0 ? "TOUCHED TODAY" : `${quiet} ${quiet === 1 ? "DAY" : "DAYS"} ${t.status === "backlog" ? "IN BACKLOG" : t.status === "blocked" ? "BLOCKED" : "QUIET"}`}</span>
         <span>{left} LEFT</span>
       </p>
       <h2 className="tidy-title">{t.title}</h2>
@@ -201,5 +221,18 @@ function SizeKey({ t, off, file, skip }: Keys) {
       read={(s) => { const n = parseDuration(s.replace(/^~/, "")); return n && n >= 1 && n <= 1440 ? n : null; }}
       show={(n: number) => formatDuration(n)} onFile={set}
       picks={SIZES.map(([l, n]) => [l, () => set(n)])} />
+  );
+}
+
+// Out of sync with Jira: fix it here, or tell Tidy you'll fix Jira (it hides the card until the next sync).
+function JiraKeys({ t, off, file, skip, hide }: Keys & { hide: (t: TidyTask) => void }) {
+  return (
+    <div className="tidy-keys">
+      {t.done
+        ? <button type="button" className="tidy-key" disabled={off} onClick={() => file(t, { done: false }, `Reopened: ${t.title}`)}>Reopen</button>
+        : <button type="button" className="tidy-key" disabled={off} onClick={() => file(t, { done: true }, `Done: ${t.title}`)}>Done here</button>}
+      <button type="button" className="tidy-key" onClick={() => hide(t)}>{t.done ? "Done in Jira" : "Fixed in Jira"}</button>
+      <button type="button" className="tidy-key is-skip" onClick={() => skip(t)}>Skip</button>
+    </div>
   );
 }

@@ -3,7 +3,10 @@ import type { Epic } from "@shared/epics.ts";
 import type { FullTask } from "@shared/snapshot.ts";
 
 export type StatTask = FullTask & { created_on: string; touched_on: string };
-export type Everything = { today: string; nowM: number; epics: Epic[]; tasks: StatTask[]; blocks: Block[] };
+export type Everything = {
+  today: string; nowM: number; epics: Epic[]; tasks: StatTask[]; blocks: Block[];
+  jira_open?: string[] | null; jira_synced_at?: number | null; // what Jira listed as open at the last sync, and when
+};
 
 export const dayRange = (from: string, to: string) => {
   const out: string[] = [];

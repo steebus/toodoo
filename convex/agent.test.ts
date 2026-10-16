@@ -195,3 +195,27 @@ it("plan adds another block for a task already on the line, at mins, and says th
   const b = await t.query(api.agent.board, { now: Date.parse("2026-10-12T02:00:00Z") });
   expect(b.blocks.filter((x) => x.task_id === id).map((x) => x.start).sort()).toEqual(["13:00", "15:00"]);
 });
+
+it("placeBlock folds a task's overlapping or touching plans into one", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Long job" }] });
+  const place = (start: string, mins: number) => t.mutation(api.agent.placeBlock, { task_id: created[0].id, date: "2026-10-12", start, mins });
+  await place("08:00", 60);
+  await place("09:00", 30); // touches: extends
+  await place("13:00", 60); // a gap: its own plan
+  expect((await t.query(api.agent.board, {})).blocks.map((x) => [x.start, x.mins]).sort()).toEqual([["08:00", 90], ["13:00", 60]]);
+  await place("08:30", 300); // overlaps the first, reaches the second
+  expect((await t.query(api.agent.board, {})).blocks.map((x) => [x.start, x.mins])).toEqual([["08:00", 360]]);
+});
+
+it("mergeBlocks folds plans made before the rule into one", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Old" }] });
+  await t.run(async (ctx) => {
+    const user_id = (await ctx.db.query("tasks").first())!.user_id;
+    for (const [start, mins] of [["08:00", 205], ["10:35", 255], ["13:00", 180]] as const)
+      await ctx.db.insert("plan_blocks", { user_id, date: "2026-10-12", task_id: created[0].id as never, start, mins });
+  });
+  await t.mutation(api.agent.mergeBlocks, { date: "2026-10-12" });
+  expect((await t.query(api.agent.board, {})).blocks.map((x) => [x.start, x.mins])).toEqual([["08:00", 480]]);
+});

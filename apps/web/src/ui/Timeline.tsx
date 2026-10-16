@@ -48,8 +48,26 @@ type Props = {
 // resizes) and take arrow keys; an empty slot opens the SlotPicker (on touch, after a long press). Without
 // (fixture), it only draws.
 export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, preview }: Props) {
-  const { blocks, nowM, anchorM } = plan;
+  const { nowM, anchorM } = plan;
   const date = board?.date ?? "";
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => hiddenFor(date));
+  useEffect(() => setHiddenKeys(hiddenFor(date)), [date]);
+  const keyOf = (b: { startM: number; title: string }) => `${b.startM}|${b.title}`;
+  const setHidden = (next: string[]) => {
+    setHiddenKeys(next);
+    try { localStorage.setItem(HIDDEN, JSON.stringify({ date, keys: next })); } catch { /* hidden for this visit */ }
+  };
+  const blocks = useMemo(() => plan.blocks.filter((b) => b.kind !== "event" || !hiddenKeys.includes(keyOf(b))), [plan.blocks, hiddenKeys]); // eslint-disable-line react-hooks/exhaustive-deps -- keyOf is pure
+  // Hidden events as pins in the gutter: those starting within a pin's height of each other, at this zoom, share one.
+  const pins = useMemo(() => {
+    const reach = (16 * 60) / (HOUR_PX * zoom);
+    const out: PlanBlock[][] = [];
+    for (const b of plan.blocks.filter((x) => x.kind === "event" && hiddenKeys.includes(keyOf(x))).sort((x, y) => x.startM - y.startM)) {
+      const g = out.at(-1);
+      if (g && b.startM - g[0].startM <= reach) g.push(b); else out.push([b]);
+    }
+    return out;
+  }, [plan.blocks, hiddenKeys, zoom]); // eslint-disable-line react-hooks/exhaustive-deps -- keyOf is pure
   const live = !!(actions && board);
   const offline = useIsOffline();
   const scroller = useRef<HTMLDivElement>(null);
@@ -535,6 +553,17 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
             </li>
           ))}
         </ol>
+        {pins.map((g) => (
+          <button key={g.map(keyOf).join()} type="button" className="plan-pin" aria-label={`Show ${g.map((b) => `${b.title} ${b.time}`).join(", ")}`}
+            title={g.map((b) => `${b.time} ${b.title}`).join(", ")} style={{ top: px(minToPx(g[0].startM, startM)) }}
+            onClick={() => setHidden(hiddenKeys.filter((k) => !g.some((b) => keyOf(b) === k)))}>
+            <svg viewBox="0 0 32 24" aria-hidden>
+              <path className="pin-body" d="M30.5 12 19.2 4.6a10.6 10.6 0 1 0 0 14.8z" />
+              <circle className="pin-eye" cx="11.4" cy="12" r="6.6" />
+              <text x="11.4" y="12.2" textAnchor="middle" dominantBaseline="central">{g.length}</text>
+            </svg>
+          </button>
+        ))}
         <ol className="plan-blocks" aria-label="Plan">
           {lanes.map((b) => {
             const editable = live && b.kind === "task" && !isOptimistic(b.id) && !isOptimistic(b.taskId ?? "");
@@ -547,7 +576,7 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
               top: px(blockTop(b.startM, startM)),
               height: px(blockHeight(b.mins)),
               left: `calc(var(--lane-left) + ${b.col} * var(--lane-w) / ${b.cols})`,
-              width: `calc(var(--lane-w) / ${b.cols}${b.cols > 1 ? " - 0.3cqw" : ""})`,
+              width: `calc(var(--lane-w) * ${b.span} / ${b.cols}${b.cols > 1 ? " - 0.3cqw" : ""})`,
             };
             const face = (
               <>
@@ -660,6 +689,7 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
             onOpenTask={(id) => { setEventMenu(null); onOpen?.(id); }}
             onLink={(id) => { setEventMenu(null); void actions!.save(id, { prep_for: prepLink(date, menuBlock.event!) }); }}
             onPrep={() => { setEventMenu(null); void actions!.prep({ date, ...menuBlock.event! }); }}
+            onHide={() => { setEventMenu(null); setHidden([...hiddenKeys, keyOf(menuBlock)]); }}
             onClose={() => setEventMenu(null)}
           />
         )}
@@ -704,12 +734,23 @@ function OutOfSight({ dir, n, onClick }: { dir: "above" | "below"; n: number; on
   );
 }
 
+// Events hidden from the line on this device, for the one day shown: "start|title" keys.
+const HIDDEN = "toodoo.hiddenEvents";
+function hiddenFor(date: string): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HIDDEN) ?? "null") as { date?: string; keys?: string[] } | null;
+    return raw?.date === date && Array.isArray(raw.keys) ? raw.keys : [];
+  } catch {
+    return [];
+  }
+}
+
 // An event's menu, under it on the line: its prep tasks (each opens its ticket), Create prep task, and Use a task as
 // prep (an open task, a Jira card say, found by its title). Escape or a click away closes it.
 type MenuTask = { id: string; title: string; done: boolean };
-function EventMenu({ style, title, where, offline, preps, tasks, onOpenTask, onLink, onPrep, onClose }: {
+function EventMenu({ style, title, where, offline, preps, tasks, onOpenTask, onLink, onPrep, onHide, onClose }: {
   style: CSSProperties; title: string; where?: string; offline: boolean; preps: MenuTask[]; tasks: MenuTask[];
-  onOpenTask: (id: string) => void; onLink: (id: string) => void; onPrep: () => void; onClose: () => void;
+  onOpenTask: (id: string) => void; onLink: (id: string) => void; onPrep: () => void; onHide: () => void; onClose: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const [finding, setFinding] = useState(false);
@@ -752,6 +793,7 @@ function EventMenu({ style, title, where, offline, preps, tasks, onOpenTask, onL
         <>
           <button type="button" role="menuitem" disabled={offline} onClick={onPrep}>Create prep task</button>
           <button type="button" role="menuitem" disabled={offline || !tasks.length} onClick={() => setFinding(true)}>Use a task as prep…</button>
+          <button type="button" role="menuitem" onClick={onHide}>Hide</button>
         </>
       )}
     </m.div>

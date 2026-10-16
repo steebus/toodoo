@@ -225,3 +225,10 @@ describe("layoutLanes", () => {
     expect(out.map(({ col, cols }) => [col, cols])).toEqual([[0, 2], [1, 2], [0, 1]]);
   });
 });
+
+it("lays a block out across free columns to its right", async () => {
+  const { layoutLanes } = await import("./planning.ts");
+  const r = layoutLanes([{ s: 0, e: 100, id: "a" }, { s: 10, e: 30, id: "b" }, { s: 10, e: 30, id: "c" }, { s: 60, e: 100, id: "d" }]);
+  expect(r.find((x) => x.id === "d")).toMatchObject({ col: 1, cols: 3, span: 2 });
+  expect(r.find((x) => x.id === "b")!.span).toBe(1);
+});

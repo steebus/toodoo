@@ -158,15 +158,18 @@
 /* ---------- Epics: a stack of headed lists ---------- */
 /* Epics are cards in a grid, each with its colour along the top. */
 .epic-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(660px, 100%), 1fr)); gap: 22px; align-items: start; }
+/* An epic is a card washed in its colour, with a dot by its name. */
 .epic {
-  position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--rule-soft); border-radius: 6px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  --epic: var(--epic-slate); --edge: color-mix(in srgb, var(--epic) 62%, var(--rule-soft));
+  position: relative; overflow: hidden; border: 1px solid var(--edge); border-radius: 6px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--epic) 26%, var(--surface)), color-mix(in srgb, var(--epic) 13%, var(--surface)) 75%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
-/* An epic's colour is a dot by its name: the same quiet category mark its tickets carry, not a stripe. */
 .epic.has-epic .epic-toggle::before {
-  content: ""; flex: none; width: 11px; height: 11px; border-radius: 50%;
+  content: ""; flex: none; width: 13px; height: 13px; border-radius: 50%;
   background: var(--epic); box-shadow: 0 0 0 1px color-mix(in srgb, var(--epic) 60%, var(--ink));
 }
+.epic.is-done, .epic.is-on_hold { filter: saturate(0.45); }
 .epic-toggle .epic-chevron { order: -1; }
 .epic-head {
   display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 10px 12px 10px 8px;
@@ -179,9 +182,10 @@
 .epic-chevron { flex: none; color: var(--ink-2); transform: rotate(-90deg); transition: transform 0.22s ease; }
 .epic-toggle[aria-expanded="true"] .epic-chevron { transform: none; }
 .epic-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: 22px; line-height: 1.1; }
-.epic.is-high .epic-title::before { content: "!"; margin-right: 0.4em; color: var(--red); }
+.epic.is-high .epic-title, .bf-body.is-high .epic-title, .bf-tab.is-high .bf-name { color: var(--red-ink); }
+.epic.is-high .epic-title::before, .bf-body.is-high .epic-title::before, .bf-tab.is-high .bf-name::before { content: "!"; margin-right: 0.4em; color: var(--red); }
 .epic.is-on_hold .epic-title, .epic.is-done .epic-title { color: var(--ink-3); }
-.epic.is-none { background: transparent; border-style: dashed; box-shadow: none; }
+.epic.is-none { background: transparent; border-style: dashed; box-shadow: none; filter: none; }
 .epic-progress { display: flex; align-items: center; gap: 10px; font-family: var(--font-print); font-size: 13px; color: var(--ink-2); }
 .epic-track { position: relative; flex: 1; height: 4px; background: var(--rule-soft); overflow: hidden; border-radius: 2px; }
 .epic-fill { position: absolute; inset: 0; background: var(--green); transform-origin: left; transition: transform 0.6s var(--spring); }
@@ -200,7 +204,34 @@
 .epic-body { padding: 0 12px 14px; animation: fade-in 0.2s ease-out both; }
 .epic-desc { margin: 0 0 12px; max-width: 70ch; font-size: 16px; line-height: 1.4; color: var(--ink-2); white-space: pre-line; }
 .epic-empty { margin: 4px 0 6px; font-family: var(--font-print); font-size: 15px; color: var(--ink-3); }
-.epic-body .lane-add { margin: 12px 0 0; }
+.epic-body .lane-add, .bf-body .lane-add { margin: 12px 0 0; }
+
+/* ---------- Epics as one big folder: a tab for each epic along the top, its tasks inside ---------- */
+.bigfolder { --epic: var(--epic-slate); --edge: color-mix(in srgb, var(--epic) 62%, var(--rule-soft)); padding-top: 4px; }
+.bf-tabs { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 3px; padding: 0 12px; margin-bottom: -1px; }
+.room .bf-tab {
+  --edge: color-mix(in srgb, var(--epic) 62%, var(--rule-soft));
+  display: grid; gap: 3px; min-width: 0; max-width: 100%; padding: 7px 14px 8px; text-align: left; cursor: pointer;
+  background: color-mix(in srgb, var(--epic) 55%, var(--surface)); border: 1px solid var(--edge); border-bottom: 0; border-radius: 10px 10px 0 0;
+  transform: translateY(3px); transition: transform 0.2s var(--spring), background 0.2s;
+}
+.room .bf-tab:hover { transform: translateY(0); }
+.room .bf-tab.is-active {
+  z-index: 2; padding-top: 10px; transform: none; background: color-mix(in srgb, var(--epic) 24%, var(--surface)); box-shadow: inset 0 4px 0 var(--epic);
+}
+.bf-tab.is-over { outline: 2px dashed var(--ink-3); outline-offset: -2px; }
+.bf-tab.is-done, .bf-tab.is-on_hold { filter: saturate(0.45); }
+.bf-tab.is-done .bf-name, .bf-tab.is-on_hold .bf-name { color: var(--ink-3); }
+.bf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: 18px; line-height: 1.15; }
+.bf-stats { display: flex; flex-wrap: wrap; gap: 2px 10px; font-family: var(--font-print); font-size: 12.5px; color: var(--ink-2); }
+.bf-stats svg { width: 13px; height: 13px; }
+.bf-body {
+  padding: 16px 16px 18px; min-height: 220px; border: 1px solid var(--edge); border-radius: 10px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--epic) 24%, var(--surface)), color-mix(in srgb, var(--epic) 12%, var(--surface)) 80%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.07), 0 10px 22px -12px color-mix(in srgb, var(--epic) 55%, transparent);
+}
+.bf-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
+.bf-head .epic-progress { flex: 1 1 220px; }
 .lane.strips { gap: 11px; padding: 12px 10px 10px; min-height: 44px; }
 
 /* a strip: one printed line, the grip at its left and the cross at its right */
@@ -246,6 +277,7 @@
   .signin-docket { animation: fade-in 0.3s linear backwards; }
   .epic-chevron, .epic-fill, .lane, .room .signin-button { transition: none; }
   .epic-body { animation: none; }
+  .bf-tab { transition: none; }
 }
 
 /* ---------- narrower windows and the phone ---------- */
@@ -272,6 +304,7 @@
   .epic-title { font-size: 19px; }
   .epic-body { padding: 0 10px 12px; }
   .epic-list { grid-template-columns: 1fr; }
+  .bf-body { padding: 12px 10px 14px; }
   .slip-strip .slip-meta { display: none; }
   .signin-wordmark { font-size: 44px; }
   /* the Pass's top bar on the phone: the rooms take their own row under the day's line */
@@ -283,7 +316,6 @@
 .slip.has-epic { --slip-paper: color-mix(in srgb, var(--epic) 13%, var(--paper)); box-shadow: inset 6px 0 0 var(--epic); }
 .sheet.sheet-ticket.has-epic { --tk-paper: color-mix(in srgb, var(--epic) 20%, var(--paper)); } /* the whole slip in its epic's colour */
 .sheet-ticket > * { --paper: var(--tk-paper); } /* and everything printed on it mixes from that paper */
-.epic.is-done.has-epic .epic-toggle::before, .epic.is-on_hold.has-epic .epic-toggle::before { opacity: 0.45; }
 .epic-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
 .epic-swatches legend { margin-bottom: 6px; padding: 0; font-size: calc(14 * var(--u)); color: var(--ink-3); }
 .epic-swatch { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
@@ -809,9 +841,6 @@
 .mx-dot:focus-visible .mx-ring { stroke: var(--paper-ink); stroke-width: 2.6; }
 .room .mx-dot.is-held { z-index: 10; cursor: grabbing; scale: 1.2; filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.2)); }
 .mx-dot.is-done .mx-blot { opacity: 0.12; }
-.mx-dot.is-blocked .mx-ring { stroke: var(--red-ink); stroke-width: 3; }
-.mx-dot.is-blocked .mx-blot { opacity: 0.9; }
-.mx-bar { fill: none; stroke: var(--paper); stroke-width: 3.2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .mx-dot.is-done { opacity: 0.6; }
 /* Hovered (or tapped on a phone): its ticket as it hangs on the Day, over the dot, or under it near the top. */
 .mx-card {

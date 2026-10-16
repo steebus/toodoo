@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { addDays, autoPlan, busySpans, effortMap, fillDay, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
+import { addDays, autoPlan, mergeRuns, busySpans, effortMap, fillDay, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
 import { prepFor } from "../shared/inbox.ts";
 import { piles, QUIET_DAYS, tidyCount } from "../shared/tidy.ts";
@@ -262,6 +262,7 @@ export async function planDay(
       : undefined;
     proposed.push(id ? { id, ...p } : p);
   }
+  if (a.commit && proposed.length) await mergeBlocks(db, userId, date);
   return { date, committed: !!a.commit && r.proposed.length > 0, proposed, unplaced: r.unplaced };
 }
 
@@ -400,16 +401,45 @@ export async function placeBlock(
   if (!task) throw new InputError("task not found");
   const s = Math.min(24 * 60 - SNAP, Math.max(0, snap(toMin(a.start) ?? 0)));
   const mins = Math.max(SNAP, Math.min(1440, snap(a.mins), 24 * 60 - s));
-  const row = { start: toHM(s), mins };
-  if (a.block_id) {
-    const nid = db.normalizeId("plan_blocks", a.block_id);
-    const block = nid ? await db.get(nid) : null;
-    if (!block || block.user_id !== userId || block.task_id !== task._id) throw new InputError("block not found");
-    await db.patch(block._id, { ...row, date: a.date });
-    return { id: block._id, task_id: task._id, date: a.date, ...row };
+  let lo = s, hi = s + mins;
+  // One task never has two plans that overlap or touch in a day: they become the one plan, covering both.
+  const same = (await db.query("plan_blocks").withIndex("by_user_date", (q) => q.eq("user_id", userId).eq("date", a.date)).collect())
+    .filter((b) => b.task_id === task._id && b._id !== (a.block_id as unknown));
+  const joined = same.filter((b) => { const bs = toMin(b.start) ?? 0; return bs <= hi && bs + b.mins >= lo; });
+  for (const b of joined) { const bs = toMin(b.start) ?? 0; lo = Math.min(lo, bs); hi = Math.max(hi, bs + b.mins); }
+  const row = { start: toHM(lo), mins: hi - lo };
+  const nid = a.block_id ? db.normalizeId("plan_blocks", a.block_id) : null;
+  const block = nid ? await db.get(nid) : null;
+  if (a.block_id && (!block || block.user_id !== userId || block.task_id !== task._id)) throw new InputError("block not found");
+  let id;
+  if (block) {
+    id = block._id;
+    await db.patch(id, { ...row, date: a.date });
+  } else if (joined.length) {
+    id = joined[0]._id;
+    await db.patch(id, row);
+    joined.shift();
+  } else {
+    id = await db.insert("plan_blocks", { user_id: userId, date: a.date, task_id: task._id, ...row });
   }
-  const id = await db.insert("plan_blocks", { user_id: userId, date: a.date, task_id: task._id, ...row });
+  for (const b of joined) await db.delete(b._id);
   return { id, task_id: task._id, date: a.date, ...row };
+}
+
+// Folds a day's overlapping or touching plans of one task into one (the earliest keeps its id), for plans made before
+// that was the rule or laid down by auto plan.
+export async function mergeBlocks(db: W, userId: string, date: string) {
+  checkDate(date);
+  const rows = await db.query("plan_blocks").withIndex("by_user_date", (q) => q.eq("user_id", userId).eq("date", date)).collect();
+  let merged = 0;
+  for (const run of mergeRuns(rows.map((b) => ({ ...b, task_id: b.task_id as string })))) {
+    const start = Math.min(...run.map((b) => toMin(b.start) ?? 0));
+    const end = Math.max(...run.map((b) => (toMin(b.start) ?? 0) + b.mins));
+    await db.patch(run[0]._id, { start: toHM(start), mins: end - start });
+    for (const b of run.slice(1)) await db.delete(b._id);
+    merged += run.length - 1;
+  }
+  return { merged };
 }
 
 // One block (block_id), or all of a task's blocks that day. Quietly a no-op for a gone or foreign task or block:
@@ -502,8 +532,10 @@ export async function everything(db: R, userId: string, now: Date) {
   const { t, nowM } = clock(now);
   const tasks = await db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", userId)).collect();
   const blocks = await db.query("plan_blocks").withIndex("by_user_date", (q) => q.eq("user_id", userId)).collect();
+  const link = await db.query("jira_links").withIndex("by_user", (q) => q.eq("user_id", userId)).first();
   return {
     today: t, nowM,
+    jira_open: link?.open_keys ?? null, jira_synced_at: link?.synced_at ?? null,
     epics: await listEpics(db, userId),
     tasks: tasks.map((d) => ({ ...toTask(d), created_on: ymd(new Date(d.created_at)), touched_on: ymd(new Date(d.updated_at)) })),
     blocks: blocks.map((b) => ({ id: b._id as string, task_id: b.task_id as string, date: b.date, start: b.start, mins: b.mins })),

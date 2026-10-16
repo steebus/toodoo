@@ -31,3 +31,10 @@ it("piles quiet, undated and unsized open tasks; parked ones go quiet after long
   expect(titles(p.unsized)).toEqual(["Fresh", "Parked"]);
   expect(tidyCount(p)).toBe(6);
 });
+
+it("pairs Jira tasks against what Jira lists as open: done here but open there, open here but gone there", () => {
+  const j = (title: string, done: boolean) => task({ title, source: "jira", external_id: `jira:${title}`, done });
+  const tasks = [j("A-1", true), j("A-2", true), j("A-3", false), j("A-4", false), task({ title: "local" })];
+  expect(titles(piles(tasks, [], T, ["jira:A-1", "jira:A-3"]).jira).sort()).toEqual(["A-1", "A-4"]);
+  expect(piles(tasks, [], T, null).jira).toEqual([]);
+});

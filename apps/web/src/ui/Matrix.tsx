@@ -36,9 +36,9 @@ const statusOf = (t: FullTask) => (t.done ? "done" : t.status ?? "todo");
 const DRAG_SLOP = 4;
 // A dot as drawn: a blot of marker, and a pen ring round it that doesn't quite close.
 const BLOT = "M20.6 4.2c8.9.4 15.6 7.3 15.2 16.3-.4 8.8-7.6 15.4-16.5 15-8.6-.4-15-7.4-14.7-16.1C4.9 10.6 11.8 3.8 20.6 4.2z";
-// A blocked task is no blot but a diamond, struck through, so it reads as stuck at a glance and apart by shape as well as by marks.
-const DIAMOND = "M20.4 3.6L36.5 20.3 19.8 36.6 3.7 19.9z";
-const BAR = "M10 30L30 10";
+// A blocked task is no blot but a square, drawn by hand, so it reads as stuck by shape alone.
+const SQUARE = "M5.1 5.4C14 4.3 27 5 35.2 4.6c.7 9.6.2 20.6.6 30.9-9.8.9-20.9.3-31 .6C4.5 26 5.4 15.6 5.1 5.4z";
+const SQUARE_RING = "M4.2 6.1C13.6 4.9 26.4 5.6 36 4.5c.9 10.3.1 20.4.8 31.2-10.4.7-21.6.1-32.2.8-.7-9.6-.1-19.7-.4-30.4M4.6 5.9L8 5";
 const RING = "M23.5 4.6c7.9 1.3 13.2 8.6 12.1 16.9-1.2 8.6-8.9 14.4-17.4 13.2C9.7 33.5 4 25.9 5.2 17.4 6.3 9.7 12.8 4.1 20.9 4.3";
 // Day marks under the plot, so a drag can be aimed at a date.
 const MARKS: [number, string][] = [[-7, "last week"], [0, "today"], [2, "+2 days"], [7, "next week"], [14, "+2 wks"], [30, "a month"]];
@@ -186,9 +186,8 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
                 <svg viewBox="0 0 40 40" aria-hidden style={{ rotate: `${turn}deg` }}>
                   {blocked(t) ? (
                     <>
-                      <path className="mx-blot" d={DIAMOND} />
-                      <path className="mx-ring" d={DIAMOND} />
-                      <path className="mx-bar" d={BAR} />
+                      <path className="mx-blot" d={SQUARE} />
+                      <path className="mx-ring" d={SQUARE_RING} />
                     </>
                   ) : (
                     <>

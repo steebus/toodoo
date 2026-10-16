@@ -13,6 +13,7 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = { backlog: "Backlog
 // Categorical, never signals: no reds or greens (those mean high/carried and done). Hues live in tokens.css.
 export const EPIC_COLOURS = [
   "blue", "violet", "amber", "teal", "plum", "slate", "ochre", "sky", "indigo", "cyan", "gold", "coffee", "orchid", "denim", "copper", "lilac",
+  "navy", "mauve", "peach", "sand", "steel", "mustard", "fuchsia", "periwinkle", "pewter", "tangerine", "heather", "umber",
 ] as const;
 export type EpicColour = (typeof EPIC_COLOURS)[number];
 

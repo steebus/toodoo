@@ -67,6 +67,10 @@ export const placeBlock = mutation({
   args: { task_id: v.string(), date: v.string(), start: v.string(), mins: v.number(), block_id: v.optional(v.string()) },
   handler: async (ctx, a) => m.placeBlock(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),
 });
+export const mergeBlocks = mutation({
+  args: { date: v.string() },
+  handler: async (ctx, a) => m.mergeBlocks(ctx.db, await requireUser(ctx), a.date).catch(m.asConvexError),
+});
 export const removeBlock = mutation({
   args: { task_id: v.string(), date: v.string(), block_id: v.optional(v.string()) },
   handler: async (ctx, a) => m.removeBlock(ctx.db, await requireUser(ctx), a).catch(m.asConvexError),

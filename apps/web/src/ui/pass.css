@@ -167,6 +167,16 @@
 .event-menu button { display: flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(9 * var(--u)) calc(10 * var(--u)); border-radius: calc(3 * var(--u)); text-align: left; color: inherit; }
 .event-menu button:hover, .event-menu button:focus-visible { background: var(--well); }
 .event-menu button:disabled { opacity: 0.5; }
+/* A hidden event (or a few close together): a blue map pin in the gutter, tip on the line, its count where the hole is. */
+.plan-pin {
+  position: absolute; z-index: 4; right: calc(100% - var(--lane-left) + 0.2%); width: calc(32 * var(--u)); height: calc(24 * var(--u)); margin-top: calc(-12 * var(--u));
+  padding: 0; cursor: pointer; transition: transform 0.16s var(--spring), filter 0.16s;
+}
+.plan-pin svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.plan-pin .pin-body { fill: #2a8be8; stroke: #0f47a8; stroke-width: 1.8; stroke-linejoin: round; }
+.plan-pin .pin-eye { fill: #fff; stroke: #0f47a8; stroke-width: 1.6; }
+.plan-pin text { font: 700 9px var(--font-print); fill: #0f47a8; }
+.plan-pin:hover, .plan-pin:focus-visible { transform: translateX(3px); filter: brightness(1.1); }
 .event-menu-tag { flex: none; font-family: var(--font-print); font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink-3); }
 .event-menu-prep.is-done { color: var(--ink-3); text-decoration: line-through; }
 .event-menu-find { display: grid; gap: 2px; padding: calc(6 * var(--u)) 0 0; }
@@ -431,8 +441,7 @@
 .docket-today .dk-source { flex: none; font-size: calc(14 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .docket-today.is-high .dk-head, .docket-today.is-high .dk-title, .docket-today.is-high .dk-source { color: var(--paper-red); }
 .docket-carried.is-high .dk-title { color: var(--paper-red); }
-/* Blocked: hatched paper and a red BLOCKED stamp (a bare icon on a stub), so it stands out from what can be worked on. */
-.docket.is-blocked .dk-print { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--paper-red) 16%, transparent) 0 5px, transparent 5px 12px); }
+/* Blocked: a red BLOCKED stamp (a bare icon on a stub) on the paper. */
 .dk-blocked {
   display: inline-flex; align-items: center; gap: 0.3em; flex: none; padding: 0.08em 0.45em 0.08em 0.3em; transform: rotate(-2deg);
   font-size: calc(12 * var(--u)); font-weight: 700; letter-spacing: 0.1em; line-height: 1.3; color: var(--paper-red);

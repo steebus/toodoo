@@ -108,7 +108,9 @@ export const writeSync = internalMutation({
     const seen = new Set(a.items.map((x) => x.external_id));
     const waiting = await ctx.db.query("inbox").withIndex("by_user_state", (q) => q.eq("user_id", a.user_id).eq("state", "pending")).collect();
     for (const r of waiting) if (r.origin === "jira" && !seen.has(r.external_id)) await ctx.db.delete(r._id);
-    await ctx.db.patch(hit._id, { synced_at: Date.now(), error: undefined, count: a.items.length, account: a.account });
+    // ponytail: a capped sync can't say what Jira lacks, so it keeps no list and Tidy skips the out-of-sync check
+    const open_keys = a.items.length < PAGE * MAX_PAGES ? a.items.map((x) => x.external_id).filter((x): x is string => !!x) : undefined;
+    await ctx.db.patch(hit._id, { synced_at: Date.now(), error: undefined, count: a.items.length, account: a.account, open_keys });
   },
 });
 

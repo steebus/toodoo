@@ -90,6 +90,7 @@ export default defineSchema({
     user_id: v.string(), site: v.string(), email: v.string(), token: v.string(), jql: v.string(),
     synced_at: v.optional(v.number()), tried_at: v.optional(v.number()), error: v.optional(v.string()),
     count: v.optional(v.number()), account: v.optional(v.string()),
+    open_keys: v.optional(v.array(v.string())), // external ids Jira listed as open at the last sync (unset when the sync hit its cap)
   }).index("by_user", ["user_id"]),
   plan_blocks: defineTable({
     user_id: v.string(), date: v.string(), task_id: v.id("tasks"), start: v.string(), mins: v.number(),
