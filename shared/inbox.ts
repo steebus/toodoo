@@ -209,7 +209,7 @@ export function linksTo(link: PrepLink, date: string, e: { start?: string; title
   return day.filter((x) => sameTitle(link.title, x.title || "Untitled")).length === 1;
 }
 // The tasks that are prep for an event, from any list of tasks.
-export const prepsOf = <T extends { prep_for?: PrepLink | null }>(tasks: T[], date: string, e: { start?: string; title?: string; allDay?: boolean }, day: { title?: string }[]) =>
+export const prepsOf = <T extends { prep_for?: PrepLink | null }>(tasks: T[], date: string, e: { start?: string; title?: string; allDay?: boolean }, day: { start?: string; title?: string }[]) =>
   tasks.filter((t) => t.prep_for && linksTo(t.prep_for, date, e, day));
 
 const slug = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 60);
