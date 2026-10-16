@@ -8,6 +8,8 @@ import type { WorkActions, WorkData } from "../lib/useWork";
 import { Epics } from "./Epics";
 import { columns, Kanban, movePatch } from "./Kanban";
 
+vi.mock("convex/react", () => ({ useQuery: () => [] })); // the ticket's activity log
+
 const T = "2026-10-12";
 const task = (id: string, o: Partial<FullTask> = {}): FullTask => ({
   id, title: id, due: T, time: null, priority: null, estimate_mins: null, done: false, done_on: null, sort_order: 1,

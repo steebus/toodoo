@@ -418,11 +418,14 @@
 .tk-prep select option { color: initial; background: initial; }
 .tk-progress { display: grid; gap: 6px; font-size: 13px; }
 .tk-progress .pen-progress { height: 7px; }
-.tk-time { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; text-align: left; }
+.tk-time { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0; text-align: left; }
 .tk-time > div { display: grid; gap: 1px; }
 .tk-time dt { font-size: 11px; letter-spacing: 0.08em; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
 .tk-time dd { margin: 0; font-size: 15px; }
 .tk-time .is-over { color: var(--red-ink); }
+.tk-log { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.tk-log-line { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 4px 0; font: inherit; text-align: left; color: var(--paper-ink); border-bottom: 1px dotted color-mix(in srgb, var(--paper-ink) 30%, var(--paper)); }
+.tk-log-line:hover, .tk-log-line:focus-visible { color: var(--biro); }
 .tk-body { white-space: pre-line; overflow-wrap: anywhere; }
 /* The note as written: by hand, in biro. Typing it is plain print, like every other field. */
 :is(.pass, .room) .tk-note.tk-field:not(.is-empty) { font-family: var(--font-hand); font-weight: 500; font-size: 22px; line-height: 1.15; color: var(--biro); }

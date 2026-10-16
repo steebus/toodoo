@@ -38,6 +38,10 @@ export const meetings = query({
   args: { now },
   handler: async (ctx, { now = Date.now() }) => m.meetings(ctx.db, await requireUser(ctx), new Date(now)),
 });
+export const taskBlocks = query({
+  args: { id: v.string() },
+  handler: async (ctx, a) => m.taskBlocks(ctx.db, await requireUser(ctx), a.id),
+});
 export const updateTask = mutation({
   args: { id: v.string(), patch: v.any() },
   handler: async (ctx, a) =>

@@ -216,6 +216,14 @@ export async function meetings(db: R, userId: string, now = new Date()) {
     .map((e) => ({ date: d.date, start: e.start!, end: e.end ?? null, title: e.title, where: e.where ?? null })));
 }
 
+// Every planner block a task has had, on any day (the activity log on its ticket); nothing for a task that isn't the user's.
+export async function taskBlocks(db: R, userId: string, id: string) {
+  const doc = await ownedTask(db, userId, id);
+  if (!doc) return [];
+  const blocks = await db.query("plan_blocks").withIndex("by_task", (q) => q.eq("task_id", doc._id)).collect();
+  return blocks.map((b) => ({ id: b._id as string, date: b.date, start: b.start, mins: b.mins }));
+}
+
 export async function deleteTask(db: W, userId: string, id: string) {
   const doc = await ownedTask(db, userId, id);
   if (!doc) throw new InputError("task not found");

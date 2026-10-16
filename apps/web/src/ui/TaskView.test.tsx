@@ -4,10 +4,12 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { FullTask } from "@shared/snapshot.ts";
 
 vi.mock("convex/react", () => ({
-  useQuery: () => [
-    { date: "2026-10-15", start: "09:15", end: "09:45", title: "Croozn standup", where: null },
-    { date: "2026-10-16", start: "14:00", end: "15:00", title: "Client demo", where: "Zoom" },
-  ],
+  useQuery: (_q: unknown, a: { id?: string }) => a?.id
+    ? [{ id: "b1", date: "2026-10-14", start: "10:00", mins: 30 }, { id: "b2", date: "2026-10-16", start: "14:00", mins: 60 }]
+    : [
+      { date: "2026-10-15", start: "09:15", end: "09:45", title: "Croozn standup", where: null },
+      { date: "2026-10-16", start: "14:00", end: "15:00", title: "Client demo", where: "Zoom" },
+    ],
 }));
 
 import { TaskView } from "./TaskView";
@@ -39,9 +41,19 @@ it("shows the meeting a card is prep for, and unlinks it", async () => {
 it("tops the card with estimate, time spent and time left, moving with the estimate", () => {
   const { rerender } = render(<TaskView task={card({ estimate_mins: 120 })} today={T} progress={{ spent: 45, est: 120 }} onSave={vi.fn()} onClose={() => {}} />);
   const time = screen.getByRole("group", { name: "Time" });
-  expect(time).toHaveTextContent("ESTIMATE2h");
+  expect(time).not.toHaveTextContent("ESTIMATE");
   expect(time).toHaveTextContent("SPENT45m");
   expect(time).toHaveTextContent("LEFT1h 15m");
   rerender(<TaskView task={card({ estimate_mins: 30 })} today={T} progress={{ spent: 45, est: 30 }} onSave={vi.fn()} onClose={() => {}} />);
   expect(screen.getByRole("group", { name: "Time" })).toHaveTextContent("OVER15m");
+});
+
+it("logs where the task was planned, newest first, and a line opens that day on the main screen", async () => {
+  const onClose = vi.fn();
+  render(<TaskView task={card()} today={T} onSave={vi.fn()} onClose={onClose} />);
+  const lines = screen.getAllByRole("button", { name: /\d+[hm]/ }).filter((b) => b.className === "tk-log-line");
+  expect(lines.map((l) => l.textContent)).toEqual(["TOMORROW 2PM1h", "YESTERDAY 10AM30m"]);
+  await userEvent.click(lines[0]);
+  expect(window.location.pathname + window.location.search).toBe("/?date=2026-10-16");
+  expect(onClose).toHaveBeenCalled();
 });

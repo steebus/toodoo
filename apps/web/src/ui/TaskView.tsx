@@ -11,6 +11,8 @@ import { Checklist } from "./Checklist";
 import { shortDate } from "./format";
 import { CloseIcon, PenProgress, PenTick } from "./icons";
 import { KitchenTimer } from "./KitchenTimer";
+import { isOptimistic } from "../lib/optimistic";
+import { openDay } from "../lib/useViewDate";
 
 export type TaskViewActions = {
   onSave: (patch: Record<string, unknown>) => Promise<boolean>; // false: refused, so the field stays open with what was typed
@@ -96,17 +98,6 @@ export function TaskView({
               onSave={(v) => save({ estimate_mins: v || null })} />
           </span>
         </div>
-        {t.estimate_mins ? (
-          <div className="tk-progress" role="group" aria-label="Time">
-            <dl className="tk-time">
-              <div><dt>ESTIMATE</dt><dd>{formatDuration(t.estimate_mins)}</dd></div>
-              <div><dt>SPENT</dt><dd>{formatDuration(spent)}</dd></div>
-              <div><dt>{spent > t.estimate_mins ? "OVER" : "LEFT"}</dt>
-                <dd className={spent > t.estimate_mins ? "is-over" : undefined}>{formatDuration(Math.abs(t.estimate_mins - spent))}</dd></div>
-            </dl>
-            <PenProgress spent={spent} est={t.estimate_mins} />
-          </div>
-        ) : null}
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-title-row">
           <h2 id="ticket-title" className="tk-title">
@@ -153,6 +144,17 @@ export function TaskView({
             onSave={(v) => save({ link: v.trim() || null })} />
         </div>
         <Tags tags={t.tags} pool={tagPool} disabled={offline} onSave={(tags) => save({ tags })} />
+        {t.estimate_mins ? (
+          <div className="tk-progress" role="group" aria-label="Time">
+            <dl className="tk-time">
+              <div><dt>SPENT</dt><dd>{formatDuration(spent)}</dd></div>
+              <div><dt>{spent > t.estimate_mins ? "OVER" : "LEFT"}</dt>
+                <dd className={spent > t.estimate_mins ? "is-over" : undefined}>{formatDuration(Math.abs(t.estimate_mins - spent))}</dd></div>
+            </dl>
+            <PenProgress spent={spent} est={t.estimate_mins} />
+          </div>
+        ) : null}
+        {!creating && !isOptimistic(t.id) && <ActivityLog id={t.id} today={today} onClose={onClose} />}
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-actions">
           {onCreate && (
@@ -179,6 +181,26 @@ export function TaskView({
         </div>
       </article>
     </dialog>
+  );
+}
+
+// Where the task has been planned, newest first: one line per block, "TODAY 9:15AM" and its length, and a click goes to
+// that day on the main screen.
+function ActivityLog({ id, today, onClose }: { id: string; today: string; onClose: () => void }) {
+  const found = useQuery(api.agent.taskBlocks, { id });
+  const blocks = Array.isArray(found) ? [...found].sort((a, b) => `${b.date} ${b.start}`.localeCompare(`${a.date} ${a.start}`)) : [];
+  if (!blocks.length) return null;
+  return (
+    <ul className="tk-log" aria-label="Activity">
+      {blocks.map((b) => (
+        <li key={b.id}>
+          <button type="button" className="tk-log-line" onClick={() => { openDay(b.date, today); onClose(); }}>
+            <span>{`${dayWord(b.date, today)} ${fmtTime(b.start)}`.toUpperCase()}</span>
+            <span>{formatDuration(b.mins)}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
