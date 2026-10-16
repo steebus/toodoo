@@ -388,9 +388,9 @@ export async function board(db: R, userId: string, a: { date?: string }, now: Da
     tasks: [...s.tasks, ...extra],
     blocks: s.blocks.filter((b) => b.date >= addDays(date, -1) && b.date <= addDays(date, 1)),
     epics: s.epics ?? [],
-    // Time planned and spent so far on each open task with an estimate, from every block kept (not just these days).
+    // Time planned and spent so far on each task with an estimate (done ones too: their ticket still tallies it), from every block kept (not just these days).
     effort: Object.fromEntries([...effortMap(s.blocks, t, nowM)]
-      .filter(([id]) => s.tasks.some((x) => x.id === id && x.estimate_mins && !x.done))
+      .filter(([id]) => s.tasks.some((x) => x.id === id && x.estimate_mins))
       .map(([id, e]) => [id, { planned: e.planned, actual: e.actual }])),
     suggestions: suggestions({ date, today: t, nowM, tasks: s.tasks, blocks: s.blocks, epics: s.epics })
       .map((x) => ({ id: x.task.id, title: x.task.title, reasons: x.reasons })),

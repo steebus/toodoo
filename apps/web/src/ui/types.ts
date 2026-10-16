@@ -13,7 +13,7 @@ export type BoardData = {
   tasks: FullTask[];
   blocks: Block[];
   epics?: Epic[]; // missing on a board kept from before epics
-  effort?: Record<string, { planned: number; actual: number }>; // open tasks with an estimate
+  effort?: Record<string, { planned: number; actual: number }>; // tasks with an estimate
   suggestions: { id: string; title: string; reasons: string[] }[];
 };
 

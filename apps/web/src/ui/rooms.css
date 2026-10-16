@@ -423,9 +423,15 @@
 .tk-time dt { font-size: 11px; letter-spacing: 0.08em; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
 .tk-time dd { margin: 0; font-size: 15px; }
 .tk-time .is-over { color: var(--red-ink); }
-.tk-log { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
-.tk-log-line { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 4px 0; font: inherit; text-align: left; color: var(--paper-ink); border-bottom: 1px dotted color-mix(in srgb, var(--paper-ink) 30%, var(--paper)); }
-.tk-log-line:hover, .tk-log-line:focus-visible { color: var(--biro); }
+.tk-log { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.tk-log-line {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; font: inherit; text-align: left; color: var(--paper-ink); cursor: pointer;
+  border: 1px dashed color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); border-radius: 2px;
+}
+.tk-log-line > :first-child { flex: 1; min-width: 0; }
+.tk-log-line::after { content: "›"; font-size: 18px; line-height: 1; opacity: 0.55; }
+.tk-log-line:hover, .tk-log-line:focus-visible { border-style: solid; border-color: var(--paper-ink); background: color-mix(in srgb, var(--paper-ink) 6%, transparent); }
+.tk-log-line:hover::after, .tk-log-line:focus-visible::after { opacity: 1; color: var(--biro); }
 .tk-body { white-space: pre-line; overflow-wrap: anywhere; }
 /* The note as written: by hand, in biro. Typing it is plain print, like every other field. */
 :is(.pass, .room) .tk-note.tk-field:not(.is-empty) { font-family: var(--font-hand); font-weight: 500; font-size: 22px; line-height: 1.15; color: var(--biro); }
