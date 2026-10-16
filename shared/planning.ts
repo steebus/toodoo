@@ -28,7 +28,7 @@ export interface Task {
 }
 // A slot on a day's line. A task can have several in one day (deep work split around meetings); each counts.
 export interface Block { id?: string; task_id: string; date: string; start: string; mins: number }
-export interface DayEvent { start?: string; end?: string; title?: string; where?: string; allDay?: boolean }
+export interface DayEvent { start?: string; end?: string; title?: string; where?: string; allDay?: boolean; colour?: string } // colour: its calendar's
 export interface Span { s: number; e: number }
 
 const ymdFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -163,7 +163,7 @@ export function timedEvents(events: DayEvent[]) {
     if (ev.allDay) return [];
     const s = toMin(ev.start);
     if (s == null) return [];
-    return [{ s, e: Math.max(toMin(ev.end) ?? s + 30, s + SNAP), title: ev.title || "Untitled", where: ev.where }];
+    return [{ s, e: Math.max(toMin(ev.end) ?? s + 30, s + SNAP), title: ev.title || "Untitled", where: ev.where, ...(ev.colour ? { colour: ev.colour } : {}) }];
   });
 }
 

@@ -9,7 +9,7 @@ import { icsEvents, type FeedEvent } from "../shared/ics.ts";
 import { addDays, today } from "../shared/planning.ts";
 
 const MAX_BYTES = 5_000_000;
-const BACK = 1, AHEAD = 21; // days synced either side of today
+const BACK = 35, AHEAD = 70; // days synced either side of today: the Calendar room's month, and the next
 
 export const syncUser = internalAction({
   args: { user_id: v.string() },
@@ -18,7 +18,7 @@ export const syncUser = internalAction({
     await ctx.runMutation(internal.calendar.startSync, { ids: rows.map((r) => r._id) });
     const t = today();
     const from = addDays(t, -BACK), until = addDays(t, AHEAD);
-    const byDate: Record<string, FeedEvent[]> = {};
+    const byDate: Record<string, (FeedEvent & { feed: string })[]> = {};
     const results: { id: Id<"calendar_feeds">; error?: string }[] = [];
     for (const r of rows) {
       try {
@@ -26,7 +26,7 @@ export const syncUser = internalAction({
         if (!res.ok) throw new Error(`calendar said ${res.status}`);
         const text = await res.text();
         if (text.length > MAX_BYTES) throw new Error("calendar too big");
-        for (const [d, list] of Object.entries(icsEvents(text, from, until))) (byDate[d] ??= []).push(...list);
+        for (const [d, list] of Object.entries(icsEvents(text, from, until))) (byDate[d] ??= []).push(...list.map((e) => ({ ...e, feed: r._id as string })));
         results.push({ id: r._id });
       } catch (e) {
         results.push({ id: r._id, error: e instanceof Error ? e.message.slice(0, 200) : "sync failed" });

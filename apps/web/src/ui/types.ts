@@ -29,6 +29,7 @@ export type PlanBlock = {
   current?: boolean;
   done?: boolean;
   colour?: string | null; // its epic's
+  calColour?: string | null; // an event's: its calendar's (CAL_COLOURS); none is the plain grey
   event?: { start?: string; end?: string; title: string; where?: string }; // an event's own fields, for its prep task
   meta?: string; // its checklist and estimate ("■■□ 2/3 · est 45m"), printed under the title when the block has room
 };
@@ -37,7 +38,7 @@ export type PlanData = {
   startM: number; // first hour line, in minutes
   endM: number; // last hour line
   blocks: PlanBlock[];
-  allDay: { id: string; title: string }[];
+  allDay: { id: string; title: string; colour?: string | null }[];
   nowM: number | null; // only when the viewed date is today
   anchorM: number; // where the plan opens scrolled to
 };

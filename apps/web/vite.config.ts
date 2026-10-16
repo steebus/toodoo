@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
           // Installed from Chrome on Android, toodoo shows in every app's share sheet (see lib/share.ts).
           share_target: { action: "/share", method: "GET", params: { title: "title", text: "text", url: "url" } },
         },
-        workbox: { globPatterns: ["**/*.{js,css,html,woff2,webp,png}"], navigateFallback: "/index.html" },
+        workbox: { globPatterns: ["**/*.{js,css,html,woff2,webp,png}"], navigateFallback: "/index.html", importScripts: ["/push-sw.js"] }, // push-sw: due reminders
       }),
     ],
     envDir: "../..",

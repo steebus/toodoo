@@ -81,7 +81,7 @@ function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTas
     // Its prep tasks, counted under the title: "prep 1/2" once one is ticked.
     const prep = prepsOf(b.tasks, b.date, { start: toHM(e.s), title: e.title }, dayEvents);
     blocks.push({
-      id: `event-${i}`, kind: "event", startM: e.s, mins: e.e - e.s, time: clock12(toHM(e.s)), title: e.title,
+      id: `event-${i}`, kind: "event", startM: e.s, mins: e.e - e.s, time: clock12(toHM(e.s)), title: e.title, calColour: e.colour ?? null,
       event: { start: toHM(e.s), end: toHM(e.e), title: e.title, ...(e.where ? { where: e.where } : {}) },
       ...(prep.length ? { meta: `prep ${prep.filter((t) => t.done).length}/${prep.length}` } : {}),
     });
@@ -106,7 +106,7 @@ function planOf(b: BoardData, byId: Map<string, FullTask>, colourOf: (t: FullTas
   const endM = Math.min(24 * 60, Math.ceil(hi / 60) * 60);
   return {
     startM, endM, blocks,
-    allDay: (b.day?.events ?? []).flatMap((e, i) => (e.allDay ? [{ id: `allday-${i}`, title: e.title || "Untitled" }] : [])),
+    allDay: (b.day?.events ?? []).flatMap((e, i) => (e.allDay ? [{ id: `allday-${i}`, title: e.title || "Untitled", colour: e.colour ?? null }] : [])),
     nowM: isToday ? b.nowM : null,
     anchorM: isToday ? b.nowM : (blocks[0]?.startM ?? 9 * 60),
   };

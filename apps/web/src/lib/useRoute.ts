@@ -1,20 +1,21 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
-// Four rooms on four paths. Anything else (including AuthKit's /callback) is the day.
-export type Room = "day" | "board" | "epics" | "matrix" | "share" | "calendars" | "stats" | "tasks" | "tidy" | "suggested";
+// Five rooms on five paths. Anything else (including AuthKit's /callback) is the day.
+export type Room = "day" | "board" | "epics" | "matrix" | "calendar" | "share" | "settings" | "stats" | "tasks" | "tidy" | "suggested";
 export const ROOMS: { room: Room; path: string; label: string }[] = [
   { room: "day", path: "/", label: "Day" },
   { room: "board", path: "/board", label: "Board" },
   { room: "epics", path: "/epics", label: "Epics" },
   { room: "matrix", path: "/matrix", label: "Matrix" },
+  { room: "calendar", path: "/calendar", label: "Calendar" },
 ];
 
-// Share, Calendars, Stats and All tasks are rooms off the nav (the menu has them); share is: where the share sheet
-// and the bookmarklet land.
+// Share, Settings, Stats and All tasks are rooms off the nav (the menu has them); share is: where the share sheet
+// and the bookmarklet land. /calendars, where calendars used to be added, is Settings now.
 const PATHS: { room: Room; path: string }[] = [
-  ...ROOMS, { room: "share", path: "/share" }, { room: "calendars", path: "/calendars" }, { room: "stats", path: "/stats" }, { room: "tasks", path: "/tasks" }, { room: "tidy", path: "/tidy" },
-  { room: "suggested", path: "/suggested" },
+  ...ROOMS, { room: "share", path: "/share" }, { room: "settings", path: "/settings" }, { room: "stats", path: "/stats" }, { room: "tasks", path: "/tasks" }, { room: "tidy", path: "/tidy" },
+  { room: "suggested", path: "/suggested" }, { room: "settings", path: "/calendars" },
 ];
 
 export const roomOf = (pathname: string): Room =>
@@ -27,7 +28,7 @@ const subscribe = (cb: () => void) => {
 };
 
 // The order rooms sit in, left to right: a page slides in from the side it sits on.
-const ORDER: Room[] = [...ROOMS.map((r) => r.room), "tasks", "suggested", "tidy", "stats", "calendars", "share"];
+const ORDER: Room[] = [...ROOMS.map((r) => r.room), "tasks", "suggested", "tidy", "stats", "share", "settings"];
 
 // Going to a room slides the page across under a header that stays put (a view transition, where the browser has
 // them). ponytail: the browser's own back and forward cut straight across; route popstate through here to slide those too

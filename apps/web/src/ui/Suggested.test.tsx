@@ -85,18 +85,6 @@ it("combines into any open task found by search", async () => {
   expect(fn("inbox:combineOne")).toHaveBeenCalledWith({ id: "s1", task_id: "t2" });
 });
 
-it("links Jira from the room", async () => {
-  state.data["inbox:list"] = list([]);
-  render(<Suggested />);
-  expect(screen.getByText("Nothing waiting")).toBeInTheDocument();
-  await userEvent.click(screen.getByRole("button", { name: "Link Jira" }));
-  await userEvent.type(screen.getByRole("textbox", { name: "Site" }), "acme");
-  await userEvent.type(screen.getByRole("textbox", { name: "Email" }), "steve@example.com");
-  await userEvent.type(screen.getByLabelText(/API token/), "tok");
-  await userEvent.click(screen.getByRole("button", { name: "Link Jira" }));
-  expect(fn("jira:save")).toHaveBeenCalledWith({ site: "acme", email: "steve@example.com", token: "tok", jql: "" });
-});
-
 const titles = () => screen.getAllByRole("article").map((a) => a.getAttribute("aria-label"));
 const DAY = 86_400_000;
 
@@ -113,10 +101,11 @@ it("keeps a pile per source, and a new source gets its own", async () => {
   expect(titles()).toEqual(["Jira one", "Claude one", "GitHub one"]);
   await userEvent.click(within(piles).getByRole("button", { name: /Claude/ }));
   expect(titles()).toEqual(["Claude one"]);
-  expect(screen.queryByRole("button", { name: "Link Jira" })).toBeNull(); // the Jira link lives in Jira's pile (and All)
+  expect(screen.queryByRole("button", { name: "Jira settings" })).toBeNull(); // Jira's pile says how the link is, and where it's set up
   await userEvent.click(within(piles).getByRole("button", { name: /Jira/ }));
   expect(titles()).toEqual(["Jira one"]);
-  expect(screen.getByRole("button", { name: "Link Jira" })).toBeInTheDocument();
+  expect(screen.getByText("not linked")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Jira settings" })).toBeInTheDocument();
 });
 
 it("sorts by when the source raised it, priority, due date or project, and remembers the choice", async () => {

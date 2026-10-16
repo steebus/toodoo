@@ -52,5 +52,8 @@ claude.ai → Settings → Connectors → Add custom connector → `https://<pro
 
 ## Jira link (optional)
 1. Make an API token at https://id.atlassian.com/manage-profile/security/api-tokens.
-2. In toodoo: menu → **Suggested** → **Link Jira**. Enter the site (`your-team.atlassian.net`), your Atlassian email and the token. Leave JQL blank for every open issue assigned to you, or narrow it (e.g. `project = ACME AND assignee = currentUser() AND statusCategory != Done`).
+2. In toodoo: menu → **Settings** → Connections → Jira → **Link Jira**. Enter the site (`your-team.atlassian.net`), your Atlassian email and the token. Leave JQL blank for every open issue assigned to you, or narrow it (e.g. `project = ACME AND assignee = currentUser() AND statusCategory != Done`).
 3. Issues sync every 15 minutes (**Sync now** for immediately) into Suggested. Jira Cloud only; the token is stored in Convex and never sent to the browser.
+
+## Due-date reminders (optional)
+menu → **Settings** → Notifications → turn on **Due date reminders**, on each phone or browser that should get them (on a phone, install toodoo to the home screen first; iOS needs it installed). A task with only a date is reminded that morning (07:00 by default); one with a time, its lead before (15 minutes by default). Nothing to set up: the push key pair is made on first use and kept in Convex. Optionally `pnpm convex env set VAPID_SUBJECT mailto:you@example.com` so push services know who to contact.

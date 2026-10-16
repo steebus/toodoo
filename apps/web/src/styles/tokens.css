@@ -57,6 +57,16 @@
   --epic-heather: #8a64a6;
   --epic-umber: #6a4a3a;
 
+  /* calendar colours (shared/calendars.ts): synced events, drawn hatched in these. Softer than the epics. */
+  --cal-graphite: #8b8b8b;
+  --cal-rose: #d0688e;
+  --cal-lagoon: #2b9c8f;
+  --cal-dusk: #6a5fb0;
+  --cal-clay: #c27a4e;
+  --cal-moss: #7f8a3a;
+  --cal-berry: #9c3d6b;
+  --cal-harbour: #3d7ea6;
+
   /* the rails: flat, outlined, two tones and a highlight, like a 2D game's */
   --rail-ink: #2b2d31;
   --rail-hi: #eef0f3;

@@ -14,7 +14,7 @@ import { compactDate, longDate } from "./format";
 import { DEFAULT_VIEW } from "@shared/board.ts";
 import { useNarrow } from "../lib/useNarrow";
 
-type Props = { room: Room; board?: BoardData; offline?: boolean; onSignOut?: () => void; children: ReactNode };
+type Props = { room: Room; board?: BoardData; offline?: boolean; children: ReactNode };
 
 const PRESETS = ["Plan", "Capture"];
 
@@ -75,11 +75,11 @@ export function HeaderControls({ children }: { children: ReactNode }) {
   if (slot === undefined) return <div className="room-head">{children}</div>;
   return slot && createPortal(children, slot);
 }
-const OWN_CORNER: Room[] = ["board", "epics", "matrix", "stats"];
+const OWN_CORNER: Room[] = ["board", "epics", "matrix", "stats", "calendar"];
 
 // The Board, Epics, Matrix and Share rooms: the Day view's own header row (today's date and line, then Focus and
 // the presets, or the room's own controls), then a page that scrolls. A preset or Focus goes to the Day view.
-export function RoomShell({ room, board, offline, onSignOut, children }: Props) {
+export function RoomShell({ room, board, offline, children }: Props) {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const model = board ? buildPass(board, DEFAULT_VIEW) : null;
   const split = loadSplit();
@@ -115,7 +115,6 @@ export function RoomShell({ room, board, offline, onSignOut, children }: Props) 
             activePreset={active}
             onPreset={toPreset}
             onFocus={focus}
-            onSignOut={onSignOut}
             offline={offline}
             end={OWN_CORNER.includes(room) ? <div className="topbar-slot" ref={setSlot} /> : undefined}
           />

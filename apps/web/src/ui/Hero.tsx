@@ -30,11 +30,11 @@ import type { BoardData } from "./types";
 const PRESETS = ["Plan", "Capture"];
 
 type Props = {
-  board: BoardData; quickAdd?: string; onSignOut?: () => void; actions?: Actions; nav?: DayNavProps;
+  board: BoardData; quickAdd?: string; actions?: Actions; nav?: DayNavProps;
 };
 
 // The first viewport of The Pass: top bar, Day plan (left third), To do rails (right two thirds).
-export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
+export function Hero({ board, quickAdd, actions, nav }: Props) {
   const offline = !!actions?.offline;
   const [viewing, setViewing] = useState<string | null>(null); // the task read in its ticket sheet
   const [editTitle, setEditTitle] = useState(false); // opened with e: the title starts open
@@ -128,7 +128,6 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
           total={model.total}
           room={actions ? "day" : undefined}
           nav={nav && { ...nav, today: board.today }}
-          onSignOut={onSignOut}
           presets={PRESETS}
           // on the phone the switch picks the half that shows: Plan the line, Capture the list
           activePreset={narrow ? (tab === "plan" ? "Plan" : "Capture") : preset}

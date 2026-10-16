@@ -6,6 +6,7 @@ const priority = v.union(v.literal("high"), v.literal("med"), v.literal("low"), 
 const event = v.object({
   start: v.optional(v.string()), end: v.optional(v.string()), title: v.string(),
   where: v.optional(v.string()), allDay: v.optional(v.boolean()),
+  feed: v.optional(v.string()), // the calendar feed it came from (its id), for that calendar's colour
 });
 
 export default defineSchema({
@@ -55,7 +56,17 @@ export default defineSchema({
   calendar_feeds: defineTable({
     user_id: v.string(), url: v.string(), synced_at: v.optional(v.number()), tried_at: v.optional(v.number()),
     error: v.optional(v.string()),
+    colour: v.optional(v.string()), // one of CAL_COLOURS (shared/calendars.ts); absent: graphite
   }).index("by_user", ["user_id"]),
+  // Due-date reminders by Web Push. One phone or browser per row: each says yes for itself.
+  push_subs: defineTable({ user_id: v.string(), endpoint: v.string(), p256dh: v.string(), auth: v.string(), created_at: v.number() })
+    .index("by_user", ["user_id"])
+    .index("by_endpoint", ["endpoint"]),
+  // When reminders fire (shared/notify.ts), and the end of the last round sent, so nothing goes twice.
+  push_prefs: defineTable({ user_id: v.string(), remind_at: v.string(), lead_mins: v.number(), round_at: v.optional(v.number()) })
+    .index("by_user", ["user_id"]),
+  // The app's VAPID pair, made on first ask and kept: every subscription is bound to the public key it was made with.
+  push_keys: defineTable({ public_key: v.string(), private_key: v.string() }),
   // The Suggested inbox: tasks the agent or the Jira link proposes, until Steve accepts, rejects or combines them.
   // Settled rows stay (state not pending) so the same thing is never proposed twice.
   inbox: defineTable({

@@ -127,6 +127,15 @@ export const MatrixIcon = ({ size = 22, className }: P) => (
     <circle cx="13.8" cy="13.6" r="2.1" fill="currentColor" stroke="none" />
   </svg>
 );
+// The Calendar room: a month page, rings at the top, a day ringed.
+export const MonthIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="2.5" y="4" width="15" height="13.5" rx="1.2" />
+    <path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3" />
+    <path d="M6 11h1.4M9.3 11h1.4M12.6 11h1.4M6 14.2h1.4M9.3 14.2h1.4" strokeWidth={1.2} />
+    <circle cx="13.3" cy="14.2" r="1.7" />
+  </svg>
+);
 // Plan: the timeline, hours ticked down it and blocks along it.
 export const PlanModeIcon = ({ size = 22, className }: P) => (
   <svg {...base(size)} className={className}>

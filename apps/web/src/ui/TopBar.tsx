@@ -8,7 +8,6 @@ import { compactDate, longDate } from "./format";
 import { go, type Room } from "../lib/useRoute";
 import { CaptureModeIcon, CheckIcon, ChevronIcon, PlanModeIcon, TimerIcon } from "./icons";
 import { RoomNav } from "./RoomNav";
-import { ThemeCycle } from "./ThemeSwitch";
 
 type Props = {
   date: string; dateShort?: string; headline: string; total: number; presets: string[]; activePreset: string; onPreset?: (p: string) => void;
@@ -16,18 +15,17 @@ type Props = {
   room?: Room; // the room nav, and which room is lit; none in the fixture
   nav?: { date: string; today: string; onDate: (d: string) => void }; // the Day: the date steps through days
   onFocus?: () => void; // Focus on the task in hand; missing when there is nothing on the line now or next
-  onSignOut?: () => void;
   end?: ReactNode; // a room's own controls in the right-hand corner, in place of Focus and the presets
 };
 
 // The one header row, the same in every room: the wordmark (its chevron opens the menu: theme, share, sign out)
 // and rooms, the date (on the Day, ‹ date › through the days) over the day's line, Focus, and the Plan · Capture presets.
-export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, onSignOut, end, celebrate = false, offline = false, unsaved = false, reconnecting = false, room, nav }: Props) {
+export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, end, celebrate = false, offline = false, unsaved = false, reconnecting = false, room, nav }: Props) {
   const line = useRef<HTMLParagraphElement>(null);
   useFitText(line, headline, 0.6);
   return (
     <header className="topbar">
-      <p className="r-wordmark wordmark">{room ? <AppMenu onSignOut={onSignOut} /> : "toodoo"}</p>
+      <p className="r-wordmark wordmark">{room ? <AppMenu /> : "toodoo"}</p>
       {room && <RoomNav room={room} />}
       {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : reconnecting ? "reconnecting" : "offline"}</span>}
       <h1 className="r-date date" aria-label={nav ? longDate(nav.date) : date}>
@@ -118,9 +116,9 @@ function DayNav({ date, today, onDate }: { date: string; today: string; onDate: 
   );
 }
 
-// The wordmark, and a chevron for the menu: the theme (one button that steps Light, Dark, Auto), All tasks, Suggested, Tidy up, Stats,
-// Share to toodoo, Calendars, Sign out. A popover like the view menu: Escape or a click away closes it.
-function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
+// The wordmark, and a chevron for the menu: All tasks, Suggested, Tidy up, Stats, Share to toodoo, Settings (where the
+// theme, calendars, Jira, notifications and Sign out live). A popover like the view menu: Escape or a click away closes it.
+function AppMenu() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   const counted = useQuery(api.stats.tidyCount, {});
@@ -150,7 +148,6 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
       </button>
       {open && (
         <span className="daymenu-pop" role="menu" aria-label="Menu">
-          <ThemeCycle />
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("tasks"); }}>All tasks</button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("suggested"); }}>
             Suggested{suggested > 0 && <span className="count-chip">{suggested}</span>}
@@ -160,8 +157,7 @@ function AppMenu({ onSignOut }: { onSignOut?: () => void }) {
           </button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("stats"); }}>Stats</button>
           <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("share"); }}>Share to toodoo</button>
-          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("calendars"); }}>Calendars</button>
-          {onSignOut && <button type="button" role="menuitem" className="daymenu-item" onClick={onSignOut}>Sign out</button>}
+          <button type="button" role="menuitem" className="daymenu-item" onClick={() => { setOpen(false); go("settings"); }}>Settings</button>
         </span>
       )}
     </span>

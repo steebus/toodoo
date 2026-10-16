@@ -90,9 +90,10 @@ export async function loadState(db: R, userId: string, t: string, date: string):
     .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", lo).lte("date", addDays(date, 1 + WEEK_AHEAD))).collect();
   const blocks = await db.query("plan_blocks")
     .withIndex("by_user_date", (q) => q.eq("user_id", userId).gte("date", addDays(t, -HISTORY_DAYS))).collect();
+  const paint = await colourEvents(db, userId);
   return {
     tasks: [...open, ...done.filter((d) => d.done)].map(toTask),
-    days: days.map((d) => ({ date: d.date, headline: d.headline, events: d.events })),
+    days: days.map((d) => ({ date: d.date, headline: d.headline, events: paint(d.events) })),
     blocks: blocks.map((b) => ({ id: b._id, task_id: b.task_id, date: b.date, start: b.start, mins: b.mins })),
     epics: await listEpics(db, userId),
   };
@@ -114,6 +115,17 @@ async function inboxWaiting(db: R, userId: string) {
   const by: Record<string, number> = {};
   for (const r of rows) by[r.origin] = (by[r.origin] ?? 0) + 1;
   return { n: rows.length, by };
+}
+
+// Events as they go out: each synced one takes its calendar's colour (graphite, the plain look, carries none), and
+// the feed id it was tagged with stays in the database.
+export async function colourEvents(db: R, userId: string) {
+  const feeds = await db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", userId)).collect();
+  const colours = new Map(feeds.map((f) => [f._id as string, f.colour]));
+  return <E extends { feed?: string }>(events: E[]) => events.map(({ feed, ...e }) => {
+    const colour = feed ? colours.get(feed) : undefined;
+    return colour && colour !== "graphite" ? { ...e, colour } : e;
+  });
 }
 
 const hasFeed = async (db: R, userId: string) =>
@@ -187,7 +199,7 @@ export async function setDay(db: W, userId: string, input: unknown) {
   const events = ((await hasFeed(db, userId)) ? undefined : d.events) ?? hit?.events ?? [];
   if (hit) await db.patch(hit._id, { headline, events });
   else await db.insert("days", { user_id: userId, date: d.date, headline, events });
-  return { date: d.date, headline, events };
+  return { date: d.date, headline, events: events.map((e) => { const { feed: _, ...rest } = e as typeof e & { feed?: string }; return rest; }) };
 }
 
 // A prep task for a calendar event, made once: a second ask finds the first.

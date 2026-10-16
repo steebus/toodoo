@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ signIn: vi.fn(), signOut: vi.fn(), user: undefined as { id: string } | undefined }));
-const state = vi.hoisted(() => ({ authed: false, authLoading: false, live: true, socket: true, throws: null as Error | null }));
+const state = vi.hoisted(() => ({ authed: false, authLoading: false, live: true, socket: true, throws: null as Error | null, boardOnly: false }));
 vi.mock("@workos-inc/authkit-react", () => ({ useAuth: () => auth }));
 vi.mock("convex/react", () => ({
   Authenticated: ({ children }: any) => (state.authed && !state.authLoading ? children : null),
@@ -11,15 +11,20 @@ vi.mock("convex/react", () => ({
   AuthLoading: ({ children }: any) => (state.authLoading ? children : null),
   useConvexConnectionState: () => ({ hasEverConnected: state.socket, isWebSocketConnected: state.socket }),
   useMutation: () => Object.assign(vi.fn(), { withOptimisticUpdate() { return this; } }),
-  useQuery: () => {
+  useAction: () => vi.fn(),
+  useQuery: (ref: unknown) => {
     if (state.throws) throw state.throws;
+    if (state.boardOnly && getName(ref) !== "agent:board") return undefined;
     return useQueryValue();
   },
 }));
+const getName = (ref: unknown) => { try { return (globalThis as any).__fnName(ref); } catch { return ""; } };
 const useQueryValue = () => !state.live ? undefined : ({
     today: "2026-03-10", date: "2026-03-10", nowM: 600, app_url: null, day: null, tasks: [], blocks: [], suggestions: [],
   });
 
+import { getFunctionName } from "convex/server";
+(globalThis as any).__fnName = getFunctionName;
 import { App } from "./App";
 import { loadBoard, saveBoard } from "./lib/offline";
 beforeEach(() => localStorage.clear());
@@ -65,14 +70,18 @@ it("cold start offline and signed out: shows the kept board, read-only", () => {
   expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
 });
 
-it("signing out clears the kept boards", async () => {
+it("signing out (at the foot of Settings) clears the kept boards", async () => {
   state.authed = true;
+  state.boardOnly = true;
   saveBoard("u1", "2026-03-10", kept as any);
   render(<App />);
   await userEvent.click(document.querySelector(".daymenu-button")!);
-  await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
+  await userEvent.click(screen.getByRole("menuitem", { name: "Settings" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
   expect(auth.signOut).toHaveBeenCalled();
   expect(loadBoard("u1", "2026-03-10")).toBeUndefined();
+  state.boardOnly = false;
+  window.history.pushState(null, "", "/");
 });
 
 it("cold start with the radio on but no network: the kept board after a few seconds without a socket, reconnecting", () => {

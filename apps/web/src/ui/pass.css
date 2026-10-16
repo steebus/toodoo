@@ -157,6 +157,19 @@
 .plan-event { background: var(--well); color: var(--ink-2); border-color: var(--rule-soft); box-shadow: none; }
 .plan-event.is-live, .pass .plan-event .plan-body { cursor: pointer; }
 .plan-event.is-live:hover { border-color: var(--rule); color: var(--ink); }
+/* A coloured calendar's events: hatched glass in its colour, a dashed edge and a dot, never solid paper, so they
+   can't be mistaken for tasks (which are flat coloured paper with a solid stripe and a lift). */
+.plan-event.has-cal, .allday-chip.has-cal, .cal-ev.has-cal {
+  background:
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--cal) 20%, transparent) 0 calc(5 * var(--u, 1px)), transparent calc(5 * var(--u, 1px)) calc(10 * var(--u, 1px))),
+    color-mix(in srgb, var(--cal) 9%, var(--ground));
+  border-style: dashed; border-color: color-mix(in srgb, var(--cal) 70%, var(--rule-soft)); color: var(--ink);
+}
+.plan-event.has-cal .plan-title::before, .allday-chip.has-cal::before {
+  content: ""; display: inline-block; width: 0.55em; height: 0.55em; margin-right: 0.45em; border-radius: 50%;
+  background: var(--cal); vertical-align: 0.08em;
+}
+.plan-event.has-cal.is-live:hover { border-color: var(--cal); }
 /* An event tapped: its one action, Create prep task, on a small slip under it. */
 .event-menu {
   position: absolute; left: calc(var(--lane-left) + 2%); z-index: 30; display: grid; gap: calc(2 * var(--u)); min-width: calc(230 * var(--u));

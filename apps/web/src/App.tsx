@@ -18,7 +18,8 @@ import { Kanban } from "./ui/Kanban";
 import { Matrix } from "./ui/Matrix";
 import { RoomShell, RoomSkeleton } from "./ui/RoomShell";
 import { ShareRoom } from "./ui/ShareRoom";
-import { CalendarsRoom } from "./ui/CalendarsRoom";
+import { SettingsRoom } from "./ui/SettingsRoom";
+import { CalendarRoom } from "./ui/CalendarRoom";
 import { Suggested } from "./ui/Suggested";
 import { SignIn as Door } from "./ui/SignIn";
 import type { BoardData } from "./ui/types";
@@ -50,9 +51,8 @@ function useSignOut() {
 }
 
 function Live({ board, date, onDate }: { board: BoardData; date: string; onDate: (d: string) => void }) {
-  const out = useSignOut();
   const actions = useActions(board);
-  return <Hero board={board} onSignOut={out} actions={actions} nav={{ date, onDate }} />;
+  return <Hero board={board} actions={actions} nav={{ date, onDate }} />;
 }
 
 // The Board and Epics rooms work from one live query; until it lands, the room's frame.
@@ -62,25 +62,24 @@ function useTodayBoard() {
   return useBoard(undefined, user?.id);
 }
 
-function SideRoom({ room }: { room: "share" | "calendars" | "suggested" }) {
+function SideRoom({ room }: { room: "share" | "settings" | "suggested" }) {
   const out = useSignOut();
   const offline = useOffline();
   const board = useTodayBoard();
   return (
-    <RoomShell room={room} board={board} offline={offline} onSignOut={out}>
-      {room === "share" ? <ShareRoom offline={offline} /> : room === "suggested" ? <Suggested offline={offline} /> : <CalendarsRoom offline={offline} />}
+    <RoomShell room={room} board={board} offline={offline}>
+      {room === "share" ? <ShareRoom offline={offline} /> : room === "suggested" ? <Suggested offline={offline} /> : <SettingsRoom offline={offline} onSignOut={out} />}
     </RoomShell>
   );
 }
 
 function WorkRoom({ room }: { room: "board" | "epics" | "matrix" }) {
-  const out = useSignOut();
   const { user } = useAuth();
   const work = useWorkspace(user?.id ?? lastUser());
   const board = useTodayBoard();
   const actions = useWorkActions(work);
   return (
-    <RoomShell room={room} board={board} offline={actions.offline} onSignOut={out}>
+    <RoomShell room={room} board={board} offline={actions.offline}>
       {!work ? <RoomSkeleton room={room} />
         : room === "board" ? <Kanban work={work} actions={actions} />
         : room === "epics" ? <Epics work={work} actions={actions} />
@@ -89,17 +88,16 @@ function WorkRoom({ room }: { room: "board" | "epics" | "matrix" }) {
   );
 }
 
-// Stats and All tasks: the whole account. All tasks edits through the Board's actions (a task's ticket, as there).
-function AccountRoom({ room }: { room: "stats" | "tasks" | "tidy" }) {
-  const out = useSignOut();
+// Stats, All tasks and the Calendar: the whole account. All tasks edits through the Board's actions (a task's ticket, as there).
+function AccountRoom({ room }: { room: "stats" | "tasks" | "tidy" | "calendar" }) {
   const board = useTodayBoard();
   const all = useEverything();
   const work = useMemo(() => all && { today: all.today, epics: all.epics, tasks: all.tasks, done_counts: {} }, [all]);
   const actions = useWorkActions(work);
   return (
-    <RoomShell room={room} board={board} offline={actions.offline} onSignOut={out}>
+    <RoomShell room={room} board={board} offline={actions.offline}>
       {!all ? <main className="room-main is-loading" aria-busy><div className="room-head"><span className="skel skel-line" style={{ width: 120, height: 26 }} /></div></main>
-        : room === "stats" ? <Stats all={all} /> : room === "tidy" ? <Tidy all={all} actions={actions} /> : <AllTasks all={all} actions={actions} />}
+        : room === "stats" ? <Stats all={all} /> : room === "calendar" ? <CalendarRoom all={all} actions={actions} /> : room === "tidy" ? <Tidy all={all} actions={actions} /> : <AllTasks all={all} actions={actions} />}
     </RoomShell>
   );
 }
@@ -110,8 +108,8 @@ function Rooms({ cached }: { cached?: string }) {
   useEffect(() => {
     if (room !== "share" && pendingShare()) go("share");
   }, [room]);
-  if (room === "share" || room === "calendars" || room === "suggested") return <SideRoom key={room} room={room} />;
-  if (room === "stats" || room === "tasks" || room === "tidy") return <AccountRoom key={room} room={room} />;
+  if (room === "share" || room === "settings" || room === "suggested") return <SideRoom key={room} room={room} />;
+  if (room === "stats" || room === "tasks" || room === "tidy" || room === "calendar") return <AccountRoom key={room} room={room} />;
   return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
 }
 
@@ -138,7 +136,7 @@ function Fault({ cached, onRetry }: { cached?: string; onRetry: () => void }) {
   const kept = userId ? loadBoard(userId, localDate()) : undefined;
   return (
     <>
-      {kept ? <Hero board={kept} onSignOut={out} /> : <HeroShell />}
+      {kept ? <Hero board={kept} /> : <HeroShell />}
       <p className="fault">
         <button type="button" onClick={onRetry}>Retry</button>
         <button type="button" onClick={out}>Sign out</button>

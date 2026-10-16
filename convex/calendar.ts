@@ -2,7 +2,9 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { requireUser } from "./lib/user";
-import { addDays } from "../shared/planning.ts";
+import { addDays, daysBetween } from "../shared/planning.ts";
+import { isCalColour, nextCalColour } from "../shared/calendars.ts";
+import { checkDate, colourEvents } from "./model";
 
 const MAX_FEEDS = 5;
 
@@ -27,7 +29,7 @@ export const feeds = query({
     const user_id = await requireUser(ctx);
     const rows = await ctx.db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", user_id)).collect();
     return rows.map((r) => ({
-      id: r._id, label: feedLabel(r.url), synced_at: r.synced_at ?? null, tried_at: r.tried_at ?? null, error: r.error ?? null,
+      id: r._id, label: feedLabel(r.url), colour: isCalColour(r.colour) ? r.colour : "graphite", synced_at: r.synced_at ?? null, tried_at: r.tried_at ?? null, error: r.error ?? null,
     }));
   },
 });
@@ -40,7 +42,7 @@ export const addFeed = mutation({
     const rows = await ctx.db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", user_id)).collect();
     if (rows.some((r) => r.url === url)) return;
     if (rows.length >= MAX_FEEDS) throw new ConvexError({ code: "input", message: `${MAX_FEEDS} calendars at most` });
-    await ctx.db.insert("calendar_feeds", { user_id, url });
+    await ctx.db.insert("calendar_feeds", { user_id, url, colour: nextCalColour(rows.map((r) => r.colour)) });
     await ctx.scheduler.runAfter(0, internal.calendarSync.syncUser, { user_id });
   },
 });
@@ -53,6 +55,33 @@ export const removeFeed = mutation({
     if (!row || row.user_id !== user_id) return;
     await ctx.db.delete(a.id);
     await ctx.scheduler.runAfter(0, internal.calendarSync.syncUser, { user_id });
+  },
+});
+
+// A calendar's colour: its events on the line and the month take it at once (they're coloured on the way out).
+export const setColour = mutation({
+  args: { id: v.id("calendar_feeds"), colour: v.string() },
+  handler: async (ctx, a) => {
+    const user_id = await requireUser(ctx);
+    if (!isCalColour(a.colour)) throw new ConvexError({ code: "input", message: "not a calendar colour" });
+    const row = await ctx.db.get(a.id);
+    if (!row || row.user_id !== user_id) return;
+    await ctx.db.patch(a.id, { colour: a.colour });
+  },
+});
+
+// The Calendar room's month: each day's events in [from, until], coloured by their calendar.
+export const month = query({
+  args: { from: v.string(), until: v.string() },
+  handler: async (ctx, a) => {
+    const user_id = await requireUser(ctx);
+    checkDate(a.from);
+    checkDate(a.until);
+    if (a.until < a.from || daysBetween(a.from, a.until) > 62) throw new ConvexError({ code: "input", message: "two months at most" });
+    const rows = await ctx.db.query("days")
+      .withIndex("by_user_date", (q) => q.eq("user_id", user_id).gte("date", a.from).lte("date", a.until)).collect();
+    const paint = await colourEvents(ctx.db, user_id);
+    return rows.filter((d) => d.events.length).map((d) => ({ date: d.date, events: paint(d.events) }));
   },
 });
 
@@ -71,7 +100,9 @@ export const feedsOf = internalQuery({
   handler: (ctx, a) => ctx.db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", a.user_id)).collect(),
 });
 
-const ev = v.object({ start: v.string(), end: v.string(), title: v.string(), where: v.optional(v.string()), allDay: v.optional(v.boolean()) });
+const ev = v.object({
+  start: v.string(), end: v.string(), title: v.string(), where: v.optional(v.string()), allDay: v.optional(v.boolean()), feed: v.optional(v.string()),
+});
 
 // A sync starting: each feed notes when, so one that never finishes (the action died) shows as stuck, not syncing.
 export const startSync = internalMutation({

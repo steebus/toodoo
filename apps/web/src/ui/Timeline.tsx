@@ -570,9 +570,10 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
             const dragging = ghost?.id === b.id;
             const shownAt = at(b);
             const time = shownAt.start === b.startM ? b.time : clockOf(shownAt.start);
-            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}${revealed === b.id ? " is-revealed" : ""}${pressed === b.id ? " is-pressed" : ""}${b.colour ? " has-epic" : ""}`;
+            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}${revealed === b.id ? " is-revealed" : ""}${pressed === b.id ? " is-pressed" : ""}${b.colour ? " has-epic" : ""}${b.calColour ? " has-cal" : ""}`;
             const style = {
               ...(b.colour ? { ["--epic" as string]: `var(--epic-${b.colour})` } : null),
+              ...(b.calColour ? { ["--cal" as string]: `var(--cal-${b.calColour})` } : null),
               top: px(blockTop(b.startM, startM)),
               height: px(blockHeight(b.mins)),
               left: `calc(var(--lane-left) + ${b.col} * var(--lane-w) / ${b.cols})`,

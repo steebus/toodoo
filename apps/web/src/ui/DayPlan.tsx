@@ -85,7 +85,8 @@ export function DayPlan({ plan, board, actions, nextUp }: Props) {
         <div className="dayplan-head">
           <ul className="allday" aria-label="All day">
             {allDay.map((e) => (
-              <li key={e.id} className="allday-chip" title={e.title}>{e.title}</li>
+              <li key={e.id} className={`allday-chip${e.colour ? " has-cal" : ""}`} title={e.title}
+                style={e.colour ? { ["--cal" as string]: `var(--cal-${e.colour})` } : undefined}>{e.title}</li>
             ))}
           </ul>
         </div>
