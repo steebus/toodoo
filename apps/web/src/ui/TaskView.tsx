@@ -66,6 +66,7 @@ export function TaskView({
     : !t.due ? "" : late ? `${n} ${n === 1 ? "DAY" : "DAYS"} OVER` : t.due === today || dayWord(t.due, today) === "tomorrow" ? dayWord(t.due, today).toUpperCase() : shortDate(t.due);
   const act = (fn?: () => void) => fn && (() => { fn(); onClose(); });
   const save = (patch: Record<string, unknown>) => (offline ? Promise.resolve(false) : onSave(patch));
+  const spent = progress?.spent ?? 0; // planned blocks gone by; the estimate is the task's own, so edits move the panel at once
   const creating = !!onCreate;
   const [filing, setFiling] = useState(false);
   const open = epics.filter((e) => e.status !== "done" || e.id === t.epic_id);
@@ -95,6 +96,17 @@ export function TaskView({
               onSave={(v) => save({ estimate_mins: v || null })} />
           </span>
         </div>
+        {t.estimate_mins ? (
+          <div className="tk-progress" role="group" aria-label="Time">
+            <dl className="tk-time">
+              <div><dt>ESTIMATE</dt><dd>{formatDuration(t.estimate_mins)}</dd></div>
+              <div><dt>SPENT</dt><dd>{formatDuration(spent)}</dd></div>
+              <div><dt>{spent > t.estimate_mins ? "OVER" : "LEFT"}</dt>
+                <dd className={spent > t.estimate_mins ? "is-over" : undefined}>{formatDuration(Math.abs(t.estimate_mins - spent))}</dd></div>
+            </dl>
+            <PenProgress spent={spent} est={t.estimate_mins} />
+          </div>
+        ) : null}
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-title-row">
           <h2 id="ticket-title" className="tk-title">
@@ -128,12 +140,6 @@ export function TaskView({
           </select>
         </label>
         {!creating && <PrepFor link={t.prep_for ?? null} today={today} disabled={offline} onSave={(prep_for) => save({ prep_for })} />}
-        {progress && (
-          <div className="tk-progress">
-            <PenProgress {...progress} />
-            <span>{formatDuration(progress.spent)} spent of {formatDuration(progress.est)}</span>
-          </div>
-        )}
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <Field label="Description" kind="text" value={t.description ?? ""} placeholder="+ Description" className="tk-body"
           display={t.description} onSave={(v) => save({ description: v.trim() || null })} />

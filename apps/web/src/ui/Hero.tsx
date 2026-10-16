@@ -176,8 +176,7 @@ export function Hero({ board, quickAdd, onSignOut, actions, nav }: Props) {
         {actions && viewTask && (
           <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline} epics={board.epics} tagPool={model.tags} editTitle={editTitle}
             epic={viewTask.epic_id ? board.epics?.find((e) => e.id === viewTask.epic_id) : undefined}
-            progress={viewTask.estimate_mins && board.effort?.[viewTask.id]?.actual
-              ? { spent: board.effort[viewTask.id].actual, est: viewTask.estimate_mins } : null}
+            progress={viewTask.estimate_mins ? { spent: board.effort?.[viewTask.id]?.actual ?? 0, est: viewTask.estimate_mins } : null}
             focus={focused ? { startM: focused.startM, endM: focused.endM } : undefined}
             onClose={() => { setViewing(null); setFocusing(false); }}
             onTick={(done) => actions.tick(viewTask.id, done)}

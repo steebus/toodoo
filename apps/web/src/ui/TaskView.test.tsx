@@ -35,3 +35,13 @@ it("shows the meeting a card is prep for, and unlinks it", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Not prep for this meeting" }));
   expect(onSave).toHaveBeenCalledWith({ prep_for: null });
 });
+
+it("tops the card with estimate, time spent and time left, moving with the estimate", () => {
+  const { rerender } = render(<TaskView task={card({ estimate_mins: 120 })} today={T} progress={{ spent: 45, est: 120 }} onSave={vi.fn()} onClose={() => {}} />);
+  const time = screen.getByRole("group", { name: "Time" });
+  expect(time).toHaveTextContent("ESTIMATE2h");
+  expect(time).toHaveTextContent("SPENT45m");
+  expect(time).toHaveTextContent("LEFT1h 15m");
+  rerender(<TaskView task={card({ estimate_mins: 30 })} today={T} progress={{ spent: 45, est: 30 }} onSave={vi.fn()} onClose={() => {}} />);
+  expect(screen.getByRole("group", { name: "Time" })).toHaveTextContent("OVER15m");
+});

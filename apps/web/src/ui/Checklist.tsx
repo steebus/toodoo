@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Fragment, useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import type { ChecklistItem } from "@shared/snapshot.ts";
 import { CheckIcon, CloseIcon, CopyIcon, PenTick } from "./icons";
 
@@ -21,10 +24,22 @@ export function pastedSteps(text: string): ChecklistItem[] {
 
 export const copiedSteps = (items: ChecklistItem[]) => items.map((x) => `- [${x.done ? "x" : " "}] ${x.text}`).join("\n");
 
-// A task's steps: pen boxes that tick, each step retyped where it is printed, and a line at the foot to add one.
-// Enter keeps a step and goes on to the next (the add line after the last); pasting several lines adds a step each.
+// A task's steps: pen boxes that tick, each step retyped where it is printed, a grip on each to drag it elsewhere in
+// the list, and a line at the foot to add one. Enter keeps a step and opens a blank one right after it (the add line
+// after the last); pasting several lines adds a step each.
 export function Checklist({ items, onChange, disabled, label = "Checklist" }: Props) {
   const [line, setLine] = useState("");
+  const [blank, setBlank] = useState<number | null>(null); // a new step being typed at this place: only kept once it has words
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const ids = items.map((_, i) => `step-${i}`);
+  const dropped = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    onChange(arrayMove(items, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
+  };
   const root = useRef<HTMLDivElement>(null);
   const set = (i: number, patch: Partial<ChecklistItem>) => onChange(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   const add = () => {
@@ -46,9 +61,17 @@ export function Checklist({ items, onChange, disabled, label = "Checklist" }: Pr
     const steps = pastedSteps(text);
     onChange([...items.slice(0, at), ...steps, ...items.slice(at)].slice(0, MAX));
   };
+  // Enter in step i: a blank step opens after it, unless it is the last (then the add line takes over).
   const next = (i: number) => {
-    const inputs = root.current?.querySelectorAll<HTMLInputElement>(".cl-text, .cl-add");
-    inputs?.[i + 1]?.focus();
+    if (i < items.length - 1 && items.length < MAX) return setBlank(i + 1);
+    setBlank(null);
+    root.current?.querySelector<HTMLInputElement>(".cl-add")?.focus();
+  };
+  // The blank step's words arrive: it goes in at its place, and Enter opens another after it.
+  const fill = (at: number, text: string, more: boolean) => {
+    const t = text.trim().slice(0, 200);
+    if (t) onChange([...items.slice(0, at), { text: t, done: false }, ...items.slice(at)]);
+    setBlank(t && more && at < items.length && items.length + 1 < MAX ? at + 1 : null);
   };
   const [copied, setCopied] = useState(false);
   const copy = () => void navigator.clipboard?.writeText(copiedSteps(items)).then(() => {
@@ -66,27 +89,81 @@ export function Checklist({ items, onChange, disabled, label = "Checklist" }: Pr
           </button>
         </p>
       )}
-      <ul className="cl-items">
-        {items.map((x, i) => (
-          <li key={i} className={`cl-item${x.done ? " is-done" : ""}`}>
-            <button type="button" className="cl-box" role="checkbox" aria-checked={x.done} aria-label={x.text} disabled={disabled}
-              onClick={() => set(i, { done: !x.done })}>
-              <PenTick on={x.done} draw className="cl-tick" size={22} />
-            </button>
-            <Step text={x.text} index={i} disabled={disabled} onSave={(text) => text ? set(i, { text }) : onChange(items.filter((_, k) => k !== i))}
-              onNext={() => next(i)} onPaste={(e) => paste(e, i + 1)} />
-            <button type="button" className="cl-x" aria-label={`Remove ${x.text || `step ${i + 1}`}`} disabled={disabled}
-              onClick={() => onChange(items.filter((_, k) => k !== i))}>
-              <CloseIcon size={14} />
-            </button>
-          </li>
-        ))}
-      </ul>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={() => setBlank(null)} onDragEnd={dropped}>
+        <SortableContext items={ids} strategy={verticalListSortingStrategy} disabled={disabled}>
+          <ul className="cl-items">
+            {items.map((x, i) => (
+              <Fragment key={ids[i]}>
+                {blank === i && <Blank key={`blank-${i}`} index={i} onDone={(t, more) => fill(i, t, more)} />}
+                <Row id={ids[i]} item={x} index={blank !== null && blank <= i ? i + 1 : i} disabled={disabled}
+                  onTick={() => set(i, { done: !x.done })}
+                  onSave={(text) => text ? set(i, { text }) : onChange(items.filter((_, k) => k !== i))}
+                  onNext={() => next(i)} onPaste={(e) => paste(e, i + 1)}
+                  onRemove={() => onChange(items.filter((_, k) => k !== i))} />
+              </Fragment>
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
       {items.length < MAX && (
         <input className="cl-add" value={line} placeholder="+ Add a step" aria-label="Add a step" maxLength={200} disabled={disabled} enterKeyHint="done"
           onChange={(e) => setLine(e.target.value)} onKeyDown={enter} onBlur={add} onPaste={(e) => paste(e, items.length)} />
       )}
     </div>
+  );
+}
+
+// One step as printed: grip, box, words, cross. The grip is the drag handle (mouse, touch, or Space and arrows).
+function Row({ id, item: x, index: i, disabled, onTick, onSave, onNext, onPaste, onRemove }: {
+  id: string; item: ChecklistItem; index: number; disabled?: boolean; onTick: () => void; onSave: (text: string) => void;
+  onNext: () => void; onPaste: (e: ClipboardEvent<HTMLInputElement>) => void; onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
+  return (
+    <li ref={setNodeRef} className={`cl-item${x.done ? " is-done" : ""}${isDragging ? " is-dragging" : ""}`}
+      style={{ transform: CSS.Translate.toString(transform), transition }}>
+      <button type="button" ref={setActivatorNodeRef} className="cl-grip" aria-label={`Move ${x.text || `step ${i + 1}`}`} disabled={disabled}
+        {...attributes} {...listeners}>
+        <GripIcon />
+      </button>
+      <button type="button" className="cl-box" role="checkbox" aria-checked={x.done} aria-label={x.text} disabled={disabled} onClick={onTick}>
+        <PenTick on={x.done} draw className="cl-tick" size={22} />
+      </button>
+      <Step text={x.text} index={i} disabled={disabled} onSave={onSave} onNext={onNext} onPaste={onPaste} />
+      <button type="button" className="cl-x" aria-label={`Remove ${x.text || `step ${i + 1}`}`} disabled={disabled} onClick={onRemove}>
+        <CloseIcon size={14} />
+      </button>
+    </li>
+  );
+}
+
+const GripIcon = () => (
+  <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden focusable="false">
+    {[3, 8, 13].flatMap((y) => [2.5, 7.5].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.3" />))}
+  </svg>
+);
+
+// The step just opened by Enter: nothing is kept until it has words; Enter keeps them and opens the next, leaving
+// it empty (or Escape) drops it.
+function Blank({ index, onDone }: { index: number; onDone: (text: string, more: boolean) => void }) {
+  const [draft, setDraft] = useState("");
+  const settled = useRef(false);
+  const settle = (more: boolean) => {
+    if (settled.current) return;
+    settled.current = true;
+    onDone(draft, more);
+  };
+  return (
+    <li className="cl-item is-blank">
+      <span className="cl-grip is-idle" aria-hidden><GripIcon /></span>
+      <span className="cl-box is-idle" aria-hidden />
+      <input className="cl-text" value={draft} maxLength={200} aria-label={`Step ${index + 1}`} placeholder="New step" autoFocus enterKeyHint="next"
+        onChange={(e) => setDraft(e.target.value)} onBlur={() => settle(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); settle(true); }
+          else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDraft(""); settled.current = true; onDone("", false); }
+        }} />
+    </li>
   );
 }
 
