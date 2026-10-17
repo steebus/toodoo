@@ -6,8 +6,9 @@ import type { BoardData } from "../ui/types";
 const PREFIX = "toodoo.board.";
 const USER = "toodoo.lastUser";
 const KEEP = 2;
-const DEAD_AFTER = 3000;
+const DEAD_AFTER = 10_000;
 const COLD_AFTER = 4000;
+const RADIO_AFTER = 2000;
 
 type Saved = { at: number; board: BoardData };
 const keyOf = (user: string, date: string) => `${PREFIX}${user}.${date}`;
@@ -72,27 +73,43 @@ const subscribe = (cb: () => void) => {
   };
 };
 
+const onVisible = (cb: () => void) => {
+  document.addEventListener("visibilitychange", cb);
+  return () => document.removeEventListener("visibilitychange", cb);
+};
+
 // Once a cold start has waited that out, what mounts after it (the kept board) needn't wait again.
 let coldDead = false;
 
-// No network, or a socket down a few seconds (a blip doesn't count). A cold start that has never
-// connected counts too, after a little longer: the radio can be on with no network behind it.
+// No network for a moment, or a socket down a while (a blip doesn't count, nor does a phone waking the app,
+// which reconnects in a few seconds: the wait starts again each time the page comes back into view). A cold
+// start that has never connected counts too, sooner: the radio can be on with no network behind it.
 export function useOffline() {
   const online = useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
+  const visible = useSyncExternalStore(onVisible, () => document.visibilityState !== "hidden", () => true);
   const c = useConvexConnectionState();
   const down = !c.isWebSocketConnected;
   const cold = !c.hasEverConnected;
   const [dead, setDead] = useState(() => down && cold && coldDead);
+  const [radioDead, setRadioDead] = useState(() => !online); // already offline when it mounts: no wait
+  useEffect(() => {
+    if (online) return setRadioDead(false);
+    if (radioDead) return;
+    const t = setTimeout(() => setRadioDead(true), RADIO_AFTER);
+    return () => clearTimeout(t);
+  }, [online]);
   useEffect(() => {
     if (!down) return setDead(false);
     if (cold && coldDead) return setDead(true);
+    if (!visible) return;
+    setDead(false);
     const t = setTimeout(() => {
       if (cold) coldDead = true;
       setDead(true);
     }, cold ? COLD_AFTER : DEAD_AFTER);
     return () => clearTimeout(t);
-  }, [down, cold]);
-  return !online || dead;
+  }, [down, cold, visible]);
+  return radioDead || dead;
 }
 
 // No network at all (the device says so). Only then are writes held back: with a network, a socket that is

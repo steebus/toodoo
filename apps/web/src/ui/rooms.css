@@ -702,15 +702,15 @@
   }
   .rooms .room-slot { flex: 1; }
   .rooms .room-dot { display: none; }
-  .rooms .room-link { display: grid; place-items: center; align-content: center; gap: 3px; width: 100%; height: 46px; padding: 0; font-weight: 700; color: var(--ink-3); }
-  .pass .rooms .room-icon, .room .rooms .room-icon { width: 21px; height: 21px; }
-  .rooms .room-name { position: static; width: auto; height: auto; clip-path: none; font-size: 10px; letter-spacing: 0.03em; }
+  .rooms .room-link { display: grid; place-items: center; align-content: center; gap: 3px; width: 100%; height: 51px; padding: 0; font-weight: 700; color: var(--ink-3); }
+  .pass .rooms .room-icon, .room .rooms .room-icon { width: 23px; height: 23px; }
+  .rooms .room-name { position: static; width: auto; height: auto; clip-path: none; font-size: 10.5px; letter-spacing: 0.03em; }
   .rooms .room-link[aria-current="page"] { color: var(--ink); }
   .pass .rooms .room-mark, .room .rooms .room-mark {
     left: 50%; right: auto; top: -1px; bottom: auto; width: 48px; margin-left: -24px; height: 3px; border-radius: 0 0 2px 2px;
   }
-  .pass { padding-bottom: calc(47px + env(safe-area-inset-bottom)); }
-  .room-main { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }
+  .pass { padding-bottom: calc(52px + env(safe-area-inset-bottom)); }
+  .room-main { padding-bottom: calc(91px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 819px) { .pass.pass-top { padding-bottom: 0; } }
 
@@ -1072,11 +1072,23 @@
 @keyframes tidy-badge { from { transform: scale(0.4); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .tidy-badge { animation: none; } }
 
-/* ---------- settings: Connections, Notifications, Appearance, then Sign out ---------- */
-.settings-page { width: 100%; max-width: 620px; display: grid; gap: 26px; font-family: var(--font-print); }
-.settings-page > .room-title { font-family: var(--font-ui); }
-.set-section { display: grid; gap: 14px; padding-top: 18px; border-top: 1px solid var(--rule); }
-.set-head { margin: 0; font-family: var(--font-ui); font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: 0.01em; text-transform: uppercase; color: var(--ink-2); }
+/* ---------- settings: Sign out up top, then a tab each for Connections, Notifications, Appearance ---------- */
+.settings-page { width: 100%; max-width: 620px; display: grid; gap: 18px; font-family: var(--font-print); }
+.set-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.set-top > .room-title { font-family: var(--font-ui); }
+.set-tabs {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 2px;
+  background: var(--well); border: 1px solid var(--rule-soft); border-radius: 8px;
+}
+.room .set-tab {
+  min-width: 0; height: 34px; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 6px;
+  font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.01em; text-transform: uppercase; color: var(--ink-3);
+  transition: color 0.2s ease-out;
+}
+.room .set-tab:hover { color: var(--ink-2); }
+.room .set-tab[aria-selected="true"] { color: var(--ink); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.room .set-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.set-section { display: grid; gap: 14px; }
 .set-group { display: grid; gap: 8px; }
 .set-sub { margin: 0; font-family: var(--font-ui); font-weight: 700; font-size: 19px; line-height: 1; }
 .settings .share-form.sheet-form, .settings .sug-jira-form { padding: 0; max-width: none; }
@@ -1102,7 +1114,6 @@
 .set-seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--well); border: 1px solid var(--rule); border-radius: var(--radius); }
 .room .set-seg-item { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; font-size: 14px; color: var(--ink-2); border-radius: 3px; }
 .room .set-seg-item[aria-checked="true"] { color: var(--ink); background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / 0.1); }
-.set-foot { padding-top: 18px; border-top: 1px solid var(--rule); }
 .room .set-out { color: var(--red-ink); }
 .cal-feed.has-colour { grid-template-columns: minmax(0, 1fr) auto auto; }
 .cal-swatches { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; border: 0; }

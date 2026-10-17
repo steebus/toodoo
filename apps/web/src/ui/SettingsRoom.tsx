@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -21,36 +21,62 @@ const ago = (t: number) => {
 
 const message = (err: unknown, fallback: string) => (err as { data?: { message?: string } })?.data?.message ?? fallback;
 
-// Settings: Connections (calendars and Jira), Notifications, Appearance, then Sign out at the foot.
+const TABS = [["connections", "Connections"], ["notifications", "Notifications"], ["appearance", "Appearance"]] as const;
+type Tab = (typeof TABS)[number][0];
+const TAB_KEY = "toodoo.settingsTab";
+const loadTab = (): Tab => {
+  try {
+    const t = localStorage.getItem(TAB_KEY);
+    return TABS.some(([k]) => k === t) ? (t as Tab) : "connections";
+  } catch {
+    return "connections";
+  }
+};
+
+// Settings: Sign out up top, then a tab each for Connections (calendars and Jira), Notifications and Appearance.
 export function SettingsRoom({ offline = false, onSignOut }: { offline?: boolean; onSignOut?: () => void }) {
+  const [tab, setTab] = useState<Tab>(loadTab);
+  const pick = (t: Tab) => {
+    setTab(t);
+    try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable: the tab still shows */ }
+  };
+  // Arrow keys, Home and End move between the tabs, as a tab list should.
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = TABS.findIndex(([k]) => k === tab);
+    const to = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i + TABS.length - 1) % TABS.length
+      : e.key === "Home" ? 0 : e.key === "End" ? TABS.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    pick(TABS[to][0]);
+    document.getElementById(`set-tab-${TABS[to][0]}`)?.focus();
+  };
   return (
     <main className="room-main share settings">
       <div className="settings-page">
-        <h1 className="room-title">Settings</h1>
-        <section className="set-section" aria-labelledby="set-connections">
-          <h2 id="set-connections" className="set-head">Connections</h2>
-          <div className="set-group">
-            <h3 className="set-sub">Calendars</h3>
-            <Calendars offline={offline} />
-          </div>
-          <div className="set-group">
-            <h3 className="set-sub">Jira</h3>
-            <JiraLink offline={offline} />
-          </div>
+        <div className="set-top">
+          <h1 className="room-title">Settings</h1>
+          {onSignOut && <button type="button" className="room-button is-quiet set-out" onClick={onSignOut}>Sign out</button>}
+        </div>
+        <div className="set-tabs" role="tablist" aria-label="Settings" onKeyDown={onKey}>
+          {TABS.map(([k, label]) => (
+            <button key={k} type="button" role="tab" id={`set-tab-${k}`} aria-controls={`set-panel-${k}`} aria-selected={tab === k}
+              tabIndex={tab === k ? 0 : -1} className="set-tab" onClick={() => pick(k)}>{label}</button>
+          ))}
+        </div>
+        <section className="set-section" role="tabpanel" id={`set-panel-${tab}`} aria-labelledby={`set-tab-${tab}`}>
+          {tab === "connections" ? (
+            <>
+              <div className="set-group">
+                <h2 className="set-sub">Calendars</h2>
+                <Calendars offline={offline} />
+              </div>
+              <div className="set-group">
+                <h2 className="set-sub">Jira</h2>
+                <JiraLink offline={offline} />
+              </div>
+            </>
+          ) : tab === "notifications" ? <Notifications offline={offline} /> : <ThemePick />}
         </section>
-        <section className="set-section" aria-labelledby="set-notifications">
-          <h2 id="set-notifications" className="set-head">Notifications</h2>
-          <Notifications offline={offline} />
-        </section>
-        <section className="set-section" aria-labelledby="set-appearance">
-          <h2 id="set-appearance" className="set-head">Appearance</h2>
-          <ThemePick />
-        </section>
-        {onSignOut && (
-          <div className="set-foot">
-            <button type="button" className="room-button is-quiet set-out" onClick={onSignOut}>Sign out</button>
-          </div>
-        )}
       </div>
     </main>
   );

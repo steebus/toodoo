@@ -1061,7 +1061,7 @@
   /* thumb reach: the add ticket over the corner, above the rooms bar; Plan | Today under the header */
   .pass .fab {
     display: grid; place-items: center; align-content: center; gap: 1px; position: absolute; z-index: 4;
-    right: calc(18px + env(safe-area-inset-right)); bottom: calc(80px + env(safe-area-inset-bottom));
+    right: calc(18px + env(safe-area-inset-right)); bottom: calc(85px + env(safe-area-inset-bottom));
     width: 58px; height: 64px; border-radius: 3px 3px 0 0; rotate: -4deg;
     background: var(--paper); color: var(--biro);
     filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.25)) drop-shadow(0 0 1px rgb(0 0 0 / 0.3));
@@ -1074,7 +1074,7 @@
   .pass .fab:disabled { opacity: 0.5; }
   .pass > .topbar { order: 0; }
   .pass-main { order: 2; }
-  .toast-slot { left: calc(16px + env(safe-area-inset-left)); right: 90px; bottom: calc(80px + env(safe-area-inset-bottom)); transform: none; }
+  .toast-slot { left: calc(16px + env(safe-area-inset-left)); right: 90px; bottom: calc(85px + env(safe-area-inset-bottom)); transform: none; }
   .toast-msg { flex: 1; min-width: 0; max-width: none; }
 
   /* sheets sit above the home indicator; the add sheet is the quick add, roomy for thumbs */

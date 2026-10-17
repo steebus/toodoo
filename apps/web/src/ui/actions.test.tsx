@@ -274,11 +274,16 @@ it("Undo still goes through offline (Convex queues it), and the stamp reads unsa
   Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
   try {
     state.inflight = true;
+    vi.useFakeTimers();
     fireEvent(window, new Event("offline"));
+    expect(screen.queryByText("unsaved")).not.toBeInTheDocument(); // a radio that drops for a moment isn't offline
+    act(() => vi.advanceTimersByTime(2000));
+    vi.useRealTimers();
     expect(screen.getByText("unsaved")).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("status", { name: "Notice" })).getByRole("button", { name: /undo/i }));
     expect(fn("updateTask")).toHaveBeenLastCalledWith({ id: report.id, patch: { done: false } });
   } finally {
+    vi.useRealTimers();
     state.inflight = false;
     Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
     fireEvent(window, new Event("online"));

@@ -10,7 +10,7 @@ self.addEventListener("push", (event) => {
     // not ours to read: the plain reminder stands
   }
   event.waitUntil(self.registration.showNotification(n.title, {
-    body: n.body, tag: n.tag, renotify: true, icon: "/icon-192.png", badge: "/icon-192.png", data: { url: n.url },
+    body: n.body, tag: n.tag, renotify: true, icon: "/icon-192.png", badge: "/badge-96.png", data: { url: n.url },
   }));
 });
 

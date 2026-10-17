@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: "prompt", // a new version waits for the next launch: autoUpdate reloaded the page mid-use
-        includeAssets: ["apple-touch-icon.png", "favicon.svg"],
+        includeAssets: ["apple-touch-icon.png", "favicon.svg", "badge-96.png"],
         manifest: {
           name: "toodoo", short_name: "toodoo", display: "standalone", start_url: "/", scope: "/",
           theme_color: "#fcfcfc", background_color: "#fcfcfc", // --ground in styles/tokens.css

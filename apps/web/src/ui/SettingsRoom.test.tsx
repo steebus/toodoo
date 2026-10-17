@@ -30,15 +30,22 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); localStorage.clear(); delete document.documentElement.dataset.theme; });
 
-it("lays out Connections (calendars, Jira), Notifications, Appearance, then Sign out at the foot", async () => {
+it("puts Sign out at the top, then a tab each for Connections, Notifications and Appearance", async () => {
   const out = vi.fn();
   render(<SettingsRoom onSignOut={out} />);
-  expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Connections", "Notifications", "Appearance"]);
-  expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Calendars", "Jira"]);
-  const buttons = screen.getAllByRole("button");
-  expect(buttons.at(-1)).toHaveTextContent("Sign out");
-  await userEvent.click(buttons.at(-1)!);
+  expect(screen.getAllByRole("button")[0]).toHaveTextContent("Sign out");
+  await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
   expect(out).toHaveBeenCalled();
+  const tabs = screen.getAllByRole("tab");
+  expect(tabs.map((t) => t.textContent)).toEqual(["Connections", "Notifications", "Appearance"]);
+  expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+  expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Calendars", "Jira"]);
+  await userEvent.click(tabs[2]);
+  expect(screen.getByRole("tabpanel", { name: "Appearance" })).toContainElement(screen.getByRole("radiogroup", { name: "Theme" }));
+  expect(screen.queryByRole("heading", { name: "Calendars" })).not.toBeInTheDocument();
+  await userEvent.keyboard("{ArrowRight}");
+  expect(screen.getByRole("tab", { name: "Connections" })).toHaveFocus();
+  expect(screen.getByRole("tab", { name: "Connections" })).toHaveAttribute("aria-selected", "true");
 });
 
 it("gives a calendar a colour", async () => {
@@ -61,6 +68,7 @@ it("links Jira", async () => {
 
 it("sets when reminders fire, and says when this browser can't show them", async () => {
   render(<SettingsRoom />);
+  await userEvent.click(screen.getByRole("tab", { name: "Notifications" }));
   expect(await screen.findByText(/This browser can't show them/)).toBeInTheDocument(); // jsdom: no service worker
   await userEvent.selectOptions(screen.getByRole("combobox"), "30");
   expect(fn("push:setPrefs")).toHaveBeenCalledWith({ lead_mins: 30 });
@@ -69,6 +77,7 @@ it("sets when reminders fire, and says when this browser can't show them", async
 
 it("switches the theme", async () => {
   render(<SettingsRoom />);
+  await userEvent.click(screen.getByRole("tab", { name: "Appearance" }));
   const theme = screen.getByRole("radiogroup", { name: "Theme" });
   expect(within(theme).getByRole("radio", { name: /Auto/ })).toHaveAttribute("aria-checked", "true");
   await userEvent.click(within(theme).getByRole("radio", { name: /Dark/ }));
