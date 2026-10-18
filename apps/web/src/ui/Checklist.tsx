@@ -1,7 +1,7 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Fragment, useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import type { ChecklistItem } from "@shared/snapshot.ts";
 import { CheckIcon, CloseIcon, CopyIcon, PenTick } from "./icons";
 
@@ -54,7 +54,7 @@ export function Checklist({ items, onChange, disabled, label = "Checklist" }: Pr
     add();
   };
   // Several lines pasted at i (or at the foot): they go in as steps there; one line pastes as text.
-  const paste = (e: ClipboardEvent<HTMLInputElement>, at: number) => {
+  const paste = (e: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>, at: number) => {
     const text = e.clipboardData.getData("text");
     if (!/\n/.test(text.trim())) return;
     e.preventDefault();
@@ -116,7 +116,7 @@ export function Checklist({ items, onChange, disabled, label = "Checklist" }: Pr
 // One step as printed: grip, box, words, cross. The grip is the drag handle (mouse, touch, or Space and arrows).
 function Row({ id, item: x, index: i, disabled, onTick, onSave, onNext, onPaste, onRemove }: {
   id: string; item: ChecklistItem; index: number; disabled?: boolean; onTick: () => void; onSave: (text: string) => void;
-  onNext: () => void; onPaste: (e: ClipboardEvent<HTMLInputElement>) => void; onRemove: () => void;
+  onNext: () => void; onPaste: (e: ClipboardEvent<HTMLTextAreaElement>) => void; onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
   return (
@@ -137,6 +137,21 @@ function Row({ id, item: x, index: i, disabled, onTick, onSave, onNext, onPaste,
   );
 }
 
+// A step's words wrap: the box grows to fit its lines, again whenever the list's width changes.
+function useGrow(value: string) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => { el.style.height = "auto"; el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`; };
+    fit();
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fit);
+    ro?.observe(el.parentElement ?? el);
+    return () => ro?.disconnect();
+  }, [value]);
+  return ref;
+}
+
 const GripIcon = () => (
   <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden focusable="false">
     {[3, 8, 13].flatMap((y) => [2.5, 7.5].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.3" />))}
@@ -148,6 +163,7 @@ const GripIcon = () => (
 function Blank({ index, onDone }: { index: number; onDone: (text: string, more: boolean) => void }) {
   const [draft, setDraft] = useState("");
   const settled = useRef(false);
+  const grow = useGrow(draft);
   const settle = (more: boolean) => {
     if (settled.current) return;
     settled.current = true;
@@ -157,7 +173,7 @@ function Blank({ index, onDone }: { index: number; onDone: (text: string, more: 
     <li className="cl-item is-blank">
       <span className="cl-grip is-idle" aria-hidden><GripIcon /></span>
       <span className="cl-box is-idle" aria-hidden />
-      <input className="cl-text" value={draft} maxLength={200} aria-label={`Step ${index + 1}`} placeholder="New step" autoFocus enterKeyHint="next"
+      <textarea ref={grow} className="cl-text" rows={1} value={draft} maxLength={200} aria-label={`Step ${index + 1}`} placeholder="New step" autoFocus enterKeyHint="next"
         onChange={(e) => setDraft(e.target.value)} onBlur={() => settle(false)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); settle(true); }
@@ -167,13 +183,14 @@ function Blank({ index, onDone }: { index: number; onDone: (text: string, more: 
   );
 }
 
-// One step's words, an input printed as paper: typing stays here until Enter or leaving it keeps it (empty removes
+// One step's words, a box printed as paper that wraps onto more lines: typing stays here until Enter or leaving it keeps it (empty removes
 // the step); Escape puts it back.
 function Step({ text, index, disabled, onSave, onNext, onPaste }: {
   text: string; index: number; disabled?: boolean; onSave: (text: string) => void; onNext: () => void;
-  onPaste: (e: ClipboardEvent<HTMLInputElement>) => void;
+  onPaste: (e: ClipboardEvent<HTMLTextAreaElement>) => void;
 }) {
   const [draft, setDraft] = useState(text);
+  const grow = useGrow(draft);
   const kept = useRef(text); // Enter keeps, then the blur that follows must not keep (or remove) it again
   useEffect(() => { setDraft(text); kept.current = text; }, [text]);
   const keep = () => {
@@ -183,7 +200,7 @@ function Step({ text, index, disabled, onSave, onNext, onPaste }: {
     onSave(t);
   };
   return (
-    <input className="cl-text" value={draft} maxLength={200} aria-label={`Step ${index + 1}`} disabled={disabled} enterKeyHint="next"
+    <textarea ref={grow} className="cl-text" rows={1} value={draft} maxLength={200} aria-label={`Step ${index + 1}`} disabled={disabled} enterKeyHint="next"
       onChange={(e) => setDraft(e.target.value)} onBlur={keep} onPaste={onPaste}
       // phone keyboards may send Enter as a line break rather than a key: same thing, and never the browser's own "next field"
       onBeforeInput={(e) => { if ((e.nativeEvent as InputEvent).inputType === "insertLineBreak") { e.preventDefault(); keep(); onNext(); } }}
