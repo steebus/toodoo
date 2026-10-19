@@ -228,6 +228,7 @@ export function Matrix({ work, actions }: { work: WorkData; actions: WorkActions
           epic={viewTask.epic_id ? epics.get(viewTask.epic_id) : undefined}
           onClose={() => setViewing(null)}
           onTick={(done) => actions.move(viewTask.id, { done }, `${done ? "Done" : "Reopened"}: ${viewTask.title}`)}
+          onPlan={() => actions.plan(viewTask.id, today)}
           onTomorrow={() => void actions.save(viewTask.id, { due: addDays(today, 1) })}
           onSave={(patch) => actions.save(viewTask.id, patch)}
           onDelete={() => actions.remove(viewTask.id)} />

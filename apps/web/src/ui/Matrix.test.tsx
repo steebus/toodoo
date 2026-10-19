@@ -24,7 +24,7 @@ const work: WorkData = {
 };
 const actions = (): WorkActions => ({
   offline: false, toast: null, dismiss: vi.fn(), move: vi.fn(), save: vi.fn(async () => true), add: vi.fn(async () => true),
-  remove: vi.fn(), createEpic: vi.fn(async () => true), updateEpic: vi.fn(async () => true), removeEpic: vi.fn(),
+  remove: vi.fn(), plan: vi.fn(), createEpic: vi.fn(async () => true), updateEpic: vi.fn(async () => true), removeEpic: vi.fn(),
 });
 afterEach(() => { cleanup(); localStorage.clear(); });
 const dot = (name: string) => screen.getByRole("button", { name: new RegExp(`^${name},`) });

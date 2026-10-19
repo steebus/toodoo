@@ -513,7 +513,10 @@
 :is(.pass, .room) .cl-copy:hover { opacity: 1; background: color-mix(in srgb, currentColor 8%, transparent); }
 @media (hover: none) { :is(.pass, .room) .cl-copy { opacity: 0.6; } }
 .cl-items { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.cl-item { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+/* Each part of a step sits on its first line (30px tall), so a wrapped step's later lines hang under its words alone. */
+.cl-item { display: flex; align-items: flex-start; gap: 8px; min-height: 30px; }
+.cl-item > :is(.cl-grip, .cl-x) { margin-top: 2px; }
+.cl-item > .cl-box { margin-top: 5px; }
 :is(.pass, .room) .cl-box {
   position: relative; flex: none; display: grid; place-items: center; width: 20px; height: 20px; padding: 0;
   border: 1.5px solid currentColor; border-radius: 2px; color: inherit; opacity: 0.85;
@@ -532,7 +535,7 @@
 .cl-tick { position: absolute; left: -2px; top: 1px; width: 30px; color: var(--biro); overflow: visible; pointer-events: none; }
 .cl-text { flex: 1; min-width: 0; font-family: var(--font-print); font-size: 15px; overflow-wrap: anywhere; }
 /* a step wraps rather than scrolling sideways: one row to start, grown to its lines by the component */
-.checklist textarea.cl-text { display: block; box-sizing: border-box; line-height: 1.3; resize: none; overflow: hidden; }
+.checklist textarea.cl-text { display: block; box-sizing: border-box; padding-block: calc((30px - 1.3em) / 2); line-height: 1.3; resize: none; overflow: hidden; }
 :is(.pass, .room) textarea.cl-text:disabled { opacity: 0.4; cursor: not-allowed; }
 .cl-item.is-done .cl-text-ink {
   opacity: 0.7;

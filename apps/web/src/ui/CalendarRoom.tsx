@@ -146,6 +146,7 @@ export function CalendarRoom({ all, actions }: { all: Everything; actions: WorkA
           epic={viewTask.epic_id ? epics.get(viewTask.epic_id) : undefined}
           onClose={() => setViewing(null)}
           onTick={(done) => actions.move(viewTask.id, { done }, `${done ? "Done" : "Reopened"}: ${viewTask.title}`)}
+          onPlan={() => actions.plan(viewTask.id, all.today)}
           onTomorrow={() => void actions.save(viewTask.id, { due: addDays(all.today, 1) })}
           onSave={(patch) => actions.save(viewTask.id, patch)}
           onDelete={() => { actions.remove(viewTask.id); setViewing(null); }} />

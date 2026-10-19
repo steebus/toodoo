@@ -7,6 +7,7 @@ import type { NewTask, ToastData } from "./useActions";
 import { useHeld, useMinuteTick } from "./useBoard";
 import { loadWork, saveWork, useNoNetwork } from "./offline";
 import { isOptimistic } from "./optimistic";
+import { clock12 } from "../ui/format";
 import * as w from "./workOptimistic";
 import type { Everything } from "./stats";
 
@@ -35,6 +36,7 @@ export type WorkActions = {
   save: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
   add: (t: WorkTask) => Promise<boolean>;
   remove: (id: string) => void;
+  plan: (id: string, date: string) => void; // onto the day's line, in its first free gap (as Plan it does on the day)
   createEpic: (e: EpicFields) => Promise<boolean>;
   updateEpic: (id: string, patch: Partial<EpicFields & { sort_order: number }>, message?: string) => Promise<boolean>;
   removeEpic: (id: string) => void;
@@ -64,6 +66,8 @@ export function useWorkActions(work: w.WorkData | undefined): WorkActions {
   const updateTask = useMutation(api.agent.updateTask).withOptimisticUpdate((s, a) => w.updateTask(s as w.WorkStore, a));
   const addTasks = useMutation(api.agent.addTasks).withOptimisticUpdate((s, a) => w.addTasks(s as w.WorkStore, a));
   const deleteTask = useMutation(api.agent.deleteTask).withOptimisticUpdate((s, a) => w.deleteTask(s as w.WorkStore, a));
+  const planDay = useMutation(api.agent.plan);
+  const removeBlock = useMutation(api.agent.removeBlock);
   const create = useMutation(api.epics.create).withOptimisticUpdate((s, a) => w.createEpic(s as w.WorkStore, a));
   const update = useMutation(api.epics.update).withOptimisticUpdate((s, a) => w.updateEpic(s as w.WorkStore, a));
   const removeE = useMutation(api.epics.remove).withOptimisticUpdate((s, a) => w.removeEpic(s as w.WorkStore, a));
@@ -114,6 +118,26 @@ export function useWorkActions(work: w.WorkData | undefined): WorkActions {
     deleteTask({ id }).catch((e) => fail("Couldn't delete that", e));
   }, [addTasks, updateTask, deleteTask, show, fail]);
 
+  // Undo takes off just the block it placed.
+  const plan = useCallback(async (id: string, date: string) => {
+    if (!open.current || isOptimistic(id)) return;
+    try {
+      const r = (await planDay({ date, task_ids: [id], commit: true, now: Date.now() })) as {
+        proposed: { id?: string; task_id: string; title: string; start: string }[];
+        unplaced: { title: string; reason: string }[];
+      };
+      const p = r.proposed[0];
+      if (!p) {
+        const u = r.unplaced[0];
+        return show({ kind: "error", message: u ? `Couldn't plan ${u.title}: ${u.reason}` : "Nothing to plan" });
+      }
+      show({
+        kind: "undo", message: `Planned ${p.title} for ${clock12(p.start)}`,
+        undo: () => void removeBlock({ task_id: p.task_id, date, ...(p.id ? { block_id: p.id } : {}) }).catch((e) => fail("Couldn't undo", e)),
+      });
+    } catch (e) { fail("Couldn't plan that", e); }
+  }, [planDay, removeBlock, show, fail]);
+
   const createEpic = useCallback(async (e: EpicFields) => {
     if (!open.current) return false;
     try { await create({ epic: e }); return true; } catch (err) { fail("Couldn't make that epic", err); return false; }
@@ -145,7 +169,7 @@ export function useWorkActions(work: w.WorkData | undefined): WorkActions {
     removeE({ id }).catch((err) => fail("Couldn't delete that epic", err));
   }, [create, update, removeE, updateTask, show, fail]);
 
-  return { offline, toast, dismiss, move, save, add, remove, createEpic, updateEpic, removeEpic };
+  return { offline, toast, dismiss, move, save, add, remove, plan, createEpic, updateEpic, removeEpic };
 }
 
 // Stats and All tasks: the whole account, live (nothing kept on the device: it can be big, and both need the network).
