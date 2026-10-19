@@ -31,6 +31,17 @@ const blank = (due: string): FullTask => ({
   epic_id: null, status: "todo", tags: [], source: "you", external_id: null, link: null, note: null, description: null, checklist: [],
 });
 
+// What the month shows besides events, kept on this device.
+type Show = { due: boolean; plans: boolean };
+const SHOW_KEY = "toodoo.calendarShow";
+function loadShow(): Show {
+  try {
+    return { due: true, plans: true, ...(JSON.parse(localStorage.getItem(SHOW_KEY) ?? "null") as Partial<Show> | null) };
+  } catch {
+    return { due: true, plans: true };
+  }
+}
+
 type Pop = { kind: "more"; date: string; rest: DayItem[]; at: DOMRect } | { kind: "menu"; date: string; at: DOMRect };
 
 // The month: every task on its due day, every plan block and every synced event, with the undated tasks in a tray
@@ -59,6 +70,12 @@ export function CalendarRoom({ all, actions }: { all: Everything; actions: WorkA
   const [planning, setPlanning] = useState<string | null>(null);
   const [pop, setPop] = useState<Pop | null>(null);
   const [dragging, setDragging] = useState<FullTask | null>(null);
+  const [show, setShowState] = useState(loadShow);
+  const toggle = (k: keyof Show) => {
+    const next = { ...show, [k]: !show[k] };
+    setShowState(next);
+    try { localStorage.setItem(SHOW_KEY, JSON.stringify(next)); } catch { /* holds for this visit */ }
+  };
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -94,6 +111,10 @@ export function CalendarRoom({ all, actions }: { all: Everything; actions: WorkA
           <button type="button" className="cal-step" aria-label="Next month" onClick={() => setMonth(stepMonth(month, 1))}>›</button>
           {month !== monthOf(all.today) && <button type="button" className="room-button is-quiet cal-today" onClick={() => setMonth(monthOf(all.today))}>Today</button>}
         </nav>
+        <div className="cal-show" role="group" aria-label="Show">
+          <button type="button" className="room-toggle" aria-pressed={show.due} title="Show tasks on their due day" onClick={() => toggle("due")}>Due</button>
+          <button type="button" className="room-toggle" aria-pressed={show.plans} title="Show planned time" onClick={() => toggle("plans")}>Plans</button>
+        </div>
       </HeaderControls>
       <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={onStart} onDragEnd={onEnd} onDragCancel={() => setDragging(null)}>
         <div className="cal-frame">
@@ -103,7 +124,8 @@ export function CalendarRoom({ all, actions }: { all: Everything; actions: WorkA
             </div>
             <div className="cal-days" style={{ ["--weeks" as string]: days.length / 7 }}>
               {days.map((date) => {
-                const items = dayItems(date, events.get(date) ?? [], tasks, all.blocks);
+                const items = dayItems(date, events.get(date) ?? [], tasks, all.blocks)
+                  .filter((x) => (x.kind !== "task" || show.due) && (x.kind !== "plan" || show.plans));
                 return (
                   <DayCell key={date} date={date} today={all.today} inMonth={monthOf(date) === month} items={items} room={room}
                     epics={epics} narrow={narrow} offline={actions.offline}

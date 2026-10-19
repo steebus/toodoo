@@ -5,6 +5,9 @@
 .room .cal-step:hover { background: var(--well); color: var(--ink); }
 .cal-month-name { white-space: nowrap; min-width: 9.5em; text-align: center; font-family: var(--font-date); font-size: 19px; letter-spacing: -0.01em; }
 .room .cal-today { height: 30px; margin-left: 6px; }
+/* Due · Plans: what the month shows besides events */
+.cal-show { display: flex; gap: 4px; }
+.room .cal-show .room-toggle { height: 30px; }
 
 .cal-frame { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; }
 .cal-month { min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); overflow: hidden; }

@@ -67,3 +67,19 @@ it("steps through the months", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Today" }));
   expect(screen.getByText("October 2026")).toBeInTheDocument();
 });
+
+it("shows plan blocks apart from tasks due, and Due and Plans each hide their own", async () => {
+  localStorage.clear();
+  state.data["calendar:month"] = [];
+  render(<CalendarRoom all={{ ...all, blocks: [{ id: "b1", task_id: "u1", date: "2026-10-16", start: "14:00", mins: 30 }] }} actions={actions} />);
+  const day = () => screen.getByRole("gridcell", { name: "Friday 16 Oct" });
+  expect(within(day()).getByText("Someday thing").closest(".cal-plan")).toBeTruthy();
+  expect(within(day()).getByText("Dentist prep").closest(".cal-task")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Plans" }));
+  expect(within(day()).queryByText("Someday thing")).toBeNull();
+  expect(within(day()).getByText("Dentist prep")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Due" }));
+  expect(within(day()).queryByText("Dentist prep")).toBeNull();
+  expect(JSON.parse(localStorage.getItem("toodoo.calendarShow")!)).toEqual({ due: false, plans: false });
+  localStorage.clear();
+});

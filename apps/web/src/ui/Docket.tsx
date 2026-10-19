@@ -139,7 +139,6 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             }
           }}
         >
-          {!compact && d.epic && <span className="dk-epic" title={d.epic}>{d.epic}</span>}
           {compact ? (
             <>
               <span className={d.variant === "carried" ? "dk-stub-tag" : "dk-time"}>{d.variant === "carried" ? d.tag : d.time}</span>
@@ -173,6 +172,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
               {d.progress && <PenProgress {...d.progress} className="dk-progress" />}
             </>
           )}
+          {!compact && d.epic && <p className="dk-epic" title={d.epic}>{d.epic}</p>}
           {onTick && (
             <button
               type="button"

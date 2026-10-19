@@ -426,10 +426,9 @@
   font-family: var(--font-print); color: var(--paper-ink); line-height: 1; border-radius: 2px;
 }
 .dk-print p, .dk-print h4, .dk-print dl { margin: 0; }
-/* Its epic, faintly, in the paper's top margin (out of the flow, so the print below doesn't move). */
+/* Its epic, faintly, at the foot of the paper (the top margin hangs under the rail); the title gives up the line. */
 .dk-epic {
-  position: absolute; left: calc(17 * var(--u)); top: calc(6 * var(--u)); max-width: calc(100% - 64 * var(--u));
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
+  flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; pointer-events: none;
   font-size: calc(10.5 * var(--u)); line-height: 1; letter-spacing: 0.12em; text-transform: uppercase;
   color: color-mix(in srgb, var(--epic, var(--paper-ink)) 45%, var(--dk-paper));
 }
