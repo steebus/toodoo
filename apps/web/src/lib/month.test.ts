@@ -26,6 +26,15 @@ it("orders a day: all-day, then by time, then the date-only tasks high first and
   expect(items.map((x) => (x.kind === "event" ? x.title : x.task.title))).toEqual(["Holiday", "At 9", "Dentist", "High", "Plain", "Done"]);
 });
 
+it("puts the day's plan blocks among the timed, for the tasks they're for", () => {
+  const items = dayItems("2026-10-16", [{ start: "10:00", end: "11:00", title: "Dentist" }], [task({ id: "a", title: "Report", due: null })], [
+    { id: "b1", task_id: "a", date: "2026-10-16", start: "09:00", mins: 45 }, { id: "b2", task_id: "a", date: "2026-10-17", start: "09:00", mins: 30 },
+    { id: "b3", task_id: "gone", date: "2026-10-16", start: "08:00", mins: 30 },
+  ]);
+  expect(items.map((x) => `${x.kind}:${x.kind === "event" ? x.title : x.task.title}`)).toEqual(["plan:Report", "event:Dentist"]);
+  expect(items[0]).toMatchObject({ start: "09:00", mins: 45 });
+});
+
 it("folds what doesn't fit into a count", () => {
   expect(fold([1, 2, 3], 3)).toEqual({ shown: [1, 2, 3], rest: [] });
   expect(fold([1, 2, 3, 4, 5, 6], 3)).toEqual({ shown: [1, 2], rest: [3, 4, 5, 6] });

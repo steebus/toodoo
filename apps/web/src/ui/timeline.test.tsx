@@ -256,14 +256,14 @@ it("a pending keyboard move is saved when the page is hidden", () => {
   expect(fn("placeBlock")).toHaveBeenCalledTimes(1);
 });
 
-it("Escape during a pointer drag cancels it: no write, no ghost", () => {
+it("Escape during a pointer drag cancels it: no write, the block put down where it was", () => {
   show();
   const body = block();
   fireEvent.pointerDown(body, { clientY: 100, button: 0, pointerId: 1 });
   fireEvent.pointerMove(body, { clientY: 160, pointerId: 1 });
-  expect(document.querySelector(".plan-ghost")).not.toBeNull();
+  expect(document.querySelector(".plan-block.is-held")).not.toBeNull();
   fireEvent.keyDown(document, { key: "Escape" });
-  expect(document.querySelector(".plan-ghost")).toBeNull();
+  expect(document.querySelector(".plan-block.is-held")).toBeNull();
   fireEvent.pointerUp(body, { clientY: 160, pointerId: 1 });
   expect(fn("placeBlock")).not.toHaveBeenCalled();
 });

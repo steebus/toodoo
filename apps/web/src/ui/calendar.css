@@ -63,6 +63,17 @@
 .room .cal-item-open:hover .cal-task { border-color: var(--paper-ink); }
 .cal-item-open:focus-visible .cal-task { outline: 2px solid var(--ink); outline-offset: 1px; }
 
+/* Plans: time set aside in pen, not paper: a biro bar down the edge on a biro wash, the time in biro. */
+.cal-plan {
+  background: color-mix(in srgb, var(--biro) 10%, var(--surface)); color: var(--ink);
+  border-left: 3px solid var(--biro); border-radius: 0 3px 3px 0; padding-left: 5px;
+}
+.cal-plan .cal-time { color: var(--biro); opacity: 1; font-weight: 700; }
+.cal-plan.is-done { opacity: 0.55; }
+.cal-plan.is-done .cal-text { text-decoration: line-through; text-decoration-color: var(--biro); }
+.room .cal-item-open:hover .cal-plan { background: color-mix(in srgb, var(--biro) 18%, var(--surface)); }
+.cal-item-open:focus-visible .cal-plan { outline: 2px solid var(--ink); outline-offset: 1px; }
+
 /* Events: furniture, quiet; a coloured calendar's are hatched in its colour with a dashed edge (pass.css .has-cal). */
 .cal-ev { background: var(--well); color: var(--ink-2); border: 1px dashed var(--rule); }
 .cal-ev.has-cal::before { content: ""; flex: none; align-self: center; width: 6px; height: 6px; border-radius: 50%; background: var(--cal); }

@@ -63,6 +63,7 @@ export type DocketData = {
   rows: MetaRow[];
   footer: MetaRow | null;
   colour?: string | null; // its epic's
+  epic?: string | null; // its epic's name, printed small in the paper's top margin
   list?: { done: number; total: number } | null; // its checklist, when it has one
   note?: string | null; // handwritten on the paper where there is room
   fit: 0 | 1 | 2; // how hard the title is squeezed to fit the paper: 0 as printed, 2 smallest

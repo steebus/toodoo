@@ -21,7 +21,7 @@ const ROOM_FOR_META = 40; // minutes × zoom: a block this tall has room for a s
 const DRAG_SLOP = 4;
 // On touch a block moves only after a stationary long press, so a swipe over the line still scrolls it.
 export const LONG_PRESS = 250;
-const PRESS_SLOP = 5;
+const PRESS_SLOP = 10; // a still finger still wobbles a little
 const DAY = 24 * 60;
 
 type Draft = { id: string; start: number; mins: number; via: "key" | "pointer" };
@@ -567,17 +567,18 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
         <ol className="plan-blocks" aria-label="Plan">
           {lanes.map((b) => {
             const editable = live && b.kind === "task" && !isOptimistic(b.id) && !isOptimistic(b.taskId ?? "");
+            // Lifted by the pointer: the block itself rides with the hand, across the whole lane, over the rest.
             const dragging = ghost?.id === b.id;
-            const shownAt = at(b);
+            const shownAt = dragging ? { start: ghost.start, mins: ghost.mins } : at(b);
             const time = shownAt.start === b.startM ? b.time : clockOf(shownAt.start);
-            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-lifted" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}${revealed === b.id ? " is-revealed" : ""}${pressed === b.id ? " is-pressed" : ""}${b.colour ? " has-epic" : ""}${b.calColour ? " has-cal" : ""}`;
+            const cls = `plan-block plan-${b.kind}${b.current ? " is-current" : ""}${b.done ? " is-done" : ""}${editable ? " is-live" : ""}${offline ? " is-offline" : ""}${dragging ? " is-held" : ""}${draft?.id === b.id && draft.via === "key" ? " is-keyed" : ""}${revealed === b.id ? " is-revealed" : ""}${pressed === b.id ? " is-pressed" : ""}${b.colour ? " has-epic" : ""}${b.calColour ? " has-cal" : ""}`;
             const style = {
               ...(b.colour ? { ["--epic" as string]: `var(--epic-${b.colour})` } : null),
               ...(b.calColour ? { ["--cal" as string]: `var(--cal-${b.calColour})` } : null),
-              top: px(blockTop(b.startM, startM)),
-              height: px(blockHeight(b.mins)),
-              left: `calc(var(--lane-left) + ${b.col} * var(--lane-w) / ${b.cols})`,
-              width: `calc(var(--lane-w) * ${b.span} / ${b.cols}${b.cols > 1 ? " - 0.3cqw" : ""})`,
+              top: px(blockTop(dragging ? shownAt.start : b.startM, startM)),
+              height: px(blockHeight(dragging ? shownAt.mins : b.mins)),
+              left: dragging ? "var(--lane-left)" : `calc(var(--lane-left) + ${b.col} * var(--lane-w) / ${b.cols})`,
+              width: dragging ? "var(--lane-w)" : `calc(var(--lane-w) * ${b.span} / ${b.cols}${b.cols > 1 ? " - 0.3cqw" : ""})`,
             };
             const face = (
               <>
@@ -607,7 +608,7 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
             }
             if (!editable) return <m.li key={b.id} className={cls} style={style} {...snap}>{face}</m.li>;
             return (
-              <m.li key={b.id} data-block={b.id} data-task={b.taskId} className={cls} style={style} {...snap}>
+              <m.li key={b.id} data-block={b.id} data-task={b.taskId} className={cls} style={style} {...(dragging ? { layout: false } : snap)}>
                 <button
                   type="button"
                   className="plan-body"
@@ -643,19 +644,6 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
             );
           })}
         </ol>
-        {ghost && (
-          <m.p
-            {...glide}
-            className="plan-ghost"
-            aria-hidden
-            style={{
-              top: px(blockTop(ghost.start, startM)),
-              height: px(blockHeight(ghost.mins)),
-            }}
-          >
-            <span className="plan-ghost-time">{range(ghost.start, ghost.mins)}</span>
-          </m.p>
-        )}
         {preview?.map((p) => {
           const s = toMin(p.start) ?? 0;
           return (

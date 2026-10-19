@@ -33,9 +33,9 @@ const blank = (due: string): FullTask => ({
 
 type Pop = { kind: "more"; date: string; rest: DayItem[]; at: DOMRect } | { kind: "menu"; date: string; at: DOMRect };
 
-// The month: every task on its due day and every synced event, with the undated tasks in a tray beside it. Drag one
-// from the tray (or another day) onto a day to give it that date; back on the tray takes the date off. A day's
-// + makes a task on it, Plan opens the planner for it (on the phone, a long press on the day offers both).
+// The month: every task on its due day, every plan block and every synced event, with the undated tasks in a tray
+// beside it. Drag one from the tray (or another day) onto a day to give it that date; back on the tray takes the date
+// off. A day's + makes a task on it, Plan opens the planner for it (on the phone, a long press on the day offers both).
 export function CalendarRoom({ all, actions }: { all: Everything; actions: WorkActions }) {
   const narrow = useNarrow();
   const [month, setMonth] = useState(() => monthOf(all.today));
@@ -103,7 +103,7 @@ export function CalendarRoom({ all, actions }: { all: Everything; actions: WorkA
             </div>
             <div className="cal-days" style={{ ["--weeks" as string]: days.length / 7 }}>
               {days.map((date) => {
-                const items = dayItems(date, events.get(date) ?? [], tasks);
+                const items = dayItems(date, events.get(date) ?? [], tasks, all.blocks);
                 return (
                   <DayCell key={date} date={date} today={all.today} inMonth={monthOf(date) === month} items={items} room={room}
                     epics={epics} narrow={narrow} offline={actions.offline}
@@ -250,6 +250,16 @@ function Item({ item, epics, today, onOpen, drag = false }: { item: DayItem; epi
   }
   const t = item.task;
   const epic = t.epic_id ? epics.get(t.epic_id) : undefined;
+  if (item.kind === "plan") {
+    return (
+      <button type="button" className="cal-item-open" onClick={() => onOpen(t.id)}>
+        <span className={`cal-item cal-plan${t.done ? " is-done" : ""}`} title={`Planned ${clock12(item.start)}, ${item.mins}m: ${t.title}`}>
+          <span className="cal-time">{clock12(item.start)}</span>
+          <span className="cal-text">{t.title}</span>
+        </span>
+      </button>
+    );
+  }
   return drag && !t.done ? <DraggableTask task={t} epic={epic} today={today} onOpen={onOpen} />
     : <button type="button" className="cal-item-open" onClick={() => onOpen(t.id)}><TaskChip task={t} epic={epic} today={today} /></button>;
 }

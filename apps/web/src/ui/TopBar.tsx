@@ -1,6 +1,6 @@
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useQuery } from "convex/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { api } from "@convex/_generated/api";
 import { addDays } from "@shared/planning.ts";
 import { useFitText } from "../lib/useFitText";
@@ -23,6 +23,7 @@ type Props = {
 export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, end, celebrate = false, offline = false, unsaved = false, reconnecting = false, room, nav }: Props) {
   const line = useRef<HTMLParagraphElement>(null);
   useFitText(line, headline, 0.6);
+  useClearOfRooms(line);
   return (
     <header className="topbar">
       <p className="r-wordmark wordmark">{room ? <AppMenu /> : "toodoo"}</p>
@@ -57,6 +58,34 @@ export function TopBar({ date, dateShort, headline, total, presets, activePreset
       <div className="r-topbar-rule topbar-rule" aria-hidden />
     </header>
   );
+}
+
+// The day's line keeps a hard edge at the rule after the rooms: on a narrow window the rooms (sized in the comp's
+// unit) reach past its 26.4% inset, so it is drawn in from both sides (staying centred under the date) to a gap
+// beyond that rule. Only where the bar is laid out as the comp (the line placed absolutely).
+function useClearOfRooms(ref: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const frame = el?.offsetParent as HTMLElement | null;
+    const rooms = el?.parentElement?.querySelector<HTMLElement>(".rooms");
+    if (!el || !frame || !rooms) return;
+    const fit = () => {
+      el.style.left = el.style.width = "";
+      if (getComputedStyle(el).position !== "absolute") return;
+      const rule = getComputedStyle(rooms, "::after");
+      const gap = parseFloat(rule.left) - rooms.offsetWidth; // the rule sits a gap past the rooms; the line keeps the same
+      const end = rooms.getBoundingClientRect().left - frame.getBoundingClientRect().left + parseFloat(rule.left) + 1 + (gap || 0);
+      const w = frame.clientWidth;
+      if (!(end > el.offsetLeft)) return;
+      el.style.left = `${end}px`;
+      el.style.width = `${Math.max(0, w - 2 * end)}px`;
+    };
+    fit();
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fit);
+    ro?.observe(frame);
+    ro?.observe(rooms);
+    return () => ro?.disconnect();
+  }, [ref]);
 }
 
 function DateText({ date, short }: { date: string; short?: string }) {
