@@ -772,6 +772,18 @@
   }
   .plan-block.is-revealed .plan-resize-top::after { top: auto; bottom: 5px; }
 }
+/* The grip: a finger's way to move a block. A tap on the block wakes it over the time (as it wakes the edge grips),
+   and it takes the finger at once; held, it stands in for the time until the block is put down. */
+.plan-grip { display: none; }
+@media (hover: none) {
+  .plan-block:is(.is-revealed, .is-held) .plan-grip {
+    position: absolute; left: 0; top: 0; bottom: 0; z-index: 2; display: grid; place-items: center;
+    width: var(--grip-w, calc(90 * var(--u))); color: var(--ink-2);
+    touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  .plan-block:is(.is-revealed, .is-held) .plan-time { visibility: hidden; }
+  .plan-block.is-held .plan-grip { color: var(--ink); cursor: grabbing; }
+}
 .plan-scroll { touch-action: pan-y; } /* two fingers on the line zoom it rather than the page */
 
 .plan-ghost {
@@ -1020,6 +1032,7 @@
   .pass .plan-body { padding-left: 12px; }
   .is-current .plan-body { padding-left: 10px; }
   .plan-time { width: 58px; }
+  .plan-grip { --grip-w: 70px; } /* the body's 12px and the time's 58px */
   .pass .plan-out-pill { font-size: 13px; padding: 6px 12px 6px 9px; }
   .now-time { left: 20px; font-size: 16px; }
   .now-rule { left: 72px; }

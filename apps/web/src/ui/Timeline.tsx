@@ -395,13 +395,14 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
     document.addEventListener("touchend", end);
     document.addEventListener("touchcancel", end);
   };
-  const pointer = (b: PlanBlock, mode: Drag["mode"]) => ({
+  // `now`: the grip (a handle) takes the finger at once, as the resize grips do; the body waits for a long press.
+  const pointer = (b: PlanBlock, mode: Drag["mode"], now = false) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       lastPointer.current = e.pointerType;
       swallowClick.current = false; // whatever the last gesture left unconsumed
       if (offline || e.button !== 0 || draftRef.current?.via === "key") return;
       // The resize grips are handles (touch-action: none) and takes the finger at once; the body waits for a long press.
-      const wait = e.pointerType === "touch" && mode === "move";
+      const wait = e.pointerType === "touch" && mode === "move" && !now;
       if (!wait) e.currentTarget.setPointerCapture?.(e.pointerId);
       const d: Drag = { id: b.id, x0: e.clientX, y0: e.clientY, start: b.startM, mins: b.mins, mode, moved: false, armed: !wait, k: scale() };
       drag.current = d;
@@ -445,7 +446,7 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
       if (!d || d.id !== b.id) return;
       const next = d.moved ? dragTo(e.clientY) : null;
       drag.current = null;
-      if (d.armed && e.pointerType === "touch" && d.mode === "move") swallowClick.current = true; // a long press is not a tap
+      if (d.armed && e.pointerType === "touch" && d.mode === "move" && !now) swallowClick.current = true; // a long press is not a tap
       if (!next) return;
       swallowClick.current = true;
       commit(b.id, next);
@@ -678,6 +679,11 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
                     <span aria-hidden>×</span>
                   </button>
                 </span>
+                {/* A finger's handle: a tap on the block wakes it over the time, and it stands in for the time while held. */}
+                <span className="plan-grip" aria-hidden {...pointer(b, "move", true)}
+                  onClick={() => { if (swallowClick.current) swallowClick.current = false; else onOpen?.(b.taskId!); }}>
+                  <GripDots />
+                </span>
                 <span className="plan-resize plan-resize-top" aria-hidden {...pointer(b, "top")} />
                 <span className="plan-resize" aria-hidden {...pointer(b, "resize")} />
               </m.li>
@@ -777,6 +783,12 @@ function hiddenFor(date: string): string[] {
 // An event's menu, under it on the line: its prep tasks (each opens its ticket), Create prep task, and Use a task as
 // prep (an open task, a Jira card say, found by its title). Escape or a click away closes it.
 type MenuTask = { id: string; title: string; done: boolean };
+const GripDots = () => (
+  <svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor" aria-hidden focusable="false">
+    {[4, 10, 16].flatMap((y) => [3, 9].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" />))}
+  </svg>
+);
+
 function EventMenu({ style, title, where, offline, preps, tasks, onOpenTask, onLink, onPrep, onHide, onClose }: {
   style: CSSProperties; title: string; where?: string; offline: boolean; preps: MenuTask[]; tasks: MenuTask[];
   onOpenTask: (id: string) => void; onLink: (id: string) => void; onPrep: () => void; onHide: () => void; onClose: () => void;

@@ -293,6 +293,29 @@ it("on touch, a long press lifts a block and the finger moves it", () => {
   expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "10:00", mins: 60, block_id: "blk1" });
 });
 
+it("on touch, a tap wakes the block's grip, which moves it at once; a tap on the grip opens the ticket", () => {
+  show();
+  const body = block();
+  const touch = { pointerType: "touch", button: 0, pointerId: 4 };
+  fireEvent.pointerDown(body, { ...touch, clientY: 100 });
+  fireEvent.pointerUp(body, { ...touch, clientY: 100 });
+  fireEvent.click(body);
+  const li = body.closest(".plan-block")!;
+  expect(li).toHaveClass("is-revealed");
+  const grip = li.querySelector(".plan-grip")!;
+  fireEvent.pointerDown(grip, { ...touch, clientY: 100 });
+  fireEvent.pointerMove(grip, { ...touch, clientY: 100 + 68.6 }); // no wait: the grip is a handle
+  expect(li).toHaveClass("is-held");
+  fireEvent.pointerUp(grip, { ...touch, clientY: 100 + 68.6 });
+  expect(fn("placeBlock")).toHaveBeenCalledWith({ task_id: report.id, date: T, start: "10:00", mins: 60, block_id: "blk1" });
+  fireEvent.click(grip); // the drop's click: eaten
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.pointerDown(grip, { ...touch, clientY: 100 });
+  fireEvent.pointerUp(grip, { ...touch, clientY: 100 });
+  fireEvent.click(grip);
+  expect(screen.getByRole("dialog", { name: /Write report/i })).toBeInTheDocument();
+});
+
 it("on touch, a tap on empty time opens nothing; a long press opens the picker there", () => {
   vi.useFakeTimers();
   show();
