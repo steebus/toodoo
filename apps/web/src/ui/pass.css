@@ -702,12 +702,12 @@
 .plan-slots:focus-visible ~ .plan-cursor, .plan-grid:has(.slotpick) .plan-cursor { opacity: 1; }
 
 /* Live blocks let their tick, unplan and grips stand out past a short block; the printed face clips itself. */
-.plan-block.is-live { padding-left: 0; overflow: visible; transition: opacity 0.16s ease-out; }
+.plan-block.is-live { padding-left: 0; overflow: visible; transition: opacity 0.16s ease-out; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .plan-block.is-live:is(:hover, :focus-within, .is-revealed) { z-index: 3; }
 .plan-block.is-live.is-current { padding-left: 0; }
 .pass .plan-body {
   flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; padding-left: calc(19 * var(--u)); text-align: left;
-  overflow: hidden; border-radius: inherit; white-space: nowrap; cursor: grab; touch-action: pan-y; user-select: none; -webkit-touch-callout: none;
+  overflow: hidden; border-radius: inherit; white-space: nowrap; cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 /* Lifted by a long press: the finger owns it now. */
 .plan-block.is-pressed { z-index: 2; scale: 1.02; box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) rgb(0 0 0 / 0.16); }

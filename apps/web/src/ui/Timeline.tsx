@@ -25,7 +25,9 @@ const PRESS_SLOP = 10; // a still finger still wobbles a little
 const DAY = 24 * 60;
 
 type Draft = { id: string; start: number; mins: number; via: "key" | "pointer" };
-type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize" | "top"; moved: boolean; armed: boolean; k: number };
+type Drag = { id: string; x0: number; y0: number; start: number; mins: number; mode: "move" | "resize" | "top"; moved: boolean; armed: boolean; k: number;
+  touch?: boolean; // followed by its touches, the browser having taken the pointer
+};
 
 // The grid's geometry is in comp px (plan.ts); on screen it is scaled by the frame's --u, like the rest of
 // the print, and by the line's own --zoom. px() writes a comp length for CSS; scale() (in Timeline) measures
@@ -153,16 +155,23 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
     };
   }, []);
 
-  // Once a long press has lifted a block, the finger moves it rather than scrolling the line.
+  // Once a long press has lifted a block, the finger moves it rather than scrolling the page or the line (on the
+  // document, so it holds wherever the finger goes). While a finger is on a block, the phone's own long press (text
+  // selection on iOS, the context menu on Android) is kept off it: either takes the touch away and drops the block.
   useEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
     const hold = (e: TouchEvent) => {
       if (drag.current?.armed && e.cancelable) e.preventDefault();
     };
-    el.addEventListener("touchmove", hold, { passive: false });
+    const keep = (e: Event) => {
+      if (drag.current && lastPointer.current === "touch") e.preventDefault();
+    };
+    document.addEventListener("touchmove", hold, { passive: false });
+    document.addEventListener("selectstart", keep, true);
+    document.addEventListener("contextmenu", keep, true);
     return () => {
-      el.removeEventListener("touchmove", hold);
+      document.removeEventListener("touchmove", hold);
+      document.removeEventListener("selectstart", keep, true);
+      document.removeEventListener("contextmenu", keep, true);
       clearTimeout(pressTimer.current);
     };
   }, []);
@@ -358,6 +367,34 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
     const d = drag.current!;
     return dragBlock(d, y - d.y0, d.k);
   };
+  const followTouch = (b: PlanBlock, d: Drag) => {
+    d.touch = true;
+    const y = (e: TouchEvent) => e.touches[0]?.clientY ?? e.changedTouches[0]?.clientY ?? d.y0;
+    const move = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      d.moved = true;
+      const next = dragTo(y(e));
+      const cur = draftRef.current;
+      if (!cur || cur.start !== next.start || cur.mins !== next.mins) setDraft({ id: b.id, ...next, via: "pointer" });
+    };
+    const end = (e: TouchEvent) => {
+      stop();
+      const next = d.moved && e.type === "touchend" ? dragTo(y(e)) : null;
+      setPressed(null);
+      drag.current = null;
+      swallowClick.current = true;
+      if (next) commit(b.id, next);
+      else setDraft(null);
+    };
+    const stop = () => {
+      document.removeEventListener("touchmove", move);
+      document.removeEventListener("touchend", end);
+      document.removeEventListener("touchcancel", end);
+    };
+    document.addEventListener("touchmove", move, { passive: false });
+    document.addEventListener("touchend", end);
+    document.addEventListener("touchcancel", end);
+  };
   const pointer = (b: PlanBlock, mode: Drag["mode"]) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       lastPointer.current = e.pointerType;
@@ -413,14 +450,17 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
       swallowClick.current = true;
       commit(b.id, next);
     },
-    onPointerCancel: () => {
+    onPointerCancel: (e: PointerEvent<HTMLElement>) => {
       clearTimeout(pressTimer.current);
+      const d = drag.current;
+      // A lifted block the browser took the pointer from anyway: the finger's touches still come, so it follows them.
+      if (d && d.id === b.id && d.armed && e.pointerType === "touch" && d.mode === "move") return followTouch(b, d);
       setPressed(null);
       drag.current = null;
       setDraft(null);
     },
     onLostPointerCapture: () => {
-      if (drag.current?.id === b.id && drag.current.armed) {
+      if (drag.current?.id === b.id && drag.current.armed && !drag.current.touch) {
         setPressed(null);
         drag.current = null;
         setDraft(null);
