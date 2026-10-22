@@ -1188,18 +1188,19 @@
 /* ---------- a task's files, on its ticket: pictures in a carousel, other files as lines ---------- */
 .tk-files { display: grid; gap: 10px; font-size: 14px; }
 .tk-carousel { display: grid; gap: 8px; outline: none; }
-.tk-frame { position: relative; }
+.tk-frame { position: relative; min-width: 0; }
 .tk-slides {
-  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+  width: 100%; aspect-ratio: var(--ar, 4 / 3); max-height: min(50dvh, 480px); /* the picture in view's shape, capped; always full width */
+  display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
   background: color-mix(in srgb, var(--paper-ink) 7%, var(--paper)); border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, var(--paper)); border-radius: 2px;
 }
 .tk-slides::-webkit-scrollbar { display: none; }
 .tk-slides:focus-visible { outline: 2px solid var(--paper-ink); outline-offset: 2px; }
-.tk-slide { flex: 0 0 100%; margin: 0; scroll-snap-align: center; display: grid; place-items: center; height: clamp(110px, 19dvh, 180px); }
+.tk-slide { flex: 0 0 100%; min-width: 0; height: 100%; margin: 0; scroll-snap-align: center; }
 .tk-slide { position: relative; }
-:is(.pass, .room) .tk-slide-open { display: grid; place-items: center; width: 100%; height: 100%; padding: 6px; cursor: zoom-in; border-radius: 0; }
+:is(.pass, .room) .tk-slide-open { display: block; width: 100%; height: 100%; padding: 6px; box-sizing: border-box; cursor: zoom-in; border-radius: 0; }
 .tk-slide-open:focus-visible { outline: 2px solid var(--paper-ink); outline-offset: -4px; }
-.tk-slide img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; user-select: none; box-shadow: 0 1px 4px rgb(0 0 0 / 0.18); }
+.tk-slide img { width: 100%; height: 100%; object-fit: contain; display: block; user-select: none; }
 :is(.pass, .room) .tk-slide-go {
   position: absolute; top: 50%; display: grid; place-items: center; width: 34px; height: 34px; margin-top: -17px; border-radius: 50%;
   color: var(--paper-ink); background: color-mix(in srgb, var(--paper) 88%, transparent); box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);

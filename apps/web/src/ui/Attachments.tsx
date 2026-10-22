@@ -155,13 +155,15 @@ type Controls = {
   onDelete: (f: Attachment) => void;
 };
 
-// Pictures side by side in a strip that snaps one to a view, small enough to leave the ticket readable: swiped on
-// the phone, arrows or the keyboard on desktop. The one in view prints its name and controls under it; a tap opens
+// Pictures side by side in a strip that snaps one to a view: swiped on the phone, arrows or the keyboard on desktop.
+// The strip takes the shape of the picture in view (as tall as it needs, up to a cap) and the picture shrinks to fit
+// it whole: nothing is cropped and nothing scrolls inside the ticket. The one in view prints its name and controls under it; a tap opens
 // them all full screen (Lightbox), at that one.
 function Carousel({ pictures, fresh, ...c }: Controls & { pictures: Attachment[]; fresh: Set<string> }) {
   const track = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState(0);
   const [viewing, setViewing] = useState<number | null>(null);
+  const [shape, setShape] = useState<Record<string, number>>({}); // width ÷ height once loaded, at most 3 (a panorama keeps some height)
   const n = pictures.length;
   const i = Math.min(at, n - 1);
   useEffect(() => { if (at > n - 1) setAt(Math.max(0, n - 1)); }, [at, n]);
@@ -178,12 +180,13 @@ function Carousel({ pictures, fresh, ...c }: Controls & { pictures: Attachment[]
   return (
     <div className="tk-carousel" role="region" aria-roledescription="carousel" aria-label="Pictures" onKeyDown={keys}>
       <div className="tk-frame">
-        <div ref={track} className="tk-slides" tabIndex={0} aria-live="polite"
+        <div ref={track} className="tk-slides" tabIndex={0} aria-live="polite" style={{ ["--ar" as string]: shape[pictures[i].id] ?? 4 / 3 }}
           onScroll={(e) => { const el = e.currentTarget; if (el.clientWidth) setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
           {pictures.map((p, k) => (
             <figure key={p.id} className={`tk-slide${fresh.has(p.id) ? " is-new" : ""}`} role="group" aria-roledescription="slide" aria-label={`${k + 1} of ${n}: ${p.name}`}>
               <button type="button" className="tk-slide-open" tabIndex={k === i ? 0 : -1} aria-label={`View ${p.name}`} onClick={() => setViewing(k)}>
-                <img src={p.url ?? undefined} alt={p.name} loading="lazy" draggable={false} />
+                <img src={p.url ?? undefined} alt={p.name} loading="lazy" draggable={false}
+                  onLoad={(e) => { const { naturalWidth: w, naturalHeight: h } = e.currentTarget; if (w && h) setShape((s) => ({ ...s, [p.id]: Math.min(w / h, 3) })); }} />
               </button>
               {fresh.has(p.id) && <Paperclip className="tk-slide-clip" />}
             </figure>
