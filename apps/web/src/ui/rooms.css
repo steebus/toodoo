@@ -1043,7 +1043,7 @@
 @media (max-width: 640px) { .tidy-card { padding: 18px 18px 20px; } .tidy-key kbd { display: none; } }
 
 /* ---------- Suggested: what Claude and Jira propose, a card each, waiting for Accept · Combine · Reject ---------- */
-.suggested { display: grid; justify-items: center; align-content: start; gap: 18px; }
+.suggested { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: 18px; }
 /* The piles, one per source, and the sort: the triage area's own bar, styled like All tasks' filters. */
 .sug-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; width: min(560px, 100%); margin: 0 0 6px; }
 .sug-piles { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
@@ -1059,7 +1059,7 @@
   background: var(--surface); border: 1px dashed var(--rule); border-radius: var(--radius);
 }
 .sug-sort:hover { border-color: var(--ink-3); }
-.sug-list { display: grid; justify-items: center; gap: 22px; width: min(560px, 100%); margin: 0; padding: 0 0 80px; list-style: none; }
+.sug-list { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 22px; width: min(560px, 100%); margin: 0; padding: 0 0 80px; list-style: none; }
 .sug-list > .tidy-card { list-style: none; }
 .sug-card .skel-line { display: block; margin-bottom: 12px; }
 .tidy-title.sug-title { font-size: clamp(21px, 3.2vw, 26px); }
@@ -1078,6 +1078,14 @@
 .room .tidy-key.is-accept { color: var(--paper); background: var(--paper-ink); border-color: var(--paper-ink); }
 .room .tidy-key.is-accept:hover:not(:disabled) { background: color-mix(in srgb, var(--paper-ink) 85%, var(--paper)); }
 .room .tidy-card .tidy-keys .is-delete { margin-left: auto; }
+/* phones: a card and everything in it stays inside the screen; long words and links break instead of pushing out */
+.sug-card, .sug-card > *, .sug-card .tidy-kicker > * { min-width: 0; }
+.sug-card .tidy-kicker, .sug-card .tidy-meta, .sug-desc, .sug-link { overflow-wrap: anywhere; }
+.sug-link { max-width: 100%; }
+@media (max-width: 640px) {
+  .room .sug-alike-task { white-space: normal; text-align: left; }
+  .sug-card .tidy-kicker { flex-wrap: wrap; gap: 4px 12px; }
+}
 .sug-pick .tidy-input input { height: 44px; font-size: 17px; }
 .sug-pick-list { display: grid; gap: 2px; margin: 8px 0 0; padding: 0; list-style: none; max-height: 260px; overflow-y: auto; }
 .room .sug-pick-task {
