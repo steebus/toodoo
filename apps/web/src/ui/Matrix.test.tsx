@@ -6,7 +6,7 @@ import type { FullTask } from "@shared/snapshot.ts";
 import type { WorkActions, WorkData } from "../lib/useWork";
 import { Matrix } from "./Matrix";
 
-vi.mock("convex/react", () => ({ useQuery: () => [] })); // the ticket's activity log
+vi.mock("convex/react", () => ({ useQuery: () => [], useMutation: () => vi.fn() })); // the ticket's activity log and files
 
 const T = "2026-10-12";
 const task = (id: string, o: Partial<FullTask> = {}): FullTask => ({

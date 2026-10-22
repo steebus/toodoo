@@ -7,6 +7,7 @@ import { dayWord, fmtTime, formatDuration, parseDuration, type Priority } from "
 import type { FullTask } from "@shared/snapshot.ts";
 import { waitingDays } from "@shared/board.ts";
 import { normLink, parseTags } from "@shared/validation.ts";
+import { Attachments } from "./Attachments";
 import { Checklist } from "./Checklist";
 import { shortDate } from "./format";
 import { CloseIcon, PenProgress, PenTick } from "./icons";
@@ -135,6 +136,7 @@ export function TaskView({
         <Field label="Description" kind="text" value={t.description ?? ""} placeholder="+ Description" className="tk-body"
           display={t.description} onSave={(v) => save({ description: v.trim() || null })} />
         <Checklist items={t.checklist ?? []} onChange={(checklist) => void save({ checklist })} disabled={offline} />
+        {!creating && !isOptimistic(t.id) && <Attachments taskId={t.id} disabled={offline} />}
         <Field label="Note" kind="text" value={t.note ?? ""} placeholder="+ Note" className="tk-note"
           display={t.note} onSave={(v) => save({ note: v.trim() || null })} />
         <div className="tk-link">

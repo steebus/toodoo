@@ -53,7 +53,7 @@ export const setDay = mutation({
 });
 export const deleteTask = mutation({
   args: { id: v.string() },
-  handler: async (ctx, a) => m.deleteTask(ctx.db, await requireUser(ctx), a.id).catch(m.asConvexError),
+  handler: async (ctx, a) => m.deleteTask(ctx.db, await requireUser(ctx), a.id, ctx.storage).catch(m.asConvexError),
 });
 export const plan = mutation({
   args: { date, task_ids: ids, from: v.optional(v.string()), until: v.optional(v.string()), mins: v.optional(v.number()), commit: v.optional(v.boolean()), now },

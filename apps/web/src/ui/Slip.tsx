@@ -11,6 +11,7 @@ import type { WorkTask } from "../lib/useWork";
 import { shortDate } from "./format";
 import { justDropped } from "./LaneDnd";
 import { ColumnSwipe } from "./ColumnSwipe";
+import { PaperclipIcon } from "./icons";
 
 type Variant = "card" | "strip";
 type Props = {
@@ -61,6 +62,11 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
       <span className="slip-line">
         <span className={w.late ? "slip-late" : undefined}>{w.text}</span>
         <span className="slip-line-end">
+          {!!t.attachments && (
+            <span className="slip-files" aria-label={`${t.attachments} ${t.attachments === 1 ? "attachment" : "attachments"}`}>
+              <PaperclipIcon size={13} />{t.attachments > 1 ? t.attachments : null}
+            </span>
+          )}
           {steps}
           {t.estimate_mins ? <span>~{formatDuration(t.estimate_mins)}</span> : null}
         </span>

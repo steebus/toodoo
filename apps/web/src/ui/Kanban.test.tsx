@@ -8,7 +8,7 @@ import type { WorkActions, WorkData } from "../lib/useWork";
 import { Epics } from "./Epics";
 import { columns, Kanban, movePatch } from "./Kanban";
 
-vi.mock("convex/react", () => ({ useQuery: () => [] })); // the ticket's activity log
+vi.mock("convex/react", () => ({ useQuery: () => [], useMutation: () => vi.fn() })); // the ticket's activity log and files
 
 const T = "2026-10-12";
 const task = (id: string, o: Partial<FullTask> = {}): FullTask => ({

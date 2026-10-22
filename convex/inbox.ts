@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import type { StorageWriter } from "convex/server";
 import { requireUser } from "./lib/user";
 import * as m from "./model";
 import { lookalikes, mergePatch, type Mergeable, type Proposal } from "../shared/inbox.ts";
@@ -161,11 +162,11 @@ export async function combine(db: W, userId: string, id: string, taskId: string)
 }
 
 // Back to pending: an accepted suggestion's task goes, a combined one's task gets its old fields back.
-export async function undo(db: W, userId: string, id: string) {
+export async function undo(db: W, userId: string, id: string, storage: StorageWriter) {
   const row = await owned(db, userId, id);
   if (!row) throw new InputError("suggestion not found");
   if (row.state === "pending") return { id };
-  if (row.state === "accepted" && row.task_id && (await db.get(row.task_id))) await m.deleteTask(db, userId, row.task_id);
+  if (row.state === "accepted" && row.task_id && (await db.get(row.task_id))) await m.deleteTask(db, userId, row.task_id, storage);
   if (row.state === "merged" && row.task_id && row.undo && (await db.get(row.task_id))) {
     await db.patch(row.task_id, { ...(row.undo as Partial<Doc<"tasks">>), updated_at: Date.now() });
   }
@@ -193,4 +194,4 @@ export const combineOne = mutation({
   args: { id: v.string(), task_id: v.string() },
   handler: async (ctx, a) => wrap(combine(ctx.db, await requireUser(ctx), a.id, a.task_id)),
 });
-export const undoOne = mutation({ args: { id: v.string() }, handler: async (ctx, a) => wrap(undo(ctx.db, await requireUser(ctx), a.id)) });
+export const undoOne = mutation({ args: { id: v.string() }, handler: async (ctx, a) => wrap(undo(ctx.db, await requireUser(ctx), a.id, ctx.storage)) });

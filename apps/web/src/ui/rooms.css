@@ -560,6 +560,7 @@
 .dk-list { flex: none; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; }
 .slip-line-end { display: inline-flex; gap: 10px; }
 .slip-list { letter-spacing: 0.02em; }
+.slip-files { display: inline-flex; align-items: center; gap: 1px; }
 
 /* ---------- an epic's tasks: its Day view tickets, smaller, in rows ---------- */
 .lane.tickets {
@@ -1135,3 +1136,66 @@
 @media (max-width: 819px) {
   .set-row { flex-wrap: wrap; }
 }
+
+/* ---------- a task's files, on its ticket: pictures in a carousel, other files as lines ---------- */
+.tk-files { display: grid; gap: 10px; font-size: 14px; }
+.tk-carousel { display: grid; gap: 8px; outline: none; }
+.tk-frame { position: relative; }
+.tk-slides {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+  background: color-mix(in srgb, var(--paper-ink) 7%, var(--paper)); border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, var(--paper)); border-radius: 2px;
+}
+.tk-slides::-webkit-scrollbar { display: none; }
+.tk-slides:focus-visible { outline: 2px solid var(--paper-ink); outline-offset: 2px; }
+.tk-slide { flex: 0 0 100%; margin: 0; scroll-snap-align: center; display: grid; place-items: center; height: clamp(180px, 34dvh, 320px); }
+.tk-slide a { display: grid; place-items: center; width: 100%; height: 100%; cursor: zoom-in; }
+.tk-slide img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; user-select: none; }
+:is(.pass, .room) .tk-slide-go {
+  position: absolute; top: 50%; display: grid; place-items: center; width: 34px; height: 34px; margin-top: -17px; border-radius: 50%;
+  color: var(--paper-ink); background: color-mix(in srgb, var(--paper) 88%, transparent); box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  opacity: 0.85; transition: opacity 0.15s ease-out;
+}
+:is(.pass, .room) .tk-slide-go:hover { opacity: 1; }
+.tk-slide-go.is-prev { left: 8px; } .tk-slide-go.is-prev svg { transform: rotate(90deg); }
+.tk-slide-go.is-next { right: 8px; } .tk-slide-go.is-next svg { transform: rotate(-90deg); }
+.tk-slide-count {
+  position: absolute; right: 8px; bottom: 8px; padding: 2px 7px; font-size: 12px; letter-spacing: 0.06em; border-radius: 2px;
+  color: var(--paper); background: color-mix(in srgb, var(--paper-ink) 72%, transparent); pointer-events: none;
+}
+.tk-dots { display: flex; justify-content: center; flex-wrap: wrap; gap: 2px; }
+:is(.pass, .room) .tk-dot { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; }
+.tk-dot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
+.tk-dot[aria-current]::after { background: var(--paper-ink); border-color: var(--paper-ink); }
+.tk-file-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tk-file { position: relative; border: 1px dashed color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); border-radius: 2px; }
+.tk-file.is-pending { display: flex; align-items: center; gap: 10px; padding: 7px 10px; overflow: hidden; color: color-mix(in srgb, var(--paper-ink) 65%, var(--paper)); }
+.tk-file-progress { position: absolute; left: 0; bottom: 0; height: 2px; width: var(--pct, 0%); background: var(--biro); transition: width 0.2s linear; }
+.tk-file-bar-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tk-file-bar-row.is-line { padding: 4px 4px 4px 10px; }
+.tk-file-kind {
+  flex: none; min-width: 3.4em; padding: 2px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-align: center;
+  border: 1.5px solid currentColor; border-radius: 2px; transform: rotate(-2deg);
+}
+.tk-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }
+a.tk-file-name { color: var(--biro); text-decoration: none; }
+a.tk-file-name:hover { text-decoration: underline; }
+.tk-file-size { flex: none; font-size: 12.5px; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
+.tk-file-tools { flex: none; display: inline-flex; }
+:is(.pass, .room) .tk-file-tool {
+  display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 4px; border-radius: 2px; font-family: var(--font-print); font-size: 11.5px;
+  letter-spacing: 0.05em; color: color-mix(in srgb, var(--paper-ink) 65%, var(--paper));
+}
+:is(.pass, .room) .tk-file-tool:hover:not(:disabled) { color: var(--paper-ink); background: color-mix(in srgb, var(--paper-ink) 7%, var(--paper)); }
+:is(.pass, .room) .tk-file-tool.is-delete:hover:not(:disabled), :is(.pass, .room) .tk-file-tool.is-sure { color: var(--paper-red); }
+:is(.pass, .room) .tk-file-tool.is-sure { font-weight: 700; }
+.tk-file-rename {
+  flex: 1; min-width: 0; padding: 3px 6px; font: inherit; color: var(--paper-ink); caret-color: var(--biro);
+  background: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); border: 1.5px dashed color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); border-radius: 2px;
+}
+.tk-file-rename:focus { outline: none; border-style: solid; }
+.tk-files-add { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.tk-files-hint { font-size: 12.5px; color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); }
+@media (hover: none) { .tk-files-hint { display: none; } }
+/* Files dragged over the ticket: the paper says it will take them. */
+.ticket.is-dropping { outline: 2px dashed var(--biro); outline-offset: -8px; background: color-mix(in srgb, var(--biro) 6%, var(--paper)); }
+@media (prefers-reduced-motion: reduce) { .tk-file-progress { transition: none; } }

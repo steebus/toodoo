@@ -34,6 +34,7 @@ export default defineSchema({
     checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))),
     // The meeting it's prep for, by day, start and title (events have no ids of their own); null or absent: none.
     prep_for: v.optional(v.union(v.object({ date: v.string(), start: v.union(v.string(), v.null()), title: v.string() }), v.null())),
+    attachments: v.optional(v.number()), // how many files it has (the attachments table), for the paperclip on its docket
   })
     .index("by_user_done", ["user_id", "done"])
     .index("by_user_epic", ["user_id", "epic_id"])
@@ -103,6 +104,11 @@ export default defineSchema({
     count: v.optional(v.number()), account: v.optional(v.string()),
     open_keys: v.optional(v.array(v.string())), // external ids Jira listed as open at the last sync (unset when the sync hit its cap)
   }).index("by_user", ["user_id"]),
+  // Files on a task, in Convex file storage: shown on its ticket (pictures as a carousel), kept in the order added.
+  attachments: defineTable({
+    user_id: v.string(), task_id: v.id("tasks"), storage_id: v.id("_storage"),
+    name: v.string(), type: v.string(), size: v.number(), created_at: v.number(),
+  }).index("by_task", ["task_id"]),
   plan_blocks: defineTable({
     user_id: v.string(), date: v.string(), task_id: v.id("tasks"), start: v.string(), mins: v.number(),
   })

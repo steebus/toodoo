@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { StorageWriter } from "convex/server";
 import { addDays, autoPlan, mergeRuns, busySpans, effortMap, fillDay, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
 import { prepFor } from "../shared/inbox.ts";
@@ -36,7 +37,7 @@ const toTask = (d: Doc<"tasks">): FullTask => ({
   done: d.done, done_on: d.done_on, sort_order: d.sort_order, source: d.source, external_id: d.external_id,
   tags: d.tags, link: d.link, note: d.note, description: d.description,
   epic_id: d.epic_id ?? null, status: d.status ?? "todo", ...(d.checklist?.length ? { checklist: d.checklist } : {}),
-  ...(d.prep_for ? { prep_for: d.prep_for } : {}),
+  ...(d.prep_for ? { prep_for: d.prep_for } : {}), ...(d.attachments ? { attachments: d.attachments } : {}),
 });
 
 const toEpic = (d: Doc<"epics">): Epic => ({
@@ -76,7 +77,7 @@ export async function listEpics(db: R, userId: string): Promise<Epic[]> {
   return (await db.query("epics").withIndex("by_user", (q) => q.eq("user_id", userId)).collect()).map(toEpic).sort(byEpicRank);
 }
 
-async function ownedTask(db: R, userId: string, id: string) {
+export async function ownedTask(db: R, userId: string, id: string) {
   const nid = db.normalizeId("tasks", id);
   const doc = nid ? await db.get(nid) : null;
   return doc && doc.user_id === userId ? doc : null;
@@ -236,11 +237,15 @@ export async function taskBlocks(db: R, userId: string, id: string) {
   return blocks.map((b) => ({ id: b._id as string, date: b.date, start: b.start, mins: b.mins }));
 }
 
-export async function deleteTask(db: W, userId: string, id: string) {
+export async function deleteTask(db: W, userId: string, id: string, storage: StorageWriter) {
   const doc = await ownedTask(db, userId, id);
   if (!doc) throw new InputError("task not found");
   for (const b of await db.query("plan_blocks").withIndex("by_task", (q) => q.eq("task_id", doc._id)).collect()) {
     await db.delete(b._id);
+  }
+  for (const a of await db.query("attachments").withIndex("by_task", (q) => q.eq("task_id", doc._id)).collect()) {
+    await storage.delete(a.storage_id);
+    await db.delete(a._id);
   }
   await db.delete(doc._id);
   return { deleted: id };

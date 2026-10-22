@@ -45,6 +45,7 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
   const common = {
     id: t.id, done: t.done, high, blocked: !t.done && t.status === "blocked", hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title), colour: epic?.colour ?? null, epic: epic?.title ?? null,
     fit: fitOf(t.title), progress: !t.done && t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
+    files: t.attachments ?? 0,
   };
   if (carried) {
     const n = waitingDays(t.due!, today);

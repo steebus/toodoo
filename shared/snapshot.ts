@@ -11,6 +11,7 @@ export interface FullTask extends Task {
   description: string | null;
   checklist?: ChecklistItem[];
   prep_for?: PrepLink | null; // the meeting it's prep for
+  attachments?: number; // how many files are on it (absent: none)
 }
 export interface ChecklistItem { text: string; done: boolean }
 

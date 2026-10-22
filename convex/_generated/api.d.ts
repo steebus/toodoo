@@ -9,6 +9,7 @@
  */
 
 import type * as agent from "../agent.js";
+import type * as attachments from "../attachments.js";
 import type * as calendar from "../calendar.js";
 import type * as calendarSync from "../calendarSync.js";
 import type * as crons from "../crons.js";
@@ -35,6 +36,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
+  attachments: typeof attachments;
   calendar: typeof calendar;
   calendarSync: typeof calendarSync;
   crons: typeof crons;
