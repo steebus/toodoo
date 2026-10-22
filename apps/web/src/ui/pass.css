@@ -477,14 +477,17 @@
 .pen-progress.is-over .pen-progress-ink { stroke: var(--paper-red); }
 @media (prefers-reduced-motion: reduce) { .pen-progress-ink { transition: none; } }
 
-/* Files attached: a steel paperclip hooked over the paper's left edge, just under the rail, half on and half off. */
-.dk-clip {
-  position: absolute; z-index: 2; left: calc(-7 * var(--u)); top: calc(28 * var(--u)); width: calc(15 * var(--u)); height: calc(42 * var(--u));
-  transform: rotate(4deg); pointer-events: none; filter: drop-shadow(calc(1 * var(--u)) calc(1.5 * var(--u)) 0 rgb(0 0 0 / 0.18));
+/* Files attached: a steel paperclip hooked over the paper's left edge (ui/Paperclip.tsx), drawn in two tones of wire
+   with a flat shadow. Each ticket sizes and places it; on a docket it sits just under the rail, half on and half off. */
+.clip {
+  position: absolute; z-index: 2; pointer-events: none; transform: rotate(4deg);
+  filter: drop-shadow(1px 1.5px 0 rgb(0 0 0 / 0.2));
 }
-.dk-clip svg { display: block; width: 100%; height: 100%; overflow: visible; fill: none; stroke: #8b929b; stroke-width: 1.9; stroke-linecap: round; }
-.docket.is-done .dk-clip { opacity: 0.75; }
-.dk-files { flex: none; display: inline-flex; color: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }
+.clip svg { display: block; width: 100%; height: 100%; overflow: visible; fill: none; stroke: #8e959e; stroke-width: 2.1; stroke-linecap: round; }
+.dk-clip { left: calc(-11 * var(--u)); top: calc(24 * var(--u)); width: calc(22 * var(--u)); height: calc(62 * var(--u)); }
+.docket.is-done .clip { opacity: 0.75; }
+.docket-compact .dk-clip { left: calc(-7 * var(--u)); top: calc(5 * var(--u)); width: calc(13 * var(--u)); height: calc(38 * var(--u)); }
+.mini-ticket .dk-clip { top: calc(20 * var(--u)); }
 .biro-ring { position: absolute; z-index: 2; max-width: none; /* round the time and title, inside the paper */ left: 2%; top: 2%; width: 86%; height: 46%; pointer-events: none; user-select: none; }
 /* Done: struck through by hand (a wavy biro line along each line of print), the print gone quiet. */
 .docket.is-done .dk-print > :not(.dk-bump) { opacity: 0.6; }
@@ -1109,25 +1112,26 @@
   /* sheets sit above the home indicator; the add sheet is the quick add, roomy for thumbs */
   .sheet, .slotpick.is-sheet { padding-bottom: env(safe-area-inset-bottom); }
   .addsheet { padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); overflow: visible; }
-  .addsheet .quickadd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
-  .addsheet :is(.r-quickadd, .r-add-button, .r-chips) { position: static; width: auto; height: 50px; }
-  .addsheet .quickadd-input { padding: 0 14px; font-size: 17px; }
-  .addsheet .add-button { padding: 0 18px; font-size: 17px; }
-  .addsheet .r-chips { grid-column: 1 / -1; height: 36px; gap: 8px; overflow-x: auto; scrollbar-width: none; }
-  .addsheet .chip { flex: none; font-size: 15px; }
-  .addsheet .chips:empty { display: none; }
-  .addsheet .qa-tools { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
-  .pass .qa-tool {
-    flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; white-space: nowrap;
-    font-family: var(--font-print); font-size: 14px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 18px;
-    transition: background-color 0.15s, color 0.15s, transform 0.15s var(--spring);
-  }
-  .pass .qa-tool:active { transform: scale(0.94); }
-  .pass .qa-dial { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; min-width: 0; justify-content: center; padding: 0 4px; font-size: 13px; }
-  .pass .qa-dial-val { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .pass .qa-dial-grip { display: none; }
-  .pass .qa-tool[aria-pressed="true"] { color: var(--ground); background: var(--ink); border-color: var(--ink); }
 }
+/* The quick add at thumb size, with its dials: the phone's add sheet, and the share room's new task. */
+.quickadd-roomy .quickadd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.quickadd-roomy :is(.r-quickadd, .r-add-button, .r-chips) { position: static; width: auto; height: 50px; }
+.quickadd-roomy .quickadd-input { padding: 0 14px; font-size: 17px; }
+.quickadd-roomy .add-button { padding: 0 18px; font-size: 17px; }
+.quickadd-roomy .r-chips { grid-column: 1 / -1; height: 36px; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.quickadd-roomy .chip { flex: none; font-size: 15px; }
+.quickadd-roomy .chips:empty { display: none; }
+.quickadd-roomy .qa-tools { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+:is(.pass, .room) .qa-tool {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; white-space: nowrap;
+  font-family: var(--font-print); font-size: 14px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 18px;
+  transition: background-color 0.15s, color 0.15s, transform 0.15s var(--spring);
+}
+:is(.pass, .room) .qa-tool:active { transform: scale(0.94); }
+:is(.pass, .room) .qa-dial { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; min-width: 0; justify-content: center; padding: 0 4px; font-size: 13px; }
+:is(.pass, .room) .qa-dial-val { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:is(.pass, .room) .qa-dial-grip { display: none; }
+:is(.pass, .room) .qa-tool[aria-pressed="true"] { color: var(--ground); background: var(--ink); border-color: var(--ink); }
 @media (max-width: 819px) and (prefers-reduced-motion: reduce) {
   .dayplan, .todo, .pass[data-tab="today"] .dayplan, .pass[data-tab="plan"] .todo { transition: none; }
 }

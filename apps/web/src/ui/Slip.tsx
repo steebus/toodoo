@@ -11,7 +11,7 @@ import type { WorkTask } from "../lib/useWork";
 import { shortDate } from "./format";
 import { justDropped } from "./LaneDnd";
 import { ColumnSwipe } from "./ColumnSwipe";
-import { PaperclipIcon } from "./icons";
+import { Paperclip } from "./Paperclip";
 
 type Variant = "card" | "strip";
 type Props = {
@@ -44,9 +44,11 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
   const status = showStatus && !t.done && t.status && t.status !== "todo"
     ? <span className={`slip-status is-${t.status}`}>{TASK_STATUS_LABEL[t.status].toUpperCase()}</span>
     : null;
+  const clip = t.attachments ? <Paperclip n={t.attachments} className="slip-clip" /> : null;
   if (variant === "strip") {
     return (
       <>
+        {clip}
         <span className="slip-title"><span className="slip-title-text">{t.title.toUpperCase()}</span></span>
         <span className="slip-meta">
           {steps}
@@ -59,14 +61,10 @@ export function SlipPrint({ task: t, epic, today, variant = "card", showEpic = t
   }
   return (
     <>
+      {clip}
       <span className="slip-line">
         <span className={w.late ? "slip-late" : undefined}>{w.text}</span>
         <span className="slip-line-end">
-          {!!t.attachments && (
-            <span className="slip-files" aria-label={`${t.attachments} ${t.attachments === 1 ? "attachment" : "attachments"}`}>
-              <PaperclipIcon size={13} />{t.attachments > 1 ? t.attachments : null}
-            </span>
-          )}
           {steps}
           {t.estimate_mins ? <span>~{formatDuration(t.estimate_mins)}</span> : null}
         </span>

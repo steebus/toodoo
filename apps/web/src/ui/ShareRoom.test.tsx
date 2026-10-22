@@ -40,8 +40,12 @@ it("puts shared pictures on the task it adds, or on the one already there", asyn
   const attach = vi.fn(async () => []);
   render(<ShareForm shared={{ files: 1 }} epics={[]} offline={false} add={add} files={[pic()]} tasks={[]} attach={attach} />);
   expect(screen.getByRole("list", { name: "Shared files" })).toContainElement(screen.getByRole("img", { name: "site.png" }));
-  await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Quote the deck");
+  const line = screen.getByRole("textbox", { name: "New to do" }); // the add line and its dials, not the long form
+  expect(line).toHaveFocus();
+  expect(screen.getByRole("group", { name: "Add details" })).toBeInTheDocument();
+  await userEvent.type(line, "Quote the deck tomorrow !high");
   await userEvent.click(screen.getByRole("button", { name: "Add" }));
+  expect(add).toHaveBeenCalledWith([expect.objectContaining({ title: "Quote the deck", priority: "high", due: expect.any(String) })]);
   expect(attach).toHaveBeenCalledWith("new1", [expect.any(File)]);
   expect(await screen.findByRole("status")).toHaveTextContent("AddedQUOTE THE DECKwith 1 file");
   cleanup();
@@ -49,7 +53,9 @@ it("puts shared pictures on the task it adds, or on the one already there", asyn
   const again = vi.fn(async () => ({ created: [], skipped: [{ id: "old7" }], errors: [] }));
   render(<ShareForm shared={{ url: "https://acme.atlassian.net/browse/CROOZ-7", title: "[CROOZ-7] Fix", files: 1 }} epics={[]} offline={false}
     add={again} files={[pic()]} tasks={[]} attach={attach} />);
+  expect(screen.getByRole("textbox", { name: "New to do" })).toHaveValue("CROOZ-7 Fix "); // what came with it
   await userEvent.click(screen.getByRole("button", { name: "Add" }));
+  expect(again).toHaveBeenCalledWith([expect.objectContaining({ source: "jira", external_id: "jira:CROOZ-7" })]);
   expect(attach).toHaveBeenLastCalledWith("old7", [expect.any(File)]);
   expect(await screen.findByRole("status")).toHaveTextContent("Already on your list");
 });

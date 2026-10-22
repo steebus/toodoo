@@ -3,7 +3,8 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { ATTACH_MAX_FILES, fileKind, fileSize, isPicture, type Attachment } from "@shared/attachments.ts";
 import { useAttach } from "../lib/upload";
-import { ChevronIcon, DownloadIcon, PencilIcon, SwapIcon, TrashIcon } from "./icons";
+import { ChevronIcon, CloseIcon, DownloadIcon, PencilIcon, SwapIcon, TrashIcon } from "./icons";
+import { Paperclip } from "./Paperclip";
 
 type Props = { taskId: string; disabled?: boolean };
 type Pending = { key: number; name: string; pct: number };
@@ -103,14 +104,15 @@ export function Attachments({ taskId, disabled = false }: Props) {
     onReplace: (f: Attachment, file: File) => void send(file, f.id),
     onDelete: (f: Attachment) => void removeFile({ id: f.id }).catch((e) => setProblem(problemOf(e, "Couldn't delete it"))),
   };
+  const fresh = useFresh(found === undefined ? null : files);
   const pictures = files.filter(isPicture);
   const others = files.filter((f) => !isPicture(f));
   return (
     <section ref={root} className="tk-files" aria-label="Attachments">
-      {pictures.length > 0 && <Carousel pictures={pictures} {...controls} />}
+      {pictures.length > 0 && <Carousel pictures={pictures} fresh={fresh} {...controls} />}
       {(others.length > 0 || pending.length > 0) && (
         <ul className="tk-file-list">
-          {others.map((f) => <FileLine key={f.id} file={f} {...controls} />)}
+          {others.map((f) => <FileLine key={f.id} file={f} isNew={fresh.has(f.id)} {...controls} />)}
           {pending.map((p) => (
             <li key={p.key} className="tk-file is-pending" aria-busy>
               <span className="tk-file-kind">{fileKind(p.name)}</span>
@@ -131,6 +133,21 @@ export function Attachments({ taskId, disabled = false }: Props) {
   );
 }
 
+// The files that came in since the ticket opened (not the ones it opened with): they clip on as they arrive.
+function useFresh(files: Attachment[] | null) {
+  const known = useRef<Set<string> | null>(null);
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!files) return;
+    if (!known.current) { known.current = new Set(files.map((f) => f.id)); return; }
+    const added = files.filter((f) => !known.current!.has(f.id)).map((f) => f.id);
+    if (!added.length) return;
+    added.forEach((id) => known.current!.add(id));
+    setFresh((s) => new Set([...s, ...added]));
+  }, [files]);
+  return fresh;
+}
+
 type Controls = {
   disabled: boolean;
   onRename: (f: Attachment, name: string) => Promise<boolean>;
@@ -138,19 +155,21 @@ type Controls = {
   onDelete: (f: Attachment) => void;
 };
 
-// Pictures side by side in a strip that snaps one to a view: swiped on the phone, arrows or the keyboard on desktop.
-// The one in view prints its name and controls under it; a click opens it full size.
-function Carousel({ pictures, ...c }: Controls & { pictures: Attachment[] }) {
+// Pictures side by side in a strip that snaps one to a view, small enough to leave the ticket readable: swiped on
+// the phone, arrows or the keyboard on desktop. The one in view prints its name and controls under it; a tap opens
+// them all full screen (Lightbox), at that one.
+function Carousel({ pictures, fresh, ...c }: Controls & { pictures: Attachment[]; fresh: Set<string> }) {
   const track = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState(0);
+  const [viewing, setViewing] = useState<number | null>(null);
   const n = pictures.length;
   const i = Math.min(at, n - 1);
   useEffect(() => { if (at > n - 1) setAt(Math.max(0, n - 1)); }, [at, n]);
-  const go = (k: number) => {
+  const go = (k: number, smooth = true) => {
     const el = track.current;
     const to = (k + n) % n;
     setAt(to);
-    el?.scrollTo?.({ left: to * el.clientWidth, behavior: "smooth" });
+    el?.scrollTo?.({ left: to * el.clientWidth, behavior: smooth ? "smooth" : "auto" });
   };
   const keys = (e: KeyboardEvent) => {
     if (e.key === "ArrowRight") { e.preventDefault(); go(i + 1); }
@@ -162,10 +181,11 @@ function Carousel({ pictures, ...c }: Controls & { pictures: Attachment[] }) {
         <div ref={track} className="tk-slides" tabIndex={0} aria-live="polite"
           onScroll={(e) => { const el = e.currentTarget; if (el.clientWidth) setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
           {pictures.map((p, k) => (
-            <figure key={p.id} className="tk-slide" role="group" aria-roledescription="slide" aria-label={`${k + 1} of ${n}: ${p.name}`}>
-              <a href={p.url ?? undefined} target="_blank" rel="noreferrer" tabIndex={k === i ? 0 : -1} aria-label={`Open ${p.name}`}>
+            <figure key={p.id} className={`tk-slide${fresh.has(p.id) ? " is-new" : ""}`} role="group" aria-roledescription="slide" aria-label={`${k + 1} of ${n}: ${p.name}`}>
+              <button type="button" className="tk-slide-open" tabIndex={k === i ? 0 : -1} aria-label={`View ${p.name}`} onClick={() => setViewing(k)}>
                 <img src={p.url ?? undefined} alt={p.name} loading="lazy" draggable={false} />
-              </a>
+              </button>
+              {fresh.has(p.id) && <Paperclip className="tk-slide-clip" />}
             </figure>
           ))}
         </div>
@@ -185,14 +205,76 @@ function Carousel({ pictures, ...c }: Controls & { pictures: Attachment[] }) {
         </div>
       )}
       <FileBar file={pictures[i]} {...c} />
+      {viewing !== null && (
+        <Lightbox pictures={pictures} start={viewing} onClose={(k) => { setViewing(null); go(k, false); }} />
+      )}
     </div>
   );
 }
 
-// A file that isn't a picture: its kind stamped, its name (a click opens it), size, and its controls.
-function FileLine({ file, ...c }: Controls & { file: Attachment }) {
+// The pictures full screen, over everything (a modal of its own above the ticket): swiped or arrowed through like the
+// strip, each at the most the screen allows. Escape, the cross or a tap off the picture closes it, at the picture
+// last seen, and the strip on the ticket follows.
+function Lightbox({ pictures, start, onClose }: { pictures: Attachment[]; start: number; onClose: (at: number) => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const track = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState(start);
+  const n = pictures.length;
+  const f = pictures[Math.min(at, n - 1)];
+  useEffect(() => {
+    const d = dialog.current!;
+    if (typeof d.showModal === "function") d.showModal();
+    else d.setAttribute("open", "");
+    const el = track.current;
+    if (el) el.scrollLeft = start * el.clientWidth;
+    d.querySelector<HTMLElement>(".lb-close")?.focus();
+    return () => { if (d.open && typeof d.close === "function") d.close(); };
+  }, [start]);
+  const go = (k: number) => {
+    const to = (k + n) % n;
+    setAt(to);
+    const el = track.current;
+    el?.scrollTo?.({ left: to * el.clientWidth, behavior: "smooth" });
+  };
+  const close = () => onClose(at);
   return (
-    <li className="tk-file">
+    <dialog ref={dialog} className="lightbox" aria-label="Pictures, full size"
+      onCancel={(e) => { e.preventDefault(); close(); }}
+      onClick={(e) => { e.stopPropagation(); if (!(e.target as Element).closest("img, button")) close(); }}
+      onKeyDown={(e) => {
+        e.stopPropagation(); // the ticket under it keeps its keys to itself
+        if (e.key === "Escape") { e.preventDefault(); close(); }
+        else if (e.key === "ArrowRight") { e.preventDefault(); go(at + 1); }
+        else if (e.key === "ArrowLeft") { e.preventDefault(); go(at - 1); }
+      }}>
+      <div ref={track} className="lb-slides"
+        onScroll={(e) => { const el = e.currentTarget; if (el.clientWidth) setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
+        {pictures.map((p, k) => (
+          <figure key={p.id} className="lb-slide" aria-label={`${k + 1} of ${n}: ${p.name}`}>
+            <img src={p.url ?? undefined} alt={p.name} draggable={false} />
+          </figure>
+        ))}
+      </div>
+      <div className="lb-bar">
+        <span className="lb-name" title={f.name}>{f.name}</span>
+        {n > 1 && <span className="lb-count">{Math.min(at, n - 1) + 1}/{n}</span>}
+        <button type="button" className="lb-tool" aria-label={`Download ${f.name}`} title="Download" onClick={() => void download(f)}><DownloadIcon size={18} /></button>
+        <button type="button" className="lb-tool lb-close" aria-label="Close" onClick={close}><CloseIcon size={20} /></button>
+      </div>
+      {n > 1 && (
+        <>
+          <button type="button" className="lb-go is-prev" aria-label="Previous picture" onClick={() => go(at - 1)}><ChevronIcon size={26} /></button>
+          <button type="button" className="lb-go is-next" aria-label="Next picture" onClick={() => go(at + 1)}><ChevronIcon size={26} /></button>
+        </>
+      )}
+    </dialog>
+  );
+}
+
+// A file that isn't a picture: its kind stamped, its name (a click opens it), size, and its controls.
+function FileLine({ file, isNew, ...c }: Controls & { file: Attachment; isNew?: boolean }) {
+  return (
+    <li className={`tk-file${isNew ? " is-new" : ""}`}>
       <FileBar file={file} line {...c} />
     </li>
   );

@@ -288,13 +288,7 @@ export const AlertIcon = ({ size = 16, className }: P) => (
   </svg>
 );
 
-// A task's files: the clip on its docket, and the ticket's file controls.
-export const PaperclipIcon = ({ size = 16, className }: P) => (
-  <svg {...base(size)} className={className}>
-    <path d="M13.5 6.5l-5.6 5.6a1.4 1.4 0 0 0 2 2l6-6a3 3 0 0 0-4.2-4.2l-6.2 6.2a4.6 4.6 0 0 0 6.5 6.5l5-5" />
-  </svg>
-);
-
+// A task's files: the ticket's file controls.
 export const DownloadIcon = ({ size = 16, className }: P) => (
   <svg {...base(size)} className={className}>
     <path d="M10 3v9.5M6 8.5l4 4 4-4M4 16.5h12" />

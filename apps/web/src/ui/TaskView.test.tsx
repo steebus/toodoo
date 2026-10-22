@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import type { FullTask } from "@shared/snapshot.ts";
@@ -78,6 +78,16 @@ it("shows pictures in a carousel and other files as lines, each with its control
   expect(pics).toHaveTextContent("2/2");
   expect(pics).toHaveTextContent("back.jpg");
 
+  await userEvent.click(screen.getByRole("button", { name: "View back.jpg" })); // full screen, at that picture
+  const big = screen.getByRole("dialog", { name: "Pictures, full size" });
+  expect(big).toHaveTextContent("back.jpg2/2");
+  await userEvent.click(within(big).getByRole("button", { name: "Next picture" }));
+  expect(big).toHaveTextContent("front.png1/2");
+  await userEvent.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog", { name: "Pictures, full size" })).toBeNull();
+  expect(screen.getByRole("dialog", { name: "DEMO SCRIPT" })).toBeInTheDocument(); // the ticket stays open
+  expect(pics).toHaveTextContent("1/2"); // at the picture last seen
+
   const doc = screen.getByRole("link", { name: "invoice.pdf" });
   expect(doc).toHaveAttribute("href", "https://files/a2");
   expect(doc).toHaveAttribute("target", "_blank");
@@ -89,12 +99,12 @@ it("shows pictures in a carousel and other files as lines, each with its control
   await userEvent.click(screen.getByRole("button", { name: "Sure? Delete invoice.pdf" }));
   expect(files.calls).toEqual([["attachments:remove", { id: "a2" }]]);
 
-  await userEvent.click(screen.getByRole("button", { name: "Rename back.jpg" }));
+  await userEvent.click(screen.getByRole("button", { name: "Rename front.png" }));
   const name = screen.getByRole("textbox", { name: "File name" });
   await userEvent.clear(name);
-  await userEvent.type(name, "rear.jpg{Enter}");
-  expect(files.calls.at(-1)).toEqual(["attachments:rename", { id: "a3", name: "rear.jpg" }]);
-  expect(screen.getByRole("button", { name: "Download back.jpg" })).toBeEnabled();
+  await userEvent.type(name, "cover.png{Enter}");
+  expect(files.calls.at(-1)).toEqual(["attachments:rename", { id: "a1", name: "cover.png" }]);
+  expect(screen.getByRole("button", { name: "Download front.png" })).toBeEnabled();
 });
 
 it("leaves files off a ticket not yet filed", () => {

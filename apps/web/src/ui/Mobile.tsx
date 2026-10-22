@@ -77,7 +77,7 @@ export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, onExp
   return (
     <dialog
       ref={dialog}
-      className="sheet addsheet"
+      className="sheet addsheet quickadd-roomy"
       aria-label="Add a to do"
       onCancel={(e) => {
         e.preventDefault();

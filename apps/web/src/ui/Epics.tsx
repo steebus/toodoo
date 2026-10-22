@@ -18,6 +18,7 @@ import { TaskView } from "./TaskView";
 import { compactDate } from "./format";
 import { SettingsMenu, SettingsPick } from "./ViewMenu";
 import { Toast } from "./Toast";
+import { Paperclip } from "./Paperclip";
 
 const NONE = "__none"; // the lane of tasks with no epic
 
@@ -369,6 +370,7 @@ export function MiniTicket({ task: t, epic, today, disabled, onOpen, onUnfile, l
             </button>
           )}
         </article>
+        {!!t.attachments && <Paperclip n={t.attachments} className="dk-clip" />}
       </div>
     </Tag>
   );

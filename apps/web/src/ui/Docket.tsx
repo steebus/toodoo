@@ -5,7 +5,8 @@ import { m } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type Ref } from "react";
 import biroRing from "../assets/plates/biro-ring.webp";
 import { isOptimistic } from "../lib/useActions";
-import { BlockedIcon, PaperclipIcon, PenLoop, PenProgress, PenTick } from "./icons";
+import { BlockedIcon, PenLoop, PenProgress, PenTick } from "./icons";
+import { Paperclip } from "./Paperclip";
 import { reducedMotion, useLayoutDependency } from "./motion";
 import { Swipe } from "./Swipe";
 import type { DocketData, MetaRow } from "./types";
@@ -49,19 +50,6 @@ function Rows({ rows }: { rows: MetaRow[] }) {
         </div>
       ))}
     </dl>
-  );
-}
-
-const filesLabel = (n: number) => `${n} ${n === 1 ? "attachment" : "attachments"}`;
-
-// A paperclip hooked over the paper's left edge, under the rail: the task has files.
-function Paperclip({ n }: { n: number }) {
-  return (
-    <span className="dk-clip" role="img" aria-label={filesLabel(n)} title={filesLabel(n)}>
-      <svg viewBox="-1 -1 18 46" aria-hidden focusable="false">
-        <path d="M5 14V34a3 3 0 0 0 6 0V8a5 5 0 0 0-10 0V36a7 7 0 0 0 14 0V12" />
-      </svg>
-    </span>
   );
 }
 
@@ -157,7 +145,6 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
               <span className={d.variant === "carried" ? "dk-stub-tag" : "dk-time"}>{d.variant === "carried" ? d.tag : d.time}</span>
               <h4 className="dk-title">{d.blocked && <BlockedIcon size={14} className="dk-blocked-icon" />}{open(<span className="dk-title-text">{d.title}</span>)}</h4>
               {d.list && <span className="dk-list" aria-label={`Checklist ${d.list.done} of ${d.list.total}`}>{d.list.done}/{d.list.total}</span>}
-              {!!d.files && <span className="dk-files" role="img" aria-label={filesLabel(d.files)}><PaperclipIcon size={14} /></span>}
               <span className="dk-dur">{d.duration}</span>
               {d.progress && <PenProgress {...d.progress} className="dk-progress" />}
             </>
@@ -187,7 +174,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             </>
           )}
           {!compact && d.epic && <p className="dk-epic" title={d.epic}>{d.epic}</p>}
-          {!compact && !!d.files && <Paperclip n={d.files} />}
+          {!!d.files && <Paperclip n={d.files} className="dk-clip" />}
           {onTick && (
             <button
               type="button"
