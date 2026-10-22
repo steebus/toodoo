@@ -1,28 +1,12 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
-import { ATTACH_MAX_BYTES, ATTACH_MAX_FILES, fileKind, fileSize, isPicture, type Attachment } from "@shared/attachments.ts";
+import { ATTACH_MAX_FILES, fileKind, fileSize, isPicture, type Attachment } from "@shared/attachments.ts";
+import { useAttach } from "../lib/upload";
 import { ChevronIcon, DownloadIcon, PencilIcon, SwapIcon, TrashIcon } from "./icons";
 
 type Props = { taskId: string; disabled?: boolean };
 type Pending = { key: number; name: string; pct: number };
-
-// Post a file to a Convex upload address, with its progress; the stored file's id comes back.
-function post(url: string, file: File, onPct: (pct: number) => void) {
-  return new Promise<string>((resolve, reject) => {
-    const x = new XMLHttpRequest();
-    x.open("POST", url);
-    x.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    x.upload.onprogress = (e) => e.lengthComputable && onPct(Math.round((e.loaded / e.total) * 100));
-    x.onload = () => {
-      try { if (x.status < 300) return resolve(JSON.parse(x.responseText).storageId); } catch { /* falls through */ }
-      reject(new Error(`upload failed (${x.status})`));
-    };
-    x.onerror = () => reject(new Error("upload failed"));
-    x.send(file);
-  });
-}
 
 // Saved under its own name: fetched and handed over as a file (a cross-origin link would only open it).
 async function download(f: Attachment) {
@@ -51,9 +35,7 @@ const problemOf = (e: unknown, fallback: string) => {
 export function Attachments({ taskId, disabled = false }: Props) {
   const found = useQuery(api.attachments.list, { task_id: taskId });
   const files: Attachment[] = Array.isArray(found) ? found : [];
-  const uploadUrl = useMutation(api.attachments.uploadUrl);
-  const addFile = useMutation(api.attachments.add);
-  const replaceFile = useMutation(api.attachments.replace);
+  const attach = useAttach();
   const renameFile = useMutation(api.attachments.rename);
   const removeFile = useMutation(api.attachments.remove);
   const [pending, setPending] = useState<Pending[]>([]);
@@ -66,19 +48,12 @@ export function Attachments({ taskId, disabled = false }: Props) {
 
   // One file up and filed, onto a new line or (onto) in place of one already there.
   const send = async (file: File, onto?: string) => {
-    if (file.size > ATTACH_MAX_BYTES) return setProblem(`${file.name} is over ${ATTACH_MAX_BYTES / 1024 / 1024} MB`);
     const key = ++seq.current;
     setPending((p) => [...p, { key, name: file.name, pct: 0 }]);
-    try {
-      const storage = await post(await uploadUrl(), file, (pct) => setPending((p) => p.map((x) => (x.key === key ? { ...x, pct } : x))));
-      const args = { storage_id: storage as Id<"_storage">, name: file.name, type: file.type || undefined };
-      const r = onto ? await replaceFile({ id: onto, ...args }) : await addFile({ task_id: taskId, ...args });
-      if ("error" in r) setProblem(`${file.name}: ${r.error}`);
-    } catch (e) {
-      setProblem(problemOf(e, `Couldn't upload ${file.name}`));
-    } finally {
-      setPending((p) => p.filter((x) => x.key !== key));
-    }
+    const onPct = (pct: number) => setPending((p) => p.map((x) => (x.key === key ? { ...x, pct } : x)));
+    const bad = await attach(taskId, file, { onto, onPct });
+    setPending((p) => p.filter((x) => x.key !== key));
+    if (bad) setProblem(bad);
   };
   const take = (list: FileList | File[] | null | undefined) => {
     const all = [...(list ?? [])];

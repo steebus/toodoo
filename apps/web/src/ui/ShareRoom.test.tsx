@@ -30,3 +30,56 @@ it("says so when the issue is already on the list", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Add" }));
   expect(await screen.findByRole("status")).toHaveTextContent("Already on your list");
 });
+
+const pic = () => new File(["png"], "site.png", { type: "image/png" });
+
+it("puts shared pictures on the task it adds, or on the one already there", async () => {
+  globalThis.URL.createObjectURL ??= () => "blob:x";
+  globalThis.URL.revokeObjectURL ??= () => {};
+  const add = vi.fn(async () => ({ created: [{ id: "new1" }], errors: [] }));
+  const attach = vi.fn(async () => []);
+  render(<ShareForm shared={{ files: 1 }} epics={[]} offline={false} add={add} files={[pic()]} tasks={[]} attach={attach} />);
+  expect(screen.getByRole("list", { name: "Shared files" })).toContainElement(screen.getByRole("img", { name: "site.png" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Quote the deck");
+  await userEvent.click(screen.getByRole("button", { name: "Add" }));
+  expect(attach).toHaveBeenCalledWith("new1", [expect.any(File)]);
+  expect(await screen.findByRole("status")).toHaveTextContent("AddedQUOTE THE DECKwith 1 file");
+  cleanup();
+
+  const again = vi.fn(async () => ({ created: [], skipped: [{ id: "old7" }], errors: [] }));
+  render(<ShareForm shared={{ url: "https://acme.atlassian.net/browse/CROOZ-7", title: "[CROOZ-7] Fix", files: 1 }} epics={[]} offline={false}
+    add={again} files={[pic()]} tasks={[]} attach={attach} />);
+  await userEvent.click(screen.getByRole("button", { name: "Add" }));
+  expect(attach).toHaveBeenLastCalledWith("old7", [expect.any(File)]);
+  expect(await screen.findByRole("status")).toHaveTextContent("Already on your list");
+});
+
+it("puts shared pictures on an open task found by its words", async () => {
+  globalThis.URL.createObjectURL ??= () => "blob:x";
+  globalThis.URL.revokeObjectURL ??= () => {};
+  const add = vi.fn();
+  const attach = vi.fn(async () => []);
+  const tasks = [
+    { id: "a", title: "Fix the deck", due: null }, { id: "b", title: "Quote the deck", due: "2026-10-20" }, { id: "c", title: "Ring Sam", due: null },
+  ];
+  render(<ShareForm shared={{ files: 2 }} epics={[]} offline={false} add={add} files={[pic(), pic()]} tasks={tasks} attach={attach} />);
+  await userEvent.click(screen.getByRole("button", { name: "Add to a task" }));
+  const list = () => screen.getByRole("list", { name: "Open tasks" });
+  expect(list()).toHaveTextContent(/QUOTE THE DECK.*FIX THE DECK.*RING SAM/); // dated first
+  await userEvent.type(screen.getByRole("searchbox", { name: "Find a task" }), "deck fix");
+  expect(list().querySelectorAll("li")).toHaveLength(1);
+  await userEvent.click(screen.getByRole("button", { name: /FIX THE DECK/ }));
+  expect(attach).toHaveBeenCalledWith("a", [expect.any(File), expect.any(File)]);
+  expect(add).not.toHaveBeenCalled();
+  expect(await screen.findByRole("status")).toHaveTextContent("Attached toFIX THE DECK2 files");
+});
+
+it("stays on the pick, and says why, when none of the files would go on", async () => {
+  const attach = vi.fn(async () => ["site.png: a task holds up to 30 files"]);
+  render(<ShareForm shared={{ files: 1 }} epics={[]} offline={false} add={vi.fn()} files={[new File(["x"], "a.pdf")]}
+    tasks={[{ id: "a", title: "Full one", due: null }]} attach={attach} />);
+  await userEvent.click(screen.getByRole("button", { name: "Add to a task" }));
+  await userEvent.click(screen.getByRole("button", { name: /FULL ONE/ }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("a task holds up to 30 files");
+  expect(screen.queryByRole("status")).toBeNull();
+});

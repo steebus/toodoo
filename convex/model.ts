@@ -159,7 +159,7 @@ export async function addTasks(db: W, userId: string, inputs: unknown[], t: stri
     if (r.external_id) {
       const hit = await db.query("tasks").withIndex("by_user_source_ext", (q) =>
         q.eq("user_id", userId).eq("source", r.source).eq("external_id", r.external_id)).first();
-      if (hit) { skipped.push({ title: r.title, source: r.source, external_id: r.external_id }); continue; }
+      if (hit) { skipped.push({ title: r.title, source: r.source, external_id: r.external_id, id: hit._id }); continue; }
     }
     const id = await db.insert("tasks", {
       ...r, epic_id, user_id: userId, done: false, done_on: null,

@@ -12,6 +12,10 @@ it("keeps what was shared to /share through sign-in, and only that", () => {
   expect(pendingShare()).toEqual({ url: "https://acme.atlassian.net/browse/A-1", title: "[A-1] Fix", popup: true });
   clearShare();
   expect(pendingShare()).toBeNull();
+  stashShare({ pathname: "/share", search: "?files=3" }); // pictures alone, words or not
+  expect(pendingShare()).toEqual({ files: 3 });
+  stashShare({ pathname: "/share", search: "?files=99&title=x" });
+  expect(pendingShare()).toEqual({ title: "x", files: 10 });
 });
 
 it("makes a bookmarklet that opens the share room with the page and its selection", () => {

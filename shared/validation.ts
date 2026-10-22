@@ -130,7 +130,7 @@ const defined = <T extends object>(o: T) =>
 
 export interface AddResult {
   created: { id: string; title: string; source: string; external_id: string | null }[];
-  skipped: { title: string; source: string; external_id: string }[];
+  skipped: { title: string; source: string; external_id: string; id?: string }[]; // id: the task already there
   errors: { index: number; error: string }[];
 }
 

@@ -29,10 +29,14 @@ export default defineConfig(({ mode }) => {
             { src: "icon-512.png", sizes: "512x512", type: "image/png" },
             { src: "icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
           ],
-          // Installed from Chrome on Android, toodoo shows in every app's share sheet (see lib/share.ts).
-          share_target: { action: "/share", method: "GET", params: { title: "title", text: "text", url: "url" } },
+          // Installed from Chrome on Android, toodoo shows in every app's share sheet (see lib/share.ts). A post, so
+          // pictures and files come too: public/share-sw.js takes it in the service worker.
+          share_target: {
+            action: "/share", method: "POST", enctype: "multipart/form-data",
+            params: { title: "title", text: "text", url: "url", files: [{ name: "files", accept: ["image/*", "application/pdf"] }] },
+          },
         },
-        workbox: { globPatterns: ["**/*.{js,css,html,woff2,webp,png}"], navigateFallback: "/index.html", importScripts: ["/push-sw.js"] }, // push-sw: due reminders
+        workbox: { globPatterns: ["**/*.{js,css,html,woff2,webp,png}"], navigateFallback: "/index.html", importScripts: ["/push-sw.js", "/share-sw.js"] }, // push-sw: due reminders; share-sw: shared files
       }),
     ],
     envDir: "../..",

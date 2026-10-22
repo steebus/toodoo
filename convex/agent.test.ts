@@ -23,7 +23,7 @@ it("adds tasks idempotently on source + external_id", async () => {
   expect(first.errors.map((e) => e.index)).toEqual([2]);
   const second = await t.mutation(api.agent.addTasks, { tasks: input.slice(0, 1) });
   expect(second.created).toEqual([]);
-  expect(second.skipped).toEqual([{ title: "Review PR", source: "jira", external_id: "jira:T-1" }]);
+  expect(second.skipped).toEqual([{ title: "Review PR", source: "jira", external_id: "jira:T-1", id: first.created[0].id }]);
 });
 
 it("requires the allowed user", async () => {
