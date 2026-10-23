@@ -193,6 +193,37 @@ export function fromJira(issue: JiraIssue, site: string): Omit<Proposal, "epic_i
   };
 }
 
+// A Bitbucket Cloud pull request as the API lists it (pullrequests?q=reviewers.uuid=...).
+export type BitbucketPR = {
+  id: number; title?: string; description?: string | null; created_on?: string | null;
+  author?: { display_name?: string } | null;
+  destination?: { repository?: { name?: string; full_name?: string } | null } | null;
+  links?: { html?: { href?: string } | null } | null;
+};
+
+// One open PR waiting on me as a suggestion: who posted it in the note, the repository as its project, and the
+// project (then repository) name as the epic to look up.
+export function fromBitbucket(pr: BitbucketPR, projectName?: string | null): Omit<Proposal, "epic_id"> & { epic_names: string[] } {
+  const repo = pr.destination?.repository;
+  const full = repo?.full_name ?? String(pr.id);
+  const raised = pr.created_on ? Date.parse(pr.created_on) : NaN;
+  const by = pr.author?.display_name?.trim();
+  const desc = pr.description?.trim();
+  return {
+    title: `Review: ${(pr.title?.trim() || `PR ${pr.id}`).slice(0, 280)}`,
+    description: desc ? desc.slice(0, MAX_DESC) : null,
+    note: [by && `From ${by}`, repo?.name].filter(Boolean).join(" · ") || null,
+    link: pr.links?.html?.href ?? null,
+    source: "bitbucket",
+    external_id: `bitbucket:${full}#${pr.id}`,
+    due: null, time: null, priority: null, estimate_mins: null,
+    tags: ["work", "review"],
+    ...(Number.isFinite(raised) ? { raised_at: raised } : {}),
+    ...(projectName || repo?.name ? { project: (projectName || repo?.name)!.slice(0, 120) } : {}),
+    epic_names: [projectName, repo?.name].filter((x): x is string => !!x),
+  };
+}
+
 // ---------- prep for an event ----------
 
 // A task's meeting: the one it is prep for. Events have no ids of their own (the calendar feed rewrites them), so

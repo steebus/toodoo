@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { adfText, fromJira, jiraSite, likeness, linksTo, lookalikes, mergePatch, prepFor, prepLink, prepsOf, type Mergeable } from "./inbox.ts";
+import { adfText, fromBitbucket, fromJira, jiraSite, likeness, linksTo, lookalikes, mergePatch, prepFor, prepLink, prepsOf, type Mergeable } from "./inbox.ts";
 
 const task = (o: Partial<Mergeable> & { title: string }): Mergeable => ({
   description: null, note: null, link: null, source: "you", external_id: null, due: null, time: null,
@@ -96,4 +96,16 @@ it("finds a task's meeting by day, start and title, and follows it when it moves
   expect(linksTo(link, "2026-10-14", twice[0], twice)).toBe(false); // two of them, neither at 9:15: no guessing
   const tasks = [{ id: "a", prep_for: link }, { id: "b", prep_for: null }, { id: "c" }];
   expect(prepsOf(tasks, "2026-10-14", { start: "09:15", title: "Team standup" }, [{ start: "09:15", title: "Team standup" }]).map((t) => t.id)).toEqual(["a"]);
+});
+
+it("a Bitbucket PR becomes a review suggestion naming who posted it", () => {
+  const s = fromBitbucket({
+    id: 12, title: "Fix the thing", created_on: "2026-10-01T00:00:00Z", author: { display_name: "Pat" },
+    destination: { repository: { name: "api", full_name: "acme/api" } }, links: { html: { href: "https://bitbucket.org/acme/api/pull-requests/12" } },
+  }, "Platform");
+  expect(s).toMatchObject({
+    title: "Review: Fix the thing", note: "From Pat · api", source: "bitbucket", external_id: "bitbucket:acme/api#12",
+    project: "Platform", epic_names: ["Platform", "api"], link: "https://bitbucket.org/acme/api/pull-requests/12",
+  });
+  expect(s.raised_at).toBe(Date.parse("2026-10-01T00:00:00Z"));
 });
