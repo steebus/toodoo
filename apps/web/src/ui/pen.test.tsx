@@ -14,11 +14,12 @@ it("squeezes long titles harder", () => {
   expect(fitOf("RSVP to P&C school hours consultation (Thu 22 Oct, needs a reply)")).toBe(2);
 });
 
-it("grows a ticket to hold its description and note, never past twice the standard", () => {
-  expect(growOf("Buy timber", null, null)).toBe(0);
-  expect(growOf("Buy timber", null, "ring first")).toBe(0);
-  expect(growOf("Buy timber", "Two lengths of pine, cut to size and sanded", null)).toBe(1);
-  expect(growOf("Buy timber", "x".repeat(300), "y".repeat(300))).toBe(2);
+it("sizes a ticket to its words, which the stylesheet holds between the standard height and twice it", () => {
+  const p = { title: "Buy timber", description: null, note: null, rows: 1, source: false, variant: "today" as const };
+  const plain = growOf(p);
+  expect(growOf({ ...p, description: "Two lengths of pine, cut to size and sanded" })).toBeGreaterThan(plain);
+  expect(growOf({ ...p, description: "x".repeat(300), note: "y".repeat(300) })).toBeGreaterThan(growOf({ ...p, description: "x".repeat(60) }));
+  expect(growOf({ ...p, title: "A very long title that goes on and on across many words so it wraps" })).toBeGreaterThan(plain);
 });
 
 it("inks the progress line as far as the time spent, and red past the estimate", () => {

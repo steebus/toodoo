@@ -101,7 +101,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
     hold.current = { timer: setTimeout(() => { send(); setInked(false); }, TICK_HOLD), send };
   };
   const done = d.done || inked;
-  const cls = `docket docket-${d.variant} fit-${d.fit ?? 0}${!compact && d.grow ? ` grow-${d.grow}` : ""}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.blocked ? " is-blocked" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}${d.colour ? " has-epic" : ""}${d.claude ? " is-claude" : ""}`;
+  const cls = `docket docket-${d.variant} fit-${d.fit ?? 0}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.blocked ? " is-blocked" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}${d.colour ? " has-epic" : ""}${d.claude ? " is-claude" : ""}`;
   const open = (children: React.ReactNode) => (
     <button type="button" className="dk-open" disabled={busy} aria-label={`Open ${d.title}`} onClick={(e) => !afterKeyDrag(e) && onOpen?.(d.id)}
       tabIndex={ghost ? -1 : undefined} {...openProps}
@@ -121,6 +121,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
       data-docket={ghost ? undefined : d.id} data-hm={d.hm ?? undefined}
       style={{
         ...li?.style,
+        ...(!compact && d.grow ? { ["--need" as string]: d.grow } : null),
         ...(arrival !== undefined ? { ["--i" as string]: arrival } : null),
         ...(d.colour ? { ["--epic" as string]: `var(--epic-${d.colour})` } : null),
       }}>
@@ -152,9 +153,9 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
             <>
               <p className="dk-tag">{d.tag}{d.blocked && <span className="dk-blocked"><BlockedIcon size={14} />BLOCKED</span>}{d.duration && <span className="dk-dur">{d.duration}</span>}</p>
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
-              {!!d.grow && d.description && <p className="dk-desc">{d.description}</p>}
+              {d.description && <p className="dk-desc">{d.description}</p>}
               {d.note && <p className="dk-note">{d.note}</p>}
-              {!!d.grow && <span className="dk-fill" aria-hidden />}
+              <span className="dk-fill" aria-hidden />
               <Rows rows={d.rows} />
               <p className="dk-dashes" aria-hidden>{DASHES}</p>
               {d.footer && <Rows rows={[d.footer]} />}
@@ -168,9 +169,9 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
                 <span className="dk-dur">{d.duration}</span>
               </p>
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
-              {!!d.grow && d.description && <p className="dk-desc">{d.description}</p>}
+              {d.description && <p className="dk-desc">{d.description}</p>}
               {d.note && <p className="dk-note">{d.note}</p>}
-              {!!d.grow && <span className="dk-fill" aria-hidden />}
+              <span className="dk-fill" aria-hidden />
               {d.source && <p className="dk-source">{d.source}</p>}
               <p className="dk-dashes" aria-hidden>{DASHES}</p>
               <Rows rows={d.rows} />

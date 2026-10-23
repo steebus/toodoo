@@ -380,9 +380,7 @@
 .grp-carried .grp-dockets { --dk-h: calc(190 * var(--u)); }
 /* A ticket whose words need it stands taller, up to twice the standard; the row takes the tallest and the
    others keep their own height. The rails are drawn over each row by Rail.tsx, wherever the row starts. */
-.grp-dockets .docket { height: var(--dk-h); align-self: start; }
-.grp-dockets .docket.grow-1 { height: calc(var(--dk-h) * 1.5); }
-.grp-dockets .docket.grow-2 { height: calc(var(--dk-h) * 2); }
+.grp-dockets .docket:not(.docket-compact) { height: clamp(var(--dk-h), calc(var(--need, 0) * var(--u)), calc(var(--dk-h) * 2)); align-self: start; }
 .grp-dockets.is-measured::after { display: none; }
 .grp-dockets > .rail-row {
   position: absolute; left: 0; right: 0; top: calc(var(--t) - var(--band) * 0.5); height: var(--band); z-index: 3; pointer-events: none; list-style: none;
@@ -467,10 +465,10 @@
   font-size: calc(13 * var(--u)); line-height: 1.25; color: var(--paper-ink); overflow-wrap: anywhere;
 }
 /* On a grown ticket the words stack from the top (title, then description, then note) and the spare room sits above the foot. */
-.docket[class*="grow-"] .dk-title { flex: 0 0 auto; }
-.docket[class*="grow-"] .dk-desc { flex-shrink: 2; }
-.docket.grow-2 .dk-desc { -webkit-line-clamp: 12; }
+.docket:not(.docket-compact) .dk-title { flex: 0 0 auto; }
+.docket:not(.docket-compact) .dk-desc { flex-shrink: 2; }
 .dk-fill { flex: 1 1 0; min-height: 0; }
+.docket-compact .dk-fill { display: none; }
 .dk-note {
   flex: 0 1 auto; min-height: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
   font-family: var(--font-hand); font-weight: 500; font-size: calc(17 * var(--u)); line-height: 1.05; color: var(--biro); overflow-wrap: anywhere;

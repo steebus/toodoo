@@ -69,7 +69,7 @@ export type DocketData = {
   claude?: boolean; // assigned to Claude: its robot stamped on the paper
   note?: string | null; // handwritten on the paper where there is room
   description?: string | null; // printed under the title on a ticket that has grown to hold it
-  grow?: 0 | 1 | 2; // how much taller than the standard ticket its words need: 0 standard, 1 half as tall again, 2 twice as tall
+  grow?: number; // the height (comp px) its words need; pass.css keeps it between the standard ticket and twice that
   fit: 0 | 1 | 2; // how hard the title is squeezed to fit the paper: 0 as printed, 2 smallest
   progress?: { spent: number; est: number } | null; // minutes spent (planned blocks gone by) against the estimate
 };

@@ -35,10 +35,16 @@ export const listLine = (p: { done: number; total: number }) =>
 // Long titles print smaller and on more lines rather than being cut off.
 export const fitOf = (title: string): 0 | 1 | 2 => (title.length <= 24 ? 0 : title.length <= 48 ? 1 : 2);
 
-// Taller when the title, description and note need it, up to twice the standard ticket.
-export const growOf = (title: string, description: string | null, note: string | null): 0 | 1 | 2 => {
-  const words = Math.max(0, title.length - 48) + (description?.length ?? 0) + (note?.length ?? 0);
-  return words > 100 ? 2 : words > 30 ? 1 : 0;
+// How tall (in comp px) the paper needs to be to print its title, description and note whole: the standard height
+// when they fit it, more when they don't (pass.css caps it at twice the standard). Mono print is ~21 characters
+// to a line on the paper, so lines are counted from lengths rather than measured.
+const CPL = 21;
+const lines = (text: string | null, per: number, max: number) => (text ? Math.min(max, Math.ceil((text.length * 1.12) / per)) : 0);
+export const growOf = (p: { title: string; description: string | null; note: string | null; rows: number; source: boolean; variant: "carried" | "today" }): number => {
+  const fit = fitOf(p.title);
+  const title = lines(p.title, [13, 16, 18][fit], [3, 4, 6][fit]) * [24.4, 20.3, 17.7][fit];
+  const blocks = 1 + (p.description ? 1 : 0) + (p.note ? 1 : 0) + (p.source ? 1 : 0) + 1 + (p.rows ? 1 : 0) + 1; // head, title.., dashes, rows, epic
+  return Math.ceil(29 + 20 + title + lines(p.description, CPL + 3, 8) * 16.25 + lines(p.note, CPL, 3) * 17.85 + (p.source ? 14 : 0) + 14 + p.rows * 19 + 11 + 4 * blocks);
 };
 
 // The rows print what the paper doesn't already show: the time and duration are in its head, the epic is its colour.
@@ -51,7 +57,7 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
   const tagRow: MetaRow[] = tags.length ? [{ label: "TAGS", value: tags.join(" ").toUpperCase() }] : [];
   const common = {
     id: t.id, done: t.done, high, blocked: !t.done && t.status === "blocked", hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title), colour: epic?.colour ?? null, epic: epic?.title ?? null,
-    fit: fitOf(t.title), description: t.description?.trim() || null, grow: growOf(t.title, t.description?.trim() || null, t.note?.trim() || null), progress: !t.done && t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
+    fit: fitOf(t.title), description: t.description?.trim() || null, progress: !t.done && t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
     files: t.attachments ?? 0, ...(assignedToClaude(t) ? { claude: true } : null),
   };
   if (carried) {
@@ -62,6 +68,7 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
       lines: [t.title.toUpperCase()],
       rows: [{ label: "DUE", value: shortDate(t.due!) }, ...listRow, ...tagRow].slice(0, 3),
       footer: null,
+      grow: growOf({ title: t.title, description: common.description, note: common.note, rows: Math.min(3, 1 + listRow.length + tagRow.length), source: !!sourceLabel(t), variant: "carried" }),
     };
   }
   const rows: MetaRow[] = [
@@ -72,6 +79,7 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
   const flags = [t.done ? "DONE" : "", high ? (plusHigh(t, epic) ? "! +HIGH" : "! HIGH") : "", sourceLabel(t)].filter(Boolean);
   return {
     ...common, variant: "today", time: clock12(hm), duration: est(t), source: flags.join(" · "), tag: "", rows, footer: null,
+    grow: growOf({ title: t.title, description: common.description, note: common.note, rows: rows.length, source: !!flags.length, variant: "today" }),
   };
 }
 
