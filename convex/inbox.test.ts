@@ -230,3 +230,24 @@ it("replan from now takes off today's missed blocks, refills the day, and carrie
   const today = (await t.query(api.agent.board, { date: "2026-10-13", now })).blocks.filter((b) => b.date === "2026-10-13");
   expect(today.map((b) => b.start)).toEqual(["10:00"]);
 });
+
+it("syncs Bitbucket: accepting into an epic ties the project to it for the next PR", async () => {
+  const t = setup();
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ issues: [], isLast: true })));
+  await t.mutation(api.jira.save, { site: "acme", email: "steve@example.com", token: "secret" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const epic = await t.mutation(api.epics.create, { epic: { title: "Billing" } });
+  const pr = (id: number) => ({
+    title: `Review: PR ${id}`, description: null, note: "From Pat · api", link: null, source: "bitbucket", external_id: `bitbucket:acme/api#${id}`,
+    due: null, time: null, priority: null, estimate_mins: null, tags: ["work", "review"], epic_names: ["Platform", "api"], project: "Platform",
+  });
+  await t.mutation(internal.jira.writeBitbucket, { user_id: "user_steve", items: [pr(1)], complete: true });
+  const first = (await t.query(api.inbox.list, {})).items[0];
+  expect(first.epic_id).toBeNull();
+  await t.mutation(api.inbox.acceptOne, { id: first.id, edits: { epic_id: epic.id } });
+  await t.mutation(internal.jira.writeBitbucket, { user_id: "user_steve", items: [pr(2)], complete: true });
+  expect((await t.query(api.inbox.list, {})).items.map((x) => [x.external_id, x.epic_id])).toEqual([["bitbucket:acme/api#2", epic.id]]);
+  // a PR that closed drops out of a complete sync
+  await t.mutation(internal.jira.writeBitbucket, { user_id: "user_steve", items: [], complete: true });
+  expect(await t.query(api.inbox.count, {})).toBe(0);
+});

@@ -254,7 +254,7 @@ function Card({ x, data, epic, offline, onAccept, onReject, onCombine, onEdit }:
     <article aria-label={x.title}>
       <p className="tidy-kicker">
         <span>{kicker(x)}</span>
-        <span>{x.origin === "jira" ? "FROM JIRA" : "FROM CLAUDE"}</span>
+        <span>{x.origin === "jira" ? "FROM JIRA" : x.origin === "bitbucket" ? "FROM BITBUCKET" : "FROM CLAUDE"}</span>
       </p>
       <h2 className="tidy-title sug-title">{x.title}</h2>
       <p className="tidy-meta">
@@ -276,7 +276,7 @@ function Card({ x, data, epic, offline, onAccept, onReject, onCombine, onEdit }:
       )}
       {x.link && (
         <a className="sug-link" href={x.link} target="_blank" rel="noreferrer">
-          <OpenIcon size={13} /> {x.source === "jira" ? "Open in Jira" : "Open"}
+          <OpenIcon size={13} /> {x.source === "jira" ? "Open in Jira" : x.source === "bitbucket" ? "Open in Bitbucket" : "Open"}
         </a>
       )}
       {x.alike.length > 0 && !picking && (

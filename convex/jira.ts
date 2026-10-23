@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery, mutation, query, type QueryCtx } from "./_generated/server";
 import { requireUser } from "./lib/user";
 import { softEpic, upsertProposal } from "./inbox";
+import { fromBitbucket, type BitbucketPR } from "../shared/inbox.ts";
 import { DEFAULT_JQL, fromJira, jiraSite, type JiraIssue } from "../shared/inbox.ts";
 
 const FIELDS = [
@@ -71,7 +72,10 @@ export const syncNow = mutation({
 export const syncAll = internalMutation({
   args: {},
   handler: async (ctx) => {
-    for (const r of await ctx.db.query("jira_links").collect()) await ctx.scheduler.runAfter(0, internal.jira.syncUser, { user_id: r.user_id });
+    for (const r of await ctx.db.query("jira_links").collect()) {
+      await ctx.scheduler.runAfter(0, internal.jira.syncUser, { user_id: r.user_id });
+      await ctx.scheduler.runAfter(0, internal.jira.syncBitbucket, { user_id: r.user_id });
+    }
   },
 });
 
@@ -158,6 +162,88 @@ export const syncUser = internalAction({
       await ctx.runMutation(internal.jira.writeSync, { user_id, account, items: issues.filter((i) => i?.key).map((i) => fromJira(i, l.site)) });
     } catch (e) {
       await ctx.runMutation(internal.jira.writeSync, { user_id, account, items: null, error: e instanceof Error ? e.message.slice(0, 300) : "sync failed" });
+    }
+  },
+});
+
+// ---------- Bitbucket: open PRs waiting on me, from the same email and API token ----------
+
+const BB = "https://api.bitbucket.org/2.0";
+const BB_REPOS = 300, BB_RECENT_DAYS = 90; // ponytail: repos not touched in 90 days are skipped; a capped sync deletes nothing
+
+const bbItem = v.object({
+  title: v.string(), description: v.union(v.string(), v.null()), note: v.union(v.string(), v.null()), link: v.union(v.string(), v.null()),
+  source: v.string(), external_id: v.union(v.string(), v.null()), due: v.union(v.string(), v.null()), time: v.union(v.string(), v.null()),
+  priority: v.union(v.literal("high"), v.literal("med"), v.literal("low"), v.null()), estimate_mins: v.union(v.number(), v.null()),
+  tags: v.array(v.string()), epic_names: v.array(v.string()), raised_at: v.optional(v.number()), project: v.optional(v.string()),
+});
+
+export const writeBitbucket = internalMutation({
+  args: { user_id: v.string(), items: v.union(v.array(bbItem), v.null()), complete: v.optional(v.boolean()), error: v.optional(v.string()) },
+  handler: async (ctx, a) => {
+    const hit = await linkOf(ctx.db, a.user_id);
+    if (!hit) return;
+    if (!a.items) return void (await ctx.db.patch(hit._id, { bitbucket_error: a.error ?? "sync failed" }));
+    for (const { epic_names, ...p } of a.items) {
+      // the epic this project was tied to when an earlier suggestion was accepted, else a name match
+      const tied = p.project
+        ? await ctx.db.query("bitbucket_epics").withIndex("by_user_project", (q) => q.eq("user_id", a.user_id).eq("project", p.project!)).first()
+        : null;
+      const epic_id = (tied && (await ctx.db.get(tied.epic_id)) ? tied.epic_id : null) ?? (await softEpic(ctx.db, a.user_id, epic_names));
+      await upsertProposal(ctx.db, a.user_id, { ...p, epic_id }, "bitbucket");
+    }
+    if (a.complete) {
+      const seen = new Set(a.items.map((x) => x.external_id));
+      const waiting = await ctx.db.query("inbox").withIndex("by_user_state", (q) => q.eq("user_id", a.user_id).eq("state", "pending")).collect();
+      for (const r of waiting) if (r.origin === "bitbucket" && !seen.has(r.external_id)) await ctx.db.delete(r._id);
+    }
+    await ctx.db.patch(hit._id, { bitbucket_synced_at: Date.now(), bitbucket_error: undefined });
+  },
+});
+
+export const syncBitbucket = internalAction({
+  args: { user_id: v.string() },
+  handler: async (ctx, { user_id }) => {
+    const l = await ctx.runQuery(internal.jira.linkFor, { user_id });
+    if (!l) return;
+    const headers = { authorization: `Basic ${btoa(`${l.email}:${l.token}`)}`, accept: "application/json" };
+    const get = async <T,>(url: string): Promise<T> => {
+      const res = await fetch(url, { headers });
+      if (res.status === 401 || res.status === 403) throw new Error("Bitbucket didn't accept the token: it needs read scopes for account, workspaces, repositories and pull requests");
+      if (!res.ok) throw new Error(`Bitbucket said ${res.status}`);
+      return (await res.json()) as T;
+    };
+    type Page<T> = { values?: T[]; next?: string };
+    const all = async <T,>(url: string, cap: number): Promise<{ rows: T[]; capped: boolean }> => {
+      const rows: T[] = [];
+      for (let next: string | undefined = url; next; ) {
+        const page: Page<T> = await get<Page<T>>(next);
+        rows.push(...(page.values ?? []));
+        next = page.next;
+        if (rows.length >= cap) return { rows: rows.slice(0, cap), capped: !!next || rows.length > cap };
+      }
+      return { rows, capped: false };
+    };
+    try {
+      const me = await get<{ uuid: string }>(`${BB}/user`);
+      const since = new Date(Date.now() - BB_RECENT_DAYS * 86_400_000).toISOString();
+      const workspaces = await all<{ slug: string }>(`${BB}/workspaces?pagelen=100`, 50);
+      const items: ReturnType<typeof fromBitbucket>[] = [];
+      let complete = !workspaces.capped, seenRepos = 0;
+      for (const w of workspaces.rows) {
+        const repos = await all<{ slug: string; full_name: string; project?: { name?: string } }>(
+          `${BB}/repositories/${w.slug}?pagelen=100&q=${encodeURIComponent(`updated_on>${since}`)}`, BB_REPOS - seenRepos);
+        seenRepos += repos.rows.length;
+        if (repos.capped) complete = false;
+        for (const r of repos.rows) {
+          const q = encodeURIComponent(`state="OPEN" AND reviewers.uuid="${me.uuid}"`);
+          const prs = await all<BitbucketPR>(`${BB}/repositories/${r.full_name}/pullrequests?pagelen=50&q=${q}`, 100);
+          items.push(...prs.rows.map((pr) => fromBitbucket(pr, r.project?.name)));
+        }
+      }
+      await ctx.runMutation(internal.jira.writeBitbucket, { user_id, items, complete });
+    } catch (e) {
+      await ctx.runMutation(internal.jira.writeBitbucket, { user_id, items: null, error: e instanceof Error ? e.message.slice(0, 300) : "sync failed" });
     }
   },
 });

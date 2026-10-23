@@ -106,7 +106,11 @@ export default defineSchema({
     synced_at: v.optional(v.number()), tried_at: v.optional(v.number()), error: v.optional(v.string()),
     count: v.optional(v.number()), account: v.optional(v.string()),
     open_keys: v.optional(v.array(v.string())), // external ids Jira listed as open at the last sync (unset when the sync hit its cap)
+    bitbucket_synced_at: v.optional(v.number()), bitbucket_error: v.optional(v.string()), // the same token also polls Bitbucket
   }).index("by_user", ["user_id"]),
+  // Which epic a Bitbucket project (else repository) belongs to, set when a suggestion from it is accepted and kept after.
+  bitbucket_epics: defineTable({ user_id: v.string(), project: v.string(), epic_id: v.id("epics") })
+    .index("by_user_project", ["user_id", "project"]),
   // Files on a task, in Convex file storage: shown on its ticket (pictures as a carousel), kept in the order added.
   attachments: defineTable({
     user_id: v.string(), task_id: v.id("tasks"), storage_id: v.id("_storage"),

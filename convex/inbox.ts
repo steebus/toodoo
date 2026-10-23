@@ -120,6 +120,14 @@ async function pending(db: R, userId: string, id: string) {
   return row;
 }
 
+// Accepting a Bitbucket suggestion into an epic ties that project to the epic for every PR after it.
+export async function rememberBitbucketEpic(db: W, userId: string, project: string, epic_id: Id<"epics"> | null) {
+  if (!epic_id) return;
+  const hit = await db.query("bitbucket_epics").withIndex("by_user_project", (q) => q.eq("user_id", userId).eq("project", project)).first();
+  if (hit) await db.patch(hit._id, { epic_id });
+  else await db.insert("bitbucket_epics", { user_id: userId, project, epic_id });
+}
+
 const liveEpic = async (db: R, id: Id<"epics"> | null) => (id && (await db.get(id)) ? id : null);
 
 const EDITABLE = ["title", "description", "note", "link", "due", "time", "priority", "estimate_mins", "tags", "epic_id", "status", "checklist"] as const;
@@ -138,6 +146,7 @@ export async function accept(db: W, userId: string, id: string, edits?: Record<s
     done: false, done_on: null, sort_order: now / 1000, created_at: new Date(now).toISOString(), updated_at: now,
   });
   await db.patch(row._id, { state: "accepted", task_id, updated_at: now });
+  if (row.origin === "bitbucket" && row.project) await rememberBitbucketEpic(db, userId, row.project, (await db.get(task_id))?.epic_id ?? null);
   return { id, task_id, title: r.title };
 }
 
