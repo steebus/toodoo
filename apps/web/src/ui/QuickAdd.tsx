@@ -3,7 +3,7 @@ import type { Epic } from "@shared/epics.ts";
 import { addDays } from "@shared/planning.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
 import type { NewTask } from "../lib/useActions";
-import { CalendarIcon, ClockIcon } from "./icons";
+import { CalendarIcon, ClaudeStamp, ClockIcon } from "./icons";
 
 // Where the last line was filed from, so its docket can fly out of the input (see TodoPanel).
 export const launch: { from: DOMRect | null; at: number } = { from: null, at: 0 };
@@ -130,6 +130,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
     void onAdd?.({
       title: parsed.title, due: parsed.due, time: parsed.time, priority: parsed.priority,
       tags: parsed.tags, estimate_mins: parsed.estimate_mins, source: "you", ...(parsed.epic_id ? { epic_id: parsed.epic_id } : null),
+      ...(parsed.assignee ? { assignee: parsed.assignee } : null),
     }, typed).then((ok) => ok || setLine((cur) => cur || typed));
   };
 
@@ -212,6 +213,7 @@ export function ParsedChips({ parsed, epics = [], className = "chips", children 
           <li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}${live.current ? " chip-pop" : ""}`}>
             {c.kind === "date" && <CalendarIcon className="chip-icon" />}
             {(c.kind === "time" || c.kind === "estimate") && <ClockIcon className="chip-icon" />}
+            {c.kind === "assignee" && <ClaudeStamp className="chip-icon" />}
             {c.kind === "priority" && <span className="chip-bang" aria-hidden>!</span>}
             {c.kind === "epic" && (
               <span className="chip-epic" aria-hidden

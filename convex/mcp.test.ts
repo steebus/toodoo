@@ -77,3 +77,9 @@ it("falls back to the latest protocol version", async () => {
   const r: any = await handleRpc(rpc("initialize", { protocolVersion: "1999-01-01" }), async () => ({}));
   expect(r.result.protocolVersion).toBe("2025-11-25");
 });
+
+it("update_task takes images, and a patch is then optional", () => {
+  const def: any = TOOL_DEFS.find((t) => t.name === "update_task");
+  expect(def.inputSchema.required).toEqual(["id"]);
+  expect(def.inputSchema.properties.images).toMatchObject({ type: "array", maxItems: 10 });
+});

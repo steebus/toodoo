@@ -101,7 +101,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
     hold.current = { timer: setTimeout(() => { send(); setInked(false); }, TICK_HOLD), send };
   };
   const done = d.done || inked;
-  const cls = `docket docket-${d.variant} fit-${d.fit ?? 0}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.blocked ? " is-blocked" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}${d.colour ? " has-epic" : ""}`;
+  const cls = `docket docket-${d.variant} fit-${d.fit ?? 0}${compact ? " docket-compact" : ""}${d.high ? " is-high" : ""}${d.blocked ? " is-blocked" : ""}${d.done ? " is-done" : ""}${arrival !== undefined ? " is-arrived" : ""}${inflight ? " is-inflight" : ""}${d.colour ? " has-epic" : ""}${d.claude ? " is-claude" : ""}`;
   const open = (children: React.ReactNode) => (
     <button type="button" className="dk-open" disabled={busy} aria-label={`Open ${d.title}`} onClick={(e) => !afterKeyDrag(e) && onOpen?.(d.id)}
       tabIndex={ghost ? -1 : undefined} {...openProps}

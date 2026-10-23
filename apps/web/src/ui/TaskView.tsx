@@ -7,6 +7,7 @@ import { dayWord, fmtTime, formatDuration, parseDuration, type Priority } from "
 import type { FullTask } from "@shared/snapshot.ts";
 import { waitingDays } from "@shared/board.ts";
 import { normLink, parseTags } from "@shared/validation.ts";
+import { assignedToClaude } from "@shared/assign.ts";
 import { Attachments } from "./Attachments";
 import { Checklist } from "./Checklist";
 import { shortDate } from "./format";
@@ -119,6 +120,14 @@ export function TaskView({
             {TASK_STATUSES.map((s) => (
               <button key={s} type="button" className="tk-chip" aria-pressed={(t.status ?? "todo") === s} disabled={offline}
                 onClick={() => (t.status ?? "todo") !== s && void save({ status: s })}>{TASK_STATUS_LABEL[s].toUpperCase()}</button>
+            ))}
+          </div>
+        )}
+        {!t.done && (
+          <div className="tk-chips" role="group" aria-label="Assigned to">
+            {([["steve", "STEVE"], ["claude", "CLAUDE"]] as const).map(([who, text]) => (
+              <button key={who} type="button" className="tk-chip" aria-pressed={(who === "claude") === assignedToClaude(t)} disabled={offline}
+                onClick={() => (who === "claude") !== assignedToClaude(t) && void save({ assignee: who })}>{text}</button>
             ))}
           </div>
         )}

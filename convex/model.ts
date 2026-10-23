@@ -4,6 +4,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { StorageWriter } from "convex/server";
 import { addDays, autoPlan, mergeRuns, busySpans, effortMap, fillDay, firstFree, nowMin, SLOT, SNAP, snapUp, suggestions, toHM, toMin, today, ymd } from "../shared/planning.ts";
 import { byEpicRank, epicWords, nextColour, type Epic, type EpicColour } from "../shared/epics.ts";
+import { assignedToClaude, CLAUDE_TAG, type Assignee, type ClaudeStatus } from "../shared/assign.ts";
 import { prepFor } from "../shared/inbox.ts";
 import { piles, QUIET_DAYS, tidyCount } from "../shared/tidy.ts";
 import { buildSnapshot, WEEK_AHEAD, type FullTask, type State } from "../shared/snapshot.ts";
@@ -37,6 +38,7 @@ const toTask = (d: Doc<"tasks">): FullTask => ({
   done: d.done, done_on: d.done_on, sort_order: d.sort_order, source: d.source, external_id: d.external_id,
   tags: d.tags, link: d.link, note: d.note, description: d.description,
   epic_id: d.epic_id ?? null, status: d.status ?? "todo", ...(d.checklist?.length ? { checklist: d.checklist } : {}),
+  ...(d.assignee ? { assignee: d.assignee } : {}), ...(d.claude_status ? { claude_status: d.claude_status } : {}),
   ...(d.prep_for ? { prep_for: d.prep_for } : {}), ...(d.attachments ? { attachments: d.attachments } : {}),
 });
 
@@ -161,8 +163,9 @@ export async function addTasks(db: W, userId: string, inputs: unknown[], t: stri
         q.eq("user_id", userId).eq("source", r.source).eq("external_id", r.external_id)).first();
       if (hit) { skipped.push({ title: r.title, source: r.source, external_id: r.external_id, id: hit._id }); continue; }
     }
+    const claude = r.assignee === "claude";
     const id = await db.insert("tasks", {
-      ...r, epic_id, user_id: userId, done: false, done_on: null,
+      ...r, ...(claude ? { tags: withClaudeTag(r.tags), claude_status: r.claude_status ?? "todo" } : {}), epic_id, user_id: userId, done: false, done_on: null,
       sort_order: now / 1000 + i / 1000, created_at: new Date(now).toISOString(), updated_at: now,
     });
     created.push({ id, title: r.title, source: r.source, external_id: r.external_id });
@@ -170,8 +173,14 @@ export async function addTasks(db: W, userId: string, inputs: unknown[], t: stri
   return { created, skipped, errors: errors.sort((a, b) => a.index - b.index) };
 }
 
+// Assigning to Claude keeps the #claude tag on, so the scan by tag still finds it. Nothing ever removes the tag.
+const withClaudeTag = (tags: string[]) => (tags.includes(CLAUDE_TAG) ? tags : [...tags, CLAUDE_TAG]);
+
+// `byAgent`: the call came over MCP. Claude finishing a task it is assigned (done: true) hands it to Steve in Review
+// rather than closing it; Steve ticks it off after looking.
 export async function updateTask(
   db: W, userId: string, find: { id: string } | { source: string; external_id: string }, patch: unknown, t: string,
+  byAgent = false,
 ) {
   const p = preparePatch(patch, t);
   const doc = "id" in find
@@ -184,11 +193,34 @@ export async function updateTask(
     delete p.epic;
   }
   if (p.epic_id !== undefined) p.epic_id = await epicRef(db, userId, p.epic_id as string | null);
+  if (byAgent && p.done === true && doc.assignee === "claude" && p.claude_status === undefined) {
+    delete p.done; delete p.done_on;
+    p.claude_status = "review";
+    p.assignee = "steve";
+  }
+  const nowClaude = (p.assignee as Assignee | undefined) === "claude";
+  if (nowClaude) {
+    p.tags = withClaudeTag((p.tags as string[] | undefined) ?? doc.tags);
+    if (p.claude_status === undefined && (!doc.claude_status || doc.claude_status === "review" || doc.claude_status === "done")) p.claude_status = "todo";
+    if (p.done === undefined && doc.done && p.claude_status !== "done") { p.done = false; p.done_on = null; }
+  }
+  const cs = p.claude_status as ClaudeStatus | undefined;
+  // Claude's Done is the task's own done flag; leaving Done reopens it.
+  if (cs === "done" && p.done === undefined) { p.done = true; p.done_on = t; }
+  else if (cs && cs !== "done" && p.done === undefined && doc.done) { p.done = false; p.done_on = null; }
+  // Into Claude's To do, Doing or Escalated hands it to Claude; into Review hands it to Steve.
+  if (cs && p.assignee === undefined) {
+    if (cs === "review") p.assignee = "steve";
+    else if (cs !== "done") { p.assignee = "claude"; p.tags = withClaudeTag((p.tags as string[] | undefined) ?? doc.tags); }
+  }
+  if (p.tags && doc.tags.includes(CLAUDE_TAG)) p.tags = withClaudeTag(p.tags as string[]);
   await db.patch(doc._id, { ...(p as Partial<Doc<"tasks">>), updated_at: Date.now() });
   const d = (await db.get(doc._id))!;
   return {
     id: d._id, title: d.title, due: d.due, time: d.time, priority: d.priority, done: d.done, done_on: d.done_on, tags: d.tags,
     epic_id: d.epic_id ?? null, status: d.status ?? "todo", checklist: d.checklist ?? [], prep_for: d.prep_for ?? null,
+    assignee: assignedToClaude(d) ? "claude" : "steve", claude_status: d.claude_status ?? null,
+    ...(byAgent && doc.assignee === "claude" && d.assignee === "steve" && d.claude_status === "review" && !d.done ? { moved_to_review: true } : {}),
   };
 }
 

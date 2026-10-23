@@ -2,6 +2,7 @@ import { groupTasks, waitingDays, type View } from "@shared/board.ts";
 import { effectivePriority, epicMap, plusHigh, type Epic } from "@shared/epics.ts";
 import { DAY_END, DAY_START, dayWord, formatDuration, timedEvents, toHM, toMin } from "@shared/planning.ts";
 import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
+import { assignedToClaude } from "@shared/assign.ts";
 import { prepsOf } from "@shared/inbox.ts";
 import { clock12, longDate, shortDate, wrapTitle } from "./format";
 import type { BoardData, DocketData, GroupData, MetaRow, NextUpItem, PlanBlock, PlanData } from "./types";
@@ -45,7 +46,7 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
   const common = {
     id: t.id, done: t.done, high, blocked: !t.done && t.status === "blocked", hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title), colour: epic?.colour ?? null, epic: epic?.title ?? null,
     fit: fitOf(t.title), progress: !t.done && t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
-    files: t.attachments ?? 0,
+    files: t.attachments ?? 0, ...(assignedToClaude(t) ? { claude: true } : null),
   };
   if (carried) {
     const n = waitingDays(t.due!, today);

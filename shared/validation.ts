@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { EPIC_COLOURS, EPIC_STATUSES, TASK_STATUSES, type TaskStatus } from "./epics.ts";
 import { parseDuration, type Priority } from "./planning.ts";
+import { ASSIGNEES, type Assignee, type ClaudeStatus, CLAUDE_STATUSES, normAssignee, normClaudeStatus } from "./assign.ts";
 
 // Client-input failure: safe to show the caller. Anything else is an internal error.
 export class InputError extends Error {}
@@ -76,6 +77,23 @@ const Fields = z.object({
     }
     return s ?? undefined;
   }).optional(),
+  // Who it is for (steve unless claude) and, on Claude's board, its column.
+  assignee: z.unknown().transform((v, ctx) => {
+    const a = normAssignee(v);
+    if (a === null && v != null && String(v).trim() !== "") {
+      ctx.addIssue({ code: "custom", message: `assignee must be ${ASSIGNEES.join(" or ")}` });
+      return z.NEVER;
+    }
+    return a ?? undefined;
+  }).optional(),
+  claude_status: z.unknown().transform((v, ctx) => {
+    const c = normClaudeStatus(v);
+    if (c === null && v != null && String(v).trim() !== "") {
+      ctx.addIssue({ code: "custom", message: `claude_status must be ${CLAUDE_STATUSES.join(", ")}` });
+      return z.NEVER;
+    }
+    return c ?? undefined;
+  }).optional(),
   // Steps inside a task: up to 50, each a short line, ticked or not. Blank lines are dropped.
   checklist: z.array(z.union([
     z.object({ text: z.string().trim().max(200), done: z.boolean().optional() }),
@@ -138,7 +156,7 @@ export interface TaskRow {
   title: string; description: string | null; note: string | null; link: string | null;
   source: string; external_id: string | null; due: string | null; time: string | null;
   priority: Priority | null; estimate_mins: number | null; tags: string[];
-  epic_id: string | null; epic?: string; status?: TaskStatus; checklist?: { text: string; done: boolean }[];
+  epic_id: string | null; epic?: string; status?: TaskStatus; assignee?: Assignee; claude_status?: ClaudeStatus; checklist?: { text: string; done: boolean }[];
 }
 
 // Validates and normalises a batch; duplicates inside the batch are reported as skipped.
@@ -164,6 +182,8 @@ export function prepareTasks(inputs: unknown[], today: string) {
       estimate_mins: v.estimate_mins ?? null, tags: v.tags ?? [], epic_id: v.epic_id ?? null,
       ...(v.epic && !v.epic_id ? { epic: v.epic } : {}),
       ...(v.status ? { status: v.status } : {}),
+      ...(v.assignee ? { assignee: v.assignee } : {}),
+      ...(v.claude_status ? { claude_status: v.claude_status } : {}),
       ...(v.checklist?.length ? { checklist: v.checklist } : {}),
     });
   });

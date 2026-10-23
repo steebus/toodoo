@@ -44,3 +44,25 @@ it("imports the artifact over REST", async () => {
   const res = await t.fetch("/api/import", req("POST", "", body));
   expect(await res.json()).toEqual({ tasks: 2, days: 1, blocks: 1, dropped: 1 });
 });
+
+it("files screenshots sent with update_task on the task", async () => {
+  vi.stubEnv("CONVEX_SITE_URL", "https://toodoo.convex.site");
+  const t = convexTest(schema, modules).withIdentity({ subject: "user_steve" });
+  const id = await t.run((ctx) => ctx.db.insert("tasks", {
+    user_id: "user_steve", title: "Shot", description: null, note: null, link: null, source: "you", external_id: null, due: null, time: null,
+    priority: null, estimate_mins: null, tags: [], done: false, done_on: null, sort_order: 1, created_at: "2026-10-01T00:00:00Z", updated_at: 1,
+  }));
+  const call = (args: unknown) => t.fetch("/mcp", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "update_task", arguments: args } }),
+  }).then((r) => r.json());
+  const ok = await call({ id, images: [{ data: "iVBORw0KGgo=", name: "after.png" }, { data: "iVBORw0KGgo=" }] });
+  expect(JSON.parse(ok.result.content[0].text)).toMatchObject({ id, images_attached: 2 });
+  const bad = await call({ id, patch: { title: "Changed" }, images: [{ data: "nope!" }] });
+  expect(bad.result.isError).toBe(true);
+  const rows = await t.run(async (ctx) => ({
+    files: await ctx.db.query("attachments").collect(), task: await ctx.db.get(id),
+  }));
+  expect(rows.files.map((f) => [f.name, f.type])).toEqual([["after.png", "image/png"], ["screenshot-2.png", "image/png"]]);
+  expect(rows.task).toMatchObject({ title: "Shot", attachments: 2 }); // a bad picture changes nothing
+});

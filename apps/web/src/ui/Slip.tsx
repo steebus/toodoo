@@ -4,6 +4,7 @@ import { useState, type CSSProperties, type FormEvent, type KeyboardEvent } from
 import { effectivePriority, plusHigh, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
 import { dayWord, formatDuration } from "@shared/planning.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
+import { assignedToClaude } from "@shared/assign.ts";
 import { ParsedChips } from "./QuickAdd";
 import { checklistProgress, type FullTask } from "@shared/snapshot.ts";
 import { waitingDays } from "@shared/board.ts";
@@ -96,7 +97,7 @@ export function SortableSlip({ lane, onOpen, onKey, disabled, swipe, ...p }: Sor
     id: p.task.id, data: { type: "task", lane }, disabled,
   });
   const v = p.variant ?? "card";
-  const paper = `slip slip-${v}${p.task.done ? " is-done" : ""}${isDragging ? " is-lifted" : ""}${p.epic?.colour ? " has-epic" : ""}`;
+  const paper = `slip slip-${v}${p.task.done ? " is-done" : ""}${isDragging ? " is-lifted" : ""}${p.epic?.colour ? " has-epic" : ""}${assignedToClaude(p.task) ? " is-claude" : ""}`;
   return (
     <li
       ref={setNodeRef}
@@ -147,7 +148,7 @@ export function LaneAdd({ today, label, extra, onAdd, disabled, epics }: {
     setLine("");
     void onAdd({
       title: p.title, due: p.due, time: p.time, priority: p.priority, tags: p.tags, estimate_mins: p.estimate_mins, ...extra,
-      ...(p.epic_id ? { epic_id: p.epic_id } : null),
+      ...(p.epic_id ? { epic_id: p.epic_id } : null), ...(p.assignee ? { assignee: p.assignee } : null),
     }).then((ok) => ok || setLine((cur) => cur || typed));
   };
   return (

@@ -1,3 +1,4 @@
+import { assignedToClaude } from "./assign.ts";
 import { byEpicRank, effectivePriority, epicMap, plusHigh, TASK_STATUS_LABEL, TASK_STATUSES, type Epic } from "./epics.ts";
 import { addDays, byOrder, daysBetween, toMin, type Priority } from "./planning.ts";
 
@@ -9,7 +10,8 @@ import type { FullTask } from "./snapshot.ts";
 export type GroupBy = "status" | "column" | "priority" | "tag" | "source" | "epic";
 export type SortBy = "manual" | "due" | "priority" | "time" | "tag" | "effort";
 // tag: "" all, a tag, or NO_TAG; epic: "" (or missing) all, an epic's id, or NO_EPIC
-export interface View { group: GroupBy; sort: SortBy; tag: string; epic?: string }
+// hideClaude: Claude's tasks are left off the list (the default is to show them)
+export interface View { group: GroupBy; sort: SortBy; tag: string; epic?: string; hideClaude?: boolean }
 export interface Group { key: string; label: string; tasks: FullTask[] }
 
 export const NO_TAG = "__none";
@@ -25,8 +27,9 @@ export const nullsLast = (a: string | null, b: string | null) => (a === b ? 0 : 
 
 export const waitingDays = (due: string, today: string) => Math.max(0, daysBetween(due, today));
 
-export function filterTasks(tasks: FullTask[], tag: string, epic = ""): FullTask[] {
-  const byEpic = !epic ? tasks : tasks.filter((t) => (epic === NO_EPIC ? !t.epic_id : t.epic_id === epic));
+export function filterTasks(tasks: FullTask[], tag: string, epic = "", hideClaude = false): FullTask[] {
+  const mine = hideClaude ? tasks.filter((t) => !assignedToClaude(t)) : tasks;
+  const byEpic = !epic ? mine : mine.filter((t) => (epic === NO_EPIC ? !t.epic_id : t.epic_id === epic));
   if (!tag) return byEpic;
   return tag === NO_TAG ? byEpic.filter((t) => !t.tags.length) : byEpic.filter((t) => t.tags.includes(tag));
 }
@@ -56,7 +59,7 @@ export function spanOf(times: (string | null | undefined)[]): { from: string; to
 
 // Filter, sort, then group. Open tasks plus anything finished today; older history is not listed.
 export function groupTasks(tasks: FullTask[], today: string, view: View, epics?: Epic[]): Group[] {
-  const rows = sortTasks(filterTasks(tasks, view.tag, view.epic), view.sort, epics);
+  const rows = sortTasks(filterTasks(tasks, view.tag, view.epic, view.hideClaude), view.sort, epics);
   const open = rows.filter((t) => !t.done);
   const doneToday = rows.filter((t) => t.done && t.done_on === today);
   if (view.group === "status") {

@@ -14,6 +14,7 @@ export function loadView(): View {
       sort: SORTS.includes(raw?.sort as SortBy) ? (raw!.sort as SortBy) : DEFAULT_VIEW.sort,
       tag: typeof raw?.tag === "string" ? raw.tag : DEFAULT_VIEW.tag,
       ...(typeof raw?.epic === "string" && raw.epic ? { epic: raw.epic } : {}),
+      ...(raw?.hideClaude === true ? { hideClaude: true } : {}),
     };
   } catch {
     return DEFAULT_VIEW;

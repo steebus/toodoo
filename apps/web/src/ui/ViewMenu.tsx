@@ -57,6 +57,8 @@ export function ViewMenu({ view, tags, epics = [], onChange }: Props) {
       <SettingsPick label="Sort" value={view.sort} options={SORTS} onChange={(v) => onChange({ ...view, sort: v as SortBy })} />
       <SettingsPick label="Tag" value={view.tag} options={[["", "All"], ...tags.map((t): [string, string] => [t, t]), [NO_TAG, "Untagged"]]}
         onChange={(v) => onChange({ ...view, tag: v })} />
+      <SettingsPick label="Claude's" value={view.hideClaude ? "hide" : "show"} options={[["show", "Show"], ["hide", "Hide"]]}
+        onChange={(v) => onChange({ ...view, hideClaude: v === "hide" })} />
       {epics.length > 0 && (
         <SettingsPick label="Epic" value={view.epic ?? ""} options={[["", "All"], ...epics.map((x): [string, string] => [x.id, x.title]), [NO_EPIC, "No epic"]]}
           onChange={(v) => onChange({ ...view, epic: v })} />

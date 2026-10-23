@@ -113,3 +113,21 @@ it("a column folds to a strip in its place, summing what's in it, and unfolds ag
   await userEvent.click(strip);
   expect(screen.getByRole("region", { name: /Doing/ })).toBeInTheDocument();
 });
+
+describe("Claude's lane", () => {
+  const claude = { epic: "", sort: "manual" as const, who: "claude" as const };
+  it("lists only its tasks, in its own columns, and hands a task over as it moves", () => {
+    const w = work([
+      task("mine"), task("tagged", { tags: ["claude"] }), task("working", { assignee: "claude", claude_status: "doing" }),
+      task("checking", { assignee: "steve", claude_status: "review" }), task("fin", { assignee: "claude", claude_status: "done", done: true, done_on: T }),
+    ]);
+    const c = columns(w, claude);
+    expect(Object.keys(c)).toEqual(["todo", "doing", "escalated", "review", "done"]);
+    expect(Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v.map((t) => t.id)]))).toEqual({
+      todo: ["tagged"], doing: ["working"], escalated: [], review: ["checking"], done: ["fin"],
+    });
+    expect(movePatch(task("t", { assignee: "claude" }), "review", undefined, "claude")).toEqual({ claude_status: "review", assignee: "steve" });
+    expect(movePatch(task("t", { assignee: "steve", claude_status: "review" }), "escalated", 2, "claude")).toEqual({ claude_status: "escalated", assignee: "claude", sort_order: 2 });
+    expect(movePatch(task("t", { assignee: "claude" }), "done", undefined, "claude")).toEqual({ done: true, claude_status: "done" });
+  });
+});

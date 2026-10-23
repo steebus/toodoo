@@ -306,3 +306,12 @@ export const TrashIcon = ({ size = 16, className }: P) => (
     <path d="M3.5 5.5h13M8 5.5V3.5h4v2M5.5 5.5l.8 11h7.4l.8-11M8.5 8.5v5M11.5 8.5v5" />
   </svg>
 );
+
+// The Claude Code robot, in solid blocks: a wide body, arm nubs, two square eyes, four stubby legs. It takes the text
+// colour, so it is a stamp wherever it sits.
+export const ClaudeStamp = ({ size = 14, className }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={`claude-stamp${className ? " " + className : ""}`} aria-hidden focusable={false}>
+    <path fillRule="evenodd" d="M5 5h14v11H5zM2 9h3v4H2zM19 9h3v4h-3zM8 8h2.5v3H8zM13.5 8H16v3h-2.5z" />
+    <path d="M6.5 16h2v4h-2zM10 16h1.5v4H10zM12.5 16H14v4h-1.5zM15.5 16h2v4h-2z" />
+  </svg>
+);

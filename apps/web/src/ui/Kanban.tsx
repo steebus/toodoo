@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { m } from "motion/react";
 import { NO_EPIC, sortTasks } from "@shared/board.ts";
+import { CLAUDE_STATUS_LABEL, CLAUDE_STATUSES, claudeColumn, onClaudeBoard, type ClaudeStatus } from "@shared/assign.ts";
 import { epicMap, TASK_STATUS_LABEL, TASK_STATUSES, type TaskStatus } from "@shared/epics.ts";
 import { addDays, byOrder, formatDuration } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
@@ -10,19 +11,24 @@ import { useDroppable } from "@dnd-kit/core";
 import { useNarrow } from "../lib/useNarrow";
 import { LaneDnd, LaneList, TAB } from "./LaneDnd";
 import { LaneAdd, SlipGhost, SortableSlip } from "./Slip";
-import { ChevronIcon } from "./icons";
+import { ChevronIcon, ClaudeStamp } from "./icons";
 import { HeaderControls } from "./RoomShell";
 import { TaskView } from "./TaskView";
 import { SettingsMenu, SettingsPick } from "./ViewMenu";
 import { Toast } from "./Toast";
 
-type Column = TaskStatus | "done";
-const COLUMNS: Column[] = [...TASK_STATUSES, "done"];
-const label = (c: Column) => (c === "done" ? "Done" : TASK_STATUS_LABEL[c]);
-export const columnOf = (t: FullTask): Column => (t.done ? "done" : t.status ?? "todo");
+type Column = TaskStatus | ClaudeStatus | "done";
+type Who = "steve" | "claude";
+const STEVE_COLUMNS: Column[] = [...TASK_STATUSES, "done"];
+// Claude has its own lane: To do, Doing, Escalated, Review, Done.
+const CLAUDE_COLUMNS: Column[] = [...CLAUDE_STATUSES];
+const COLUMNS: Column[] = [...new Set([...STEVE_COLUMNS, ...CLAUDE_COLUMNS])];
+const columnsOf = (who: Who) => (who === "claude" ? CLAUDE_COLUMNS : STEVE_COLUMNS);
+const label = (c: Column) => (c === "done" ? "Done" : c in TASK_STATUS_LABEL ? TASK_STATUS_LABEL[c as TaskStatus] : CLAUDE_STATUS_LABEL[c as ClaudeStatus]);
+export const columnOf = (t: FullTask, who: Who = "steve"): Column => (who === "claude" ? claudeColumn(t) : t.done ? "done" : t.status ?? "todo");
 
 const SORTS = [["manual", "Manual"], ["priority", "Priority"], ["effort", "Effort"], ["due", "Due date"]] as const;
-type Prefs = { epic: string; sort: (typeof SORTS)[number][0]; folded?: Column[] };
+type Prefs = { epic: string; sort: (typeof SORTS)[number][0]; folded?: Column[]; who?: Who };
 const KEY = "toodoo.boardView";
 function loadPrefs(): Prefs {
   try {
@@ -31,30 +37,44 @@ function loadPrefs(): Prefs {
       epic: typeof raw?.epic === "string" ? raw.epic : "",
       sort: SORTS.find(([v]) => v === raw?.sort)?.[0] ?? "manual",
       folded: Array.isArray(raw?.folded) ? raw.folded.filter((c) => COLUMNS.includes(c)) : [],
+      who: raw?.who === "claude" ? "claude" : "steve",
     };
   } catch {
-    return { epic: "", sort: "manual", folded: [] };
+    return { epic: "", sort: "manual", folded: [], who: "steve" };
   }
 }
 
 // The task columns, in the order shown. Done shows the last fortnight, newest first.
 export function columns(work: WorkData, prefs: Prefs): Record<Column, FullTask[]> {
-  const shown = work.tasks.filter((t) => !prefs.epic || (prefs.epic === NO_EPIC ? !t.epic_id : t.epic_id === prefs.epic));
-  const out = Object.fromEntries(COLUMNS.map((c) => [c, [] as FullTask[]])) as Record<Column, FullTask[]>;
-  for (const t of shown) out[columnOf(t)].push(t);
-  for (const c of TASK_STATUSES) out[c] = prefs.sort === "manual" ? out[c].sort(byOrder) : sortTasks(out[c].sort(byOrder), prefs.sort, work.epics);
+  const who = prefs.who ?? "steve";
+  const shown = work.tasks.filter((t) => (who === "steve" || onClaudeBoard(t)) && (!prefs.epic || (prefs.epic === NO_EPIC ? !t.epic_id : t.epic_id === prefs.epic)));
+  const out = Object.fromEntries(columnsOf(who).map((c) => [c, [] as FullTask[]])) as Record<Column, FullTask[]>;
+  for (const t of shown) out[columnOf(t, who)].push(t);
+  for (const c of columnsOf(who).filter((c) => c !== "done")) out[c] = prefs.sort === "manual" ? out[c].sort(byOrder) : sortTasks(out[c].sort(byOrder), prefs.sort, work.epics);
   out.done.sort((a, b) => (b.done_on ?? "").localeCompare(a.done_on ?? "") || byOrder(a, b));
   return out;
 }
 
 // What a task needs to land in a column at a place: done is the task's own flag; the rest is its status.
-export function movePatch(t: FullTask, to: Column, order?: number): Partial<FullTask> {
+export function movePatch(t: FullTask, to: Column, order?: number, who: Who = "steve"): Partial<FullTask> {
   const p: Partial<FullTask> = {};
+  if (who === "claude") {
+    // Claude's lane: its own status. Review is Steve's to check; the others are Claude's. Done is the task's flag too.
+    if (to === "done") {
+      if (!t.done || t.claude_status !== "done") Object.assign(p, { done: true, claude_status: "done" });
+    } else {
+      if (t.done) p.done = false;
+      if (claudeColumn(t) !== to) p.claude_status = to as ClaudeStatus;
+      if (claudeColumn(t) !== to || t.assignee === undefined) p.assignee = to === "review" ? "steve" : "claude";
+      if (order !== undefined && order !== t.sort_order) p.sort_order = order;
+    }
+    return p;
+  }
   if (to === "done") {
     if (!t.done) p.done = true;
   } else {
     if (t.done) p.done = false;
-    if ((t.status ?? "todo") !== to) p.status = to;
+    if ((t.status ?? "todo") !== to) p.status = to as TaskStatus;
     if (order !== undefined && order !== t.sort_order) p.sort_order = order;
   }
   return p;
@@ -62,6 +82,8 @@ export function movePatch(t: FullTask, to: Column, order?: number): Partial<Full
 
 export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions }) {
   const [prefs, setPrefsState] = useState(loadPrefs);
+  const who: Who = prefs.who ?? "steve";
+  const COLS = columnsOf(who);
   const setPrefs = (p: Prefs) => {
     setPrefsState(p);
     try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* the choice holds for this visit */ }
@@ -72,14 +94,15 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   const cols = useMemo(() => columns(work, view), [work, view]);
   const epics = useMemo(() => epicMap(work.epics), [work.epics]);
   const byId = useMemo(() => new Map(work.tasks.map((t) => [t.id, t])), [work.tasks]);
-  const lanes: Lane[] = COLUMNS.map((c) => ({ id: c, ids: cols[c].map((t) => t.id) }));
+  const lanes: Lane[] = COLS.map((c) => ({ id: c, ids: cols[c].map((t) => t.id) }));
   // On the phone, one column at a time under tabs (which take drops too); on a desktop, all four.
   const narrow = useNarrow();
-  const [shown, setShownState] = useState<Column>("todo");
+  const [picked, setShownState] = useState<Column>("todo");
+  const shown: Column = COLS.includes(picked) ? picked : "todo";
   // Which way the phone's column changed: the new one slides in from that side (none on first paint).
   const [dir, setDir] = useState(0);
   const setShown = (c: Column) => {
-    setDir(Math.sign(COLUMNS.indexOf(c) - COLUMNS.indexOf(shown)));
+    setDir(Math.sign(COLS.indexOf(c) - COLS.indexOf(shown)));
     setShownState(c);
   };
   const [viewing, setViewing] = useState<string | null>(null);
@@ -93,9 +116,9 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
     const lane = to.lane as Column;
     const rest = cols[lane].filter((x) => x.id !== id);
     const order = manual && lane !== "done" ? orderAt(rest.map((x) => x.sort_order), to.index) : undefined;
-    const patch = movePatch(t, lane, order);
+    const patch = movePatch(t, lane, order, who);
     if (!Object.keys(patch).length) return;
-    actions.move(id, patch, columnOf(t) === lane ? `Moved: ${t.title}` : `${label(lane)}: ${t.title}`);
+    actions.move(id, patch, columnOf(t, who) === lane ? `Moved: ${t.title}` : `${label(lane)}: ${t.title}`);
   };
 
   // [ and ] move a focused card a column left or right, to the foot of that column.
@@ -109,9 +132,9 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-slip="${id}"]`)?.focus());
   };
   // On the phone a card swipes across the columns, to the foot of the one it lands in.
-  const names = COLUMNS.map(label);
+  const names = COLS.map(label);
   const swipeFor = (t: FullTask) => narrow && !off
-    ? { columns: names, from: COLUMNS.indexOf(columnOf(t)), onMove: (i: number) => toFoot(t.id, COLUMNS[i]) }
+    ? { columns: names, from: COLS.indexOf(columnOf(t, who)), onMove: (i: number) => toFoot(t.id, COLS[i]) }
     : undefined;
 
   const filterEpic = view.epic && view.epic !== NO_EPIC ? view.epic : null;
@@ -125,6 +148,12 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
     <main className="room-main kanban">
       <h1 className="sr-only">Board</h1>
       <HeaderControls>
+        <div className="who-switch" role="group" aria-label="Board of">
+          <button type="button" aria-pressed={who === "steve"} onClick={() => who !== "steve" && setPrefs({ ...view, who: "steve" })}>Steve</button>
+          <button type="button" aria-pressed={who === "claude"} onClick={() => who !== "claude" && setPrefs({ ...view, who: "claude" })}>
+            <ClaudeStamp size={14} />Claude
+          </button>
+        </div>
         <SettingsMenu>
           <SettingsPick label="Epic" value={view.epic}
             options={[["", "All"], ...work.epics.filter((e) => e.status !== "done" || e.id === view.epic).map((e): [string, string] => [e.id, e.title]), [NO_EPIC, "No epic"]]}
@@ -146,12 +175,12 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
       >
         {narrow && (
           <div className="kb-tabs" role="tablist" aria-label="Columns">
-            {COLUMNS.map((c) => <ColumnTab key={c} column={c} count={cols[c].length} on={shown === c} onSelect={() => shown !== c && setShown(c)} />)}
+            {COLS.map((c) => <ColumnTab key={c} column={c} count={cols[c].length} on={shown === c} onSelect={() => shown !== c && setShown(c)} />)}
           </div>
         )}
         <div className="kanban-cols"
-          style={narrow ? undefined : { gridTemplateColumns: COLUMNS.map((c) => (isFolded(c) ? "52px" : "minmax(220px, 1fr)")).join(" ") }}>
-          {COLUMNS.filter((c) => !narrow || c === shown).map((c) => isFolded(c) ? (
+          style={narrow ? undefined : { gridTemplateColumns: COLS.map((c) => (isFolded(c) ? "52px" : "minmax(220px, 1fr)")).join(" ") }}>
+          {COLS.filter((c) => !narrow || c === shown).map((c) => isFolded(c) ? (
             <FoldedColumn key={c} column={c} tasks={cols[c]} onUnfold={() => fold(c)} />
           ) : (
             <m.section key={c} className={`kanban-col is-${c}`} aria-labelledby={`col-${c}`}
@@ -168,7 +197,7 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
               </h2>
               {c === "todo" && (
                 <LaneAdd today={work.today} label="Add a task" disabled={off} onAdd={actions.add} epics={work.epics}
-                  extra={{ status: "todo", epic_id: filterEpic }} />
+                  extra={{ status: "todo", epic_id: filterEpic, ...(who === "claude" ? { assignee: "claude" as const } : null) }} />
               )}
               <LaneList id={c} ids={lanes.find((l) => l.id === c)!.ids} className="lane" label={label(c)}>
                 {cols[c].map((t) => (

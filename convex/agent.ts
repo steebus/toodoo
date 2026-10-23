@@ -42,10 +42,11 @@ export const taskBlocks = query({
   args: { id: v.string() },
   handler: async (ctx, a) => m.taskBlocks(ctx.db, await requireUser(ctx), a.id),
 });
+// `agent`: set by the MCP route only (the app's own edits leave it off), see model.updateTask.
 export const updateTask = mutation({
-  args: { id: v.string(), patch: v.any() },
+  args: { id: v.string(), patch: v.any(), agent: v.optional(v.boolean()) },
   handler: async (ctx, a) =>
-    m.updateTask(ctx.db, await requireUser(ctx), { id: a.id }, a.patch, m.clock().t).catch(m.asConvexError),
+    m.updateTask(ctx.db, await requireUser(ctx), { id: a.id }, a.patch, m.clock().t, a.agent).catch(m.asConvexError),
 });
 export const setDay = mutation({
   args: { day: v.any() },

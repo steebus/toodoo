@@ -147,3 +147,11 @@ it("puts tasks with no due date in Later, after the dated ones, and last when so
   expect(titles(g.find((x) => x.key === "comingup")!.tasks)).toEqual(["Soon"]);
   expect(titles(sortTasks(ts, "due"))).toEqual(["Soon", "Far", "Undated"]);
 });
+
+import { filterTasks as filterForClaude } from "./board.ts";
+it("leaves Claude's tasks off when asked, the tag counting as an assignment", () => {
+  const t = (id: string, o: object = {}) => ({ id, title: id, tags: [], ...o }) as any;
+  const all = [t("a"), t("b", { assignee: "claude" }), t("c", { tags: ["claude"] }), t("d", { assignee: "steve", tags: ["claude"] })];
+  expect(filterForClaude(all, "").map((x) => x.id)).toEqual(["a", "b", "c", "d"]);
+  expect(filterForClaude(all, "", "", true).map((x) => x.id)).toEqual(["a", "d"]);
+});

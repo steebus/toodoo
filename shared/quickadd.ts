@@ -25,7 +25,7 @@ const dayMonth = (day: number, mon: number, year: string, today: string): string
   return pick(+year + 1);
 };
 
-type Chip = { kind: "date" | "time" | "priority" | "tag" | "estimate" | "epic"; text: string };
+type Chip = { kind: "date" | "time" | "priority" | "tag" | "estimate" | "epic" | "assignee"; text: string };
 type EpicRef = { id: string; title: string; status?: string };
 
 // "+launch" or "+web-re" picks the open epic whose title, or one of its words, starts that way.
@@ -44,6 +44,7 @@ export function parseQuickAdd(input: string, today: string, _nowM: number, epics
   let epic_id: string | null = null;
   let due: string | null = null, time: string | null = null, priority: "high" | "med" | "low" | null = null;
   let estimate_mins: number | null = null;
+  let assignee: "claude" | null = null;
   const tags: string[] = [];
   const chips: Chip[] = [];
   const keep: string[] = [];
@@ -92,6 +93,7 @@ export function parseQuickAdd(input: string, today: string, _nowM: number, epics
       const v = (m[1] ?? "high").toLowerCase();
       priority = v === "medium" ? "med" : (v as "high" | "med" | "low"); chips.push({ kind: "priority", text: w }); continue;
     }
+    if (!assignee && l === "@claude") { assignee = "claude"; chips.push({ kind: "assignee", text: "claude" }); continue; }
     if (/^#\S+$/.test(w)) {
       const t = normTag(w); if (t && !tags.includes(t)) { tags.push(t); chips.push({ kind: "tag", text: w }); }
       continue;
@@ -106,5 +108,5 @@ export function parseQuickAdd(input: string, today: string, _nowM: number, epics
     }
     keep.push(w);
   }
-  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, epic_id, chips };
+  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, epic_id, assignee, chips };
 }

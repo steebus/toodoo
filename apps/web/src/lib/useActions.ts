@@ -24,7 +24,7 @@ export type NewTask = {
   epic_id?: string | null;
   // from the full ticket
   description?: string | null; note?: string | null; link?: string | null;
-  status?: FullTask["status"]; checklist?: { text: string; done: boolean }[];
+  assignee?: FullTask["assignee"]; status?: FullTask["status"]; checklist?: { text: string; done: boolean }[];
 };
 
 export type Actions = {

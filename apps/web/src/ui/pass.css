@@ -1160,3 +1160,11 @@
 /* One-line fields that clip for their ellipsis: room below the line for descenders (g, p, y), given back by the
    margin so nothing around them moves. */
 .dk-row dd, .docket-today .dk-source, .plan-meta, .nextup-title, .nextup-why { padding-bottom: 0.2em; margin-bottom: -0.2em; }
+
+/* ---------- a task assigned to Claude: the robot stamped faintly in the paper's corner ---------- */
+.docket.is-claude .dk-print::after {
+  content: ""; position: absolute; right: calc(12 * var(--u)); bottom: calc(26 * var(--u)); width: calc(46 * var(--u)); height: calc(46 * var(--u));
+  background: var(--paper-ink); opacity: 0.09; transform: rotate(-9deg); pointer-events: none;
+  -webkit-mask: var(--claude-stamp) center / contain no-repeat; mask: var(--claude-stamp) center / contain no-repeat;
+}
+.docket.is-claude.is-done .dk-print::after { opacity: 0.05; }

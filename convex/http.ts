@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import { api, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { httpAction } from "./_generated/server";
+import { decodeImage, IMAGES_MAX } from "../shared/images.ts";
 import { handleRpc } from "./mcp";
 import { createHandler } from "./rest";
 
@@ -24,12 +25,36 @@ for (const method of ["GET", "POST", "PATCH"] as const) http.route({ pathPrefix:
 const pick = (a: any, keys: string[]) =>
   Object.fromEntries(keys.filter((k) => a?.[k] !== undefined).map((k) => [k, a[k]]));
 
+// A patch, and/or pictures filed on the task (screenshots of a change). With pictures a missing patch is fine.
+async function updateTask(ctx: ActionCtx, a: any) {
+  const id = String(a?.id ?? "");
+  const images: unknown[] = Array.isArray(a?.images) ? a.images : [];
+  const patch = a?.patch && typeof a.patch === "object" ? a.patch : {};
+  if (images.length > IMAGES_MAX) throw new Error(`max ${IMAGES_MAX} images per call`);
+  const decoded = images.map((x, i) => decodeImage((x ?? {}) as object, i));
+  const bad = decoded.find((d) => "error" in d);
+  if (bad && "error" in bad) throw new Error(bad.error); // before anything is changed
+  const result: Record<string, unknown> = (images.length && !Object.keys(patch).length)
+    ? { id }
+    : (await ctx.runMutation(api.agent.updateTask, { id, patch, agent: true })) as Record<string, unknown>;
+  if (!images.length) return result;
+  const errors: string[] = [];
+  let added = 0;
+  for (const d of decoded) {
+    if ("error" in d) continue;
+    const storage_id = await ctx.storage.store(new Blob([d.bytes], { type: d.type }));
+    const r = await ctx.runMutation(api.attachments.add, { task_id: id, storage_id, name: d.name, type: d.type });
+    if ("error" in r) errors.push(`${d.name}: ${r.error}`); else added++;
+  }
+  return { ...result, images_attached: added, ...(errors.length ? { image_errors: errors } : {}) };
+}
+
 function callTool(ctx: ActionCtx, name: string, a: any): Promise<unknown> {
   switch (name) {
     case "get_snapshot": return ctx.runQuery(api.agent.getSnapshot, { ...pick(a, ["date", "query"]), now: Date.now() });
     case "add_tasks": return ctx.runMutation(api.agent.addTasks, { tasks: Array.isArray(a?.tasks) ? a.tasks : [] });
     case "propose_tasks": return ctx.runMutation(api.inbox.proposeTasks, { tasks: Array.isArray(a?.tasks) ? a.tasks.slice(0, 100) : [] });
-    case "update_task": return ctx.runMutation(api.agent.updateTask, { id: String(a?.id ?? ""), patch: a?.patch ?? {} });
+    case "update_task": return updateTask(ctx, a);
     case "set_day": return ctx.runMutation(api.agent.setDay, { day: a ?? {} });
     case "suggest": return ctx.runQuery(api.agent.suggest, { ...pick(a, ["date", "limit"]), now: Date.now() });
     case "plan": return ctx.runMutation(api.agent.plan, { ...pick(a, ["date", "task_ids", "from", "until", "mins", "commit"]), now: Date.now() });

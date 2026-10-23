@@ -1,3 +1,4 @@
+import { assignedToClaude, type Assignee, type ClaudeStatus } from "./assign.ts";
 import type { Epic } from "./epics.ts";
 import { prepsOf, type PrepLink } from "./inbox.ts";
 import { addDays, byOrder, suggestions, toHM, toMin, type Block, type DayEvent, type Task } from "./planning.ts";
@@ -11,6 +12,8 @@ export interface FullTask extends Task {
   description: string | null;
   checklist?: ChecklistItem[];
   prep_for?: PrepLink | null; // the meeting it's prep for
+  assignee?: Assignee; // absent: Steve (or Claude when it only carries #claude)
+  claude_status?: ClaudeStatus; // its column on Claude's board
   attachments?: number; // how many files are on it (absent: none)
 }
 export interface ChecklistItem { text: string; done: boolean }
@@ -29,6 +32,7 @@ const compact = (epics: Map<string, Epic>) => (t: FullTask) =>
       id: t.id, title: t.title, due: t.due, time: t.time, priority: t.priority, estimate_mins: t.estimate_mins,
       epic: t.epic_id ? epics.get(t.epic_id)?.title : null, status: t.status && t.status !== "todo" ? t.status : null,
       checklist: t.checklist?.length ? t.checklist : null,
+      assignee: assignedToClaude(t) ? "claude" : t.assignee === "steve" && t.claude_status ? "steve" : null, claude_status: t.claude_status,
       tags: t.tags.length ? t.tags : null, source: t.source === "you" ? null : t.source, external_id: t.external_id,
       link: t.link, note: t.note, prep_for: t.prep_for,
     }).filter(([, v]) => v != null),
@@ -37,9 +41,11 @@ const compact = (epics: Map<string, Epic>) => (t: FullTask) =>
 export function buildSnapshot(o: { date: string; today: string; nowM: number; query?: string } & State) {
   const raw = o.query?.trim().toLowerCase() ?? "";
   const isTag = raw.startsWith("#");
+  // "@claude": what Claude should pick up, i.e. assigned to it and not in Backlog (open tasks only, as for any query).
+  const isClaude = raw === "@claude";
   const q = isTag ? raw.slice(1) : raw;
   const match = (t: FullTask) =>
-    !q || (isTag
+    isClaude ? assignedToClaude(t) && t.status !== "backlog" : !q || (isTag
       ? t.tags.some((x) => x.toLowerCase() === q)
       : [t.title, t.note, t.description, ...t.tags].some((x) => x?.toLowerCase().includes(q)));
   const open = o.tasks.filter((t) => !t.done && match(t)).sort(byOrder);

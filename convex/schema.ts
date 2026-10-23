@@ -32,6 +32,9 @@ export default defineSchema({
     epic_id: v.optional(v.union(v.id("epics"), v.null())),
     status: v.optional(v.union(v.literal("backlog"), v.literal("todo"), v.literal("doing"), v.literal("blocked"))),
     checklist: v.optional(v.array(v.object({ text: v.string(), done: v.boolean() }))),
+    // Who it is for: absent is Steve (or Claude, for a task that only carries the #claude tag). Claude's own board column.
+    assignee: v.optional(v.union(v.literal("steve"), v.literal("claude"))),
+    claude_status: v.optional(v.union(v.literal("todo"), v.literal("doing"), v.literal("escalated"), v.literal("review"), v.literal("done"))),
     // The meeting it's prep for, by day, start and title (events have no ids of their own); null or absent: none.
     prep_for: v.optional(v.union(v.object({ date: v.string(), start: v.union(v.string(), v.null()), title: v.string() }), v.null())),
     attachments: v.optional(v.number()), // how many files it has (the attachments table), for the paperclip on its docket

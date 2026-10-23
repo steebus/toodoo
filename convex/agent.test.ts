@@ -219,3 +219,37 @@ it("mergeBlocks folds plans made before the rule into one", async () => {
   await t.mutation(api.agent.mergeBlocks, { date: "2026-10-12" });
   expect((await t.query(api.agent.board, {})).blocks.map((x) => [x.start, x.mins])).toEqual([["08:00", 480]]);
 });
+
+it("assigns to Claude: keeps the #claude tag, lands in To do, and Claude's done goes to Review for Steve", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Fix it", tags: ["work"] }, { title: "Claude's", assignee: "@claude" }] });
+  const [mine, theirs] = created.map((c) => c.id);
+  const row = (id: string) => t.run((ctx) => ctx.db.get(id as any));
+  expect(await row(mine)).not.toHaveProperty("assignee"); // everything is Steve's by default
+  expect(await row(theirs)).toMatchObject({ assignee: "claude", claude_status: "todo", tags: ["claude"] });
+  const a = await t.mutation(api.agent.updateTask, { id: mine, patch: { assignee: "claude" } });
+  expect(a).toMatchObject({ assignee: "claude", claude_status: "todo" });
+  expect(await row(mine)).toMatchObject({ tags: ["work", "claude"] });
+  // the app's own tick closes it; Claude's (over MCP) sends it to Review and back to Steve
+  const r: any = await t.mutation(api.agent.updateTask, { id: mine, patch: { done: true }, agent: true });
+  expect(r).toMatchObject({ done: false, assignee: "steve", claude_status: "review", moved_to_review: true });
+  expect(await row(mine)).toMatchObject({ tags: ["work", "claude"] });
+  const closed: any = await t.mutation(api.agent.updateTask, { id: mine, patch: { claude_status: "done" } });
+  expect(closed).toMatchObject({ done: true, claude_status: "done" });
+  // the tag is never taken off, even by a tags patch
+  await t.mutation(api.agent.updateTask, { id: theirs, patch: { tags: ["other"] } });
+  expect(await row(theirs)).toMatchObject({ tags: ["other", "claude"] });
+  await expect(t.mutation(api.agent.updateTask, { id: theirs, patch: { assignee: "bob" } })).rejects.toThrow(/assignee must be/);
+});
+
+it("a task that only carries #claude still finishes as before (done stays done) and is found by @claude", async () => {
+  const t = setup();
+  const { created } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Old style", tags: ["claude"] }, { title: "Parked", tags: ["claude"], status: "backlog" }, { title: "Steve's" }] });
+  const snap: any = await t.query(api.agent.getSnapshot, { query: "@claude", now: Date.now() });
+  expect(snap.tasks.undated.map((x: any) => x.title)).toEqual(["Old style"]);
+  const r: any = await t.mutation(api.agent.updateTask, { id: created[0].id, patch: { done: true }, agent: true });
+  expect(r).toMatchObject({ done: true });
+  expect(r).not.toHaveProperty("moved_to_review");
+  const tagged: any = await t.query(api.agent.getSnapshot, { query: "#claude", now: Date.now() });
+  expect(tagged.tasks.undated.map((x: any) => x.title)).toEqual(["Parked"]);
+});

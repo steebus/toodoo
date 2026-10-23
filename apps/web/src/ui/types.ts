@@ -66,6 +66,7 @@ export type DocketData = {
   epic?: string | null; // its epic's name, printed small at the paper's foot
   list?: { done: number; total: number } | null; // its checklist, when it has one
   files?: number; // how many files are attached: a paperclip hooked on the paper
+  claude?: boolean; // assigned to Claude: its robot stamped on the paper
   note?: string | null; // handwritten on the paper where there is room
   fit: 0 | 1 | 2; // how hard the title is squeezed to fit the paper: 0 as printed, 2 smallest
   progress?: { spent: number; est: number } | null; // minutes spent (planned blocks gone by) against the estimate
