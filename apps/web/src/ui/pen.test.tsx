@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import type { FullTask } from "@shared/snapshot.ts";
-import { docket, fitOf } from "./build";
+import { docket, fitOf, growOf } from "./build";
 import { Docket } from "./Docket";
 import { SlipPrint } from "./Slip";
 import { PenProgress } from "./icons";
@@ -12,6 +12,13 @@ it("squeezes long titles harder", () => {
   expect(fitOf("Buy timber")).toBe(0);
   expect(fitOf("CROOZ-279 Port daily game/player into expo")).toBe(1);
   expect(fitOf("RSVP to P&C school hours consultation (Thu 22 Oct, needs a reply)")).toBe(2);
+});
+
+it("grows a ticket to hold its description and note, never past twice the standard", () => {
+  expect(growOf("Buy timber", null, null)).toBe(0);
+  expect(growOf("Buy timber", null, "ring first")).toBe(0);
+  expect(growOf("Buy timber", "Two lengths of pine", null)).toBe(1);
+  expect(growOf("Buy timber", "x".repeat(300), "y".repeat(300))).toBe(2);
 });
 
 it("inks the progress line as far as the time spent, and red past the estimate", () => {

@@ -7,7 +7,7 @@ import { dayWord, fmtTime, formatDuration, parseDuration, type Priority } from "
 import type { FullTask } from "@shared/snapshot.ts";
 import { waitingDays } from "@shared/board.ts";
 import { normLink, parseTags } from "@shared/validation.ts";
-import { assignedToClaude } from "@shared/assign.ts";
+import { assignedToClaude, CLAUDE_STATUS_LABEL, CLAUDE_STATUSES, claudeColumn } from "@shared/assign.ts";
 import { Attachments } from "./Attachments";
 import { Checklist } from "./Checklist";
 import { shortDate } from "./format";
@@ -73,6 +73,12 @@ export function TaskView({
   const spent = progress?.spent ?? 0; // planned blocks gone by; the estimate is the task's own, so edits move the panel at once
   const creating = !!onCreate;
   const [filing, setFiling] = useState(false);
+  // The column chips follow whoever it is assigned to: Claude's lane for Claude's tasks, Steve's otherwise.
+  const column: string = assignedToClaude(t) ? claudeColumn(t) : t.claude_status === "review" ? "review" : t.status ?? "todo";
+  const columns: [string, string, Record<string, unknown>][] = assignedToClaude(t)
+    ? CLAUDE_STATUSES.filter((s) => s !== "done").map((s) => [s, CLAUDE_STATUS_LABEL[s], s === "review" ? { claude_status: s, assignee: "steve" } : { claude_status: s }])
+    : [...TASK_STATUSES.map((s): [string, string, Record<string, unknown>] => [s, TASK_STATUS_LABEL[s], t.claude_status === "review" ? { status: s, claude_status: null } : { status: s }]),
+       ...(column === "review" ? [["review", CLAUDE_STATUS_LABEL.review, {}] as [string, string, Record<string, unknown>]] : [])];
   const open = epics.filter((e) => e.status !== "done" || e.id === t.epic_id);
 
   return (
@@ -117,9 +123,9 @@ export function TaskView({
         </div>
         {!t.done && (
           <div className="tk-chips" role="group" aria-label="Column">
-            {TASK_STATUSES.map((s) => (
-              <button key={s} type="button" className="tk-chip" aria-pressed={(t.status ?? "todo") === s} disabled={offline}
-                onClick={() => (t.status ?? "todo") !== s && void save({ status: s })}>{TASK_STATUS_LABEL[s].toUpperCase()}</button>
+            {columns.map(([s, text, patch]) => (
+              <button key={s} type="button" className="tk-chip" aria-pressed={column === s} disabled={offline}
+                onClick={() => column !== s && void save(patch)}>{text.toUpperCase()}</button>
             ))}
           </div>
         )}

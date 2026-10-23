@@ -35,6 +35,12 @@ export const listLine = (p: { done: number; total: number }) =>
 // Long titles print smaller and on more lines rather than being cut off.
 export const fitOf = (title: string): 0 | 1 | 2 => (title.length <= 24 ? 0 : title.length <= 48 ? 1 : 2);
 
+// Taller when the title, description and note need it, up to twice the standard ticket.
+export const growOf = (title: string, description: string | null, note: string | null): 0 | 1 | 2 => {
+  const words = Math.max(0, title.length - 48) + (description?.length ?? 0) + (note?.length ?? 0);
+  return words > 100 ? 2 : words > 30 || description ? 1 : 0;
+};
+
 // The rows print what the paper doesn't already show: the time and duration are in its head, the epic is its colour.
 export function docket(t: FullTask, hm: string | null, today: string, epic?: Epic, spent?: number): DocketData {
   const carried = !t.done && t.due !== null && t.due < today;
@@ -45,7 +51,7 @@ export function docket(t: FullTask, hm: string | null, today: string, epic?: Epi
   const tagRow: MetaRow[] = tags.length ? [{ label: "TAGS", value: tags.join(" ").toUpperCase() }] : [];
   const common = {
     id: t.id, done: t.done, high, blocked: !t.done && t.status === "blocked", hm, title: t.title.toUpperCase(), lines: wrapTitle(t.title), colour: epic?.colour ?? null, epic: epic?.title ?? null,
-    fit: fitOf(t.title), progress: !t.done && t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
+    fit: fitOf(t.title), description: t.description?.trim() || null, grow: growOf(t.title, t.description?.trim() || null, t.note?.trim() || null), progress: !t.done && t.estimate_mins && spent ? { spent, est: t.estimate_mins } : null, list, note: t.note?.trim() || null,
     files: t.attachments ?? 0, ...(assignedToClaude(t) ? { claude: true } : null),
   };
   if (carried) {

@@ -96,6 +96,12 @@ export function JiraLink({ offline }: { offline: boolean }) {
         <button type="button" className="room-button is-quiet" disabled={offline || syncing} onClick={() => void syncNow()}>Sync now</button>
         <button type="button" className="room-button is-quiet" onClick={open}>Edit</button>
       </p>
+      {link.bitbucket_error && (
+        <p className="sug-jira">
+          <span className="sug-jira-name">Bitbucket</span>
+          <span className="sug-jira-state is-bad">{link.bitbucket_error}</span>
+        </p>
+      )}
       {empty && (
         <p className="sug-jira sug-jira-hint">
           No issues matched. Signed in as {link.account ?? link.email}; searched <code>{link.jql}</code>
@@ -114,6 +120,7 @@ export function JiraState() {
     <>
       <span className="sug-jira-name">Jira · {link.site.replace(/^https:\/\//, "")}</span>
       <span className={`sug-jira-state${link.error ? " is-bad" : ""}`}>{link.error ?? (link.synced_at ? `synced ${ago(link.synced_at)}` : "waiting to sync")}</span>
+      {link.bitbucket_error && <span className="sug-jira-state is-bad" title={link.bitbucket_error}>Bitbucket: {link.bitbucket_error}</span>}
     </>
   );
 }

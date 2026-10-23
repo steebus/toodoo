@@ -23,6 +23,7 @@ export const link = query({
     return r && {
       site: r.site, email: r.email, jql: r.jql, default_jql: DEFAULT_JQL, synced_at: r.synced_at ?? null,
       tried_at: r.tried_at ?? null, error: r.error ?? null, count: r.count ?? null, account: r.account ?? null,
+      bitbucket_synced_at: r.bitbucket_synced_at ?? null, bitbucket_error: r.bitbucket_error ?? null,
     };
   },
 });

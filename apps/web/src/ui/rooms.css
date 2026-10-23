@@ -248,9 +248,12 @@
 /* ---------- the door ---------- */
 .signin { align-items: center; justify-content: center; gap: 0; padding-bottom: 6dvh; }
 .signin-wordmark { margin: 0 0 34px; padding: 0; font-size: 56px; }
-.signin-pass { position: relative; width: 236px; height: 318px; }
-.signin-docket { position: absolute; left: 0; right: 0; top: 0; height: 300px; animation: signin-feed 0.9s var(--spring) 0.15s backwards; }
-.signin-docket .dk-paper { --u: 1px; }
+.signin-pass { position: relative; width: 236px; height: 340px; padding-top: 11px; }
+.signin-docket {
+  position: absolute; left: 0; right: 0; top: 11px; height: 312px; transform-origin: 50% 0;
+  animation: signin-feed 0.9s var(--spring) 0.15s backwards, signin-sway 5s ease-in-out 1.2s infinite;
+}
+.signin-docket .dk-paper { --u: 1px; filter: drop-shadow(0 5px 6px rgb(0 0 0 / 0.22)) drop-shadow(0 0 1px rgb(0 0 0 / 0.5)); outline: 1px solid rgb(0 0 0 / 0.16); outline-offset: -1px; }
 .signin-print {
   position: absolute; inset: 34px 22px 52px 22px; display: flex; flex-direction: column; gap: 10px;
   font-family: var(--font-print); color: var(--paper-ink); line-height: 1;
@@ -260,7 +263,7 @@
 .signin-dashes { overflow: hidden; white-space: nowrap; font-size: 15px; letter-spacing: -0.02em; }
 .signin-order { margin: 6px 0 !important; font-weight: 700; font-size: 22px; letter-spacing: 0.01em; }
 .signin-foot { margin-top: auto !important; font-size: 15px; letter-spacing: 0.12em; color: var(--paper-red); }
-.room .signin-rail { --u: 1.4px; position: absolute; left: -64px; right: -64px; bottom: 0; height: 22px; margin: 0; }
+.room .signin-rail { --u: 1.4px; position: absolute; z-index: 3; left: -64px; right: -64px; top: 0; height: 22px; margin: 0; }
 .room .signin-button {
   margin-top: 34px; min-width: 236px; height: 48px; padding: 0 22px;
   font-family: var(--font-print); font-size: 18px; letter-spacing: 0.02em;
@@ -271,10 +274,14 @@
 .room .signin-button:active { transform: none; }
 .room .signin-button:disabled { opacity: 0.6; cursor: progress; }
 /* a thermal printer feeds in jerks: the docket comes down onto the rail and settles */
-@keyframes signin-feed { from { transform: translateY(-46px); opacity: 0; } 30% { opacity: 1; } }
+@keyframes signin-feed { from { transform: translateY(-120px); opacity: 0; } 30% { opacity: 1; } 70% { transform: translateY(6px); } }
+@keyframes signin-sway { 50% { transform: rotate(0.6deg); } }
+/* signed in: the docket is torn off the rail and drops away */
+.signin-pass.is-going .signin-docket { animation: signin-tear 0.6s cubic-bezier(0.5, 0, 0.9, 0.4) forwards; }
+@keyframes signin-tear { 20% { transform: translateY(-6px) rotate(-1.5deg); } to { transform: translateY(160px) rotate(5deg); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .signin-docket { animation: fade-in 0.3s linear backwards; }
+  .signin-docket, .signin-pass.is-going .signin-docket { animation: fade-in 0.3s linear backwards; }
   .epic-chevron, .epic-fill, .lane, .room .signin-button { transition: none; }
   .epic-body { animation: none; }
   .bf-tab { transition: none; }

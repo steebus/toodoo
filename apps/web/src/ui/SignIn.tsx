@@ -4,7 +4,7 @@ import { shortDate } from "./format";
 import "./pass.css";
 import "./rooms.css";
 
-// The door: one docket feeds down onto the rail with today's date and time printed on it, and one button.
+// The door: a rail across the top and one docket hanging under it, fed down with today's date and time printed on it, and one button.
 export function SignIn({ onSignIn }: { onSignIn: () => void }) {
   const [now, setNow] = useState(() => new Date());
   const [going, setGoing] = useState(false);
@@ -21,7 +21,8 @@ export function SignIn({ onSignIn }: { onSignIn: () => void }) {
   return (
     <main className="room signin">
       <h1 className="wordmark signin-wordmark">toodoo</h1>
-      <div className="signin-pass" aria-hidden>
+      <div className={`signin-pass${going ? " is-going" : ""}`} aria-hidden>
+        <span className="rail-bar signin-rail" />
         <div className="signin-docket">
           <div className="dk-paper" />
           <div className="signin-print">
@@ -35,7 +36,6 @@ export function SignIn({ onSignIn }: { onSignIn: () => void }) {
             <p className="signin-foot">ORDER UP</p>
           </div>
         </div>
-        <span className="rail-bar signin-rail" />
       </div>
       <button type="button" className="signin-button" disabled={going} onClick={() => { setGoing(true); onSignIn(); }}>
         {going ? "Signing in…" : "Sign in"}

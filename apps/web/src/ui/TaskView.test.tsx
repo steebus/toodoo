@@ -112,3 +112,16 @@ it("leaves files off a ticket not yet filed", () => {
   expect(screen.queryByRole("region", { name: "Attachments" })).toBeNull();
   expect(screen.queryByRole("button", { name: "+ ATTACH FILES" })).toBeNull();
 });
+
+it("shows Claude's columns for a task assigned to it, and Steve's otherwise", async () => {
+  const onSave = vi.fn().mockResolvedValue(true);
+  const { rerender } = render(<TaskView task={card({ assignee: "claude", claude_status: "doing" })} today={T} onSave={onSave} onClose={() => {}} />);
+  const col = () => within(screen.getByRole("group", { name: "Column" }));
+  expect(col().getByRole("button", { name: "DOING" })).toHaveAttribute("aria-pressed", "true");
+  expect(col().getByRole("button", { name: "ESCALATED" })).toBeInTheDocument();
+  await userEvent.click(col().getByRole("button", { name: "ESCALATED" }));
+  expect(onSave).toHaveBeenCalledWith({ claude_status: "escalated" });
+  rerender(<TaskView task={card({ assignee: "steve", status: "doing" })} today={T} onSave={onSave} onClose={() => {}} />);
+  expect(col().queryByRole("button", { name: "ESCALATED" })).toBeNull();
+  expect(col().getByRole("button", { name: "DOING" })).toHaveAttribute("aria-pressed", "true");
+});
