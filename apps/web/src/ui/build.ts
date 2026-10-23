@@ -38,7 +38,7 @@ export const fitOf = (title: string): 0 | 1 | 2 => (title.length <= 24 ? 0 : tit
 // Taller when the title, description and note need it, up to twice the standard ticket.
 export const growOf = (title: string, description: string | null, note: string | null): 0 | 1 | 2 => {
   const words = Math.max(0, title.length - 48) + (description?.length ?? 0) + (note?.length ?? 0);
-  return words > 100 ? 2 : words > 30 || description ? 1 : 0;
+  return words > 100 ? 2 : words > 30 ? 1 : 0;
 };
 
 // The rows print what the paper doesn't already show: the time and duration are in its head, the epic is its colour.

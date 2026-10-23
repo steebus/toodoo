@@ -154,6 +154,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
               {!!d.grow && d.description && <p className="dk-desc">{d.description}</p>}
               {d.note && <p className="dk-note">{d.note}</p>}
+              {!!d.grow && <span className="dk-fill" aria-hidden />}
               <Rows rows={d.rows} />
               <p className="dk-dashes" aria-hidden>{DASHES}</p>
               {d.footer && <Rows rows={[d.footer]} />}
@@ -169,6 +170,7 @@ function DocketView({ docket: d, topPick, onOpen, onTick, onPlan, ghost, li, ope
               <h4 className="dk-title">{open(<span className="dk-title-text">{d.title}</span>)}</h4>
               {!!d.grow && d.description && <p className="dk-desc">{d.description}</p>}
               {d.note && <p className="dk-note">{d.note}</p>}
+              {!!d.grow && <span className="dk-fill" aria-hidden />}
               {d.source && <p className="dk-source">{d.source}</p>}
               <p className="dk-dashes" aria-hidden>{DASHES}</p>
               <Rows rows={d.rows} />

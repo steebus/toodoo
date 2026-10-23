@@ -466,6 +466,11 @@
   flex: 0 1 auto; min-height: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8;
   font-size: calc(13 * var(--u)); line-height: 1.25; color: var(--paper-ink); overflow-wrap: anywhere;
 }
+/* On a grown ticket the words stack from the top (title, then description, then note) and the spare room sits above the foot. */
+.docket[class*="grow-"] .dk-title { flex: 0 0 auto; }
+.docket[class*="grow-"] .dk-desc { flex-shrink: 2; }
+.docket.grow-2 .dk-desc { -webkit-line-clamp: 12; }
+.dk-fill { flex: 1 1 0; min-height: 0; }
 .dk-note {
   flex: 0 1 auto; min-height: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
   font-family: var(--font-hand); font-weight: 500; font-size: calc(17 * var(--u)); line-height: 1.05; color: var(--biro); overflow-wrap: anywhere;

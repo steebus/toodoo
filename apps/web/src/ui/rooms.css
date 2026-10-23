@@ -247,10 +247,14 @@
 
 /* ---------- the door ---------- */
 .signin { align-items: center; justify-content: center; gap: 0; padding-bottom: 6dvh; }
+/* The door has its own ground, so the paper reads as a ticket: darker than the paper in light, darker still in dark. */
+.room.signin { background: color-mix(in srgb, var(--paper-ink) 9%, var(--ground)); }
+:root[data-theme="dark"] .room.signin { background: color-mix(in srgb, #000 45%, var(--ground)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .room.signin { background: color-mix(in srgb, #000 45%, var(--ground)); } }
 .signin-wordmark { margin: 0 0 34px; padding: 0; font-size: 56px; }
 .signin-pass { position: relative; width: 236px; height: 340px; padding-top: 11px; }
 .signin-docket {
-  position: absolute; left: 0; right: 0; top: 11px; height: 312px; transform-origin: 50% 0;
+  --dk-paper: var(--paper); position: absolute; left: 0; right: 0; top: 11px; height: 312px; transform-origin: 50% 0;
   animation: signin-feed 0.9s var(--spring) 0.15s backwards, signin-sway 5s ease-in-out 1.2s infinite;
 }
 .signin-docket .dk-paper { --u: 1px; filter: drop-shadow(0 5px 6px rgb(0 0 0 / 0.22)) drop-shadow(0 0 1px rgb(0 0 0 / 0.5)); outline: 1px solid rgb(0 0 0 / 0.16); outline-offset: -1px; }

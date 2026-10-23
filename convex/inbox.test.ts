@@ -252,6 +252,25 @@ it("syncs Bitbucket: accepting into an epic ties the project to it for the next 
   expect(await t.query(api.inbox.count, {})).toBe(0);
 });
 
+it("polls Bitbucket only with its own token, and never sends either token back", async () => {
+  const t = setup();
+  const auth: string[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    if (String(url).includes("bitbucket")) auth.push(String((init?.headers as Record<string, string>).authorization));
+    return Response.json(String(url).includes("/user") ? { uuid: "{me}" } : { issues: [], isLast: true, values: [] });
+  }));
+  await t.mutation(api.jira.save, { site: "acme", email: "steve@example.com", token: "jira-tok" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(auth).toEqual([]); // no Bitbucket token: no Bitbucket calls
+  await t.mutation(api.jira.save, { site: "acme", email: "steve@example.com", bitbucket_token: "bb-tok" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(auth.length).toBeGreaterThan(0);
+  expect(new Set(auth)).toEqual(new Set([`Basic ${btoa("steve@example.com:bb-tok")}`]));
+  const link = await t.query(api.jira.link, {});
+  expect(link?.bitbucket_linked).toBe(true);
+  expect(JSON.stringify(link)).not.toMatch(/bb-tok|jira-tok/);
+});
+
 it("keeps a repo on an epic, hands it to Claude's tasks, and lets a patch clear Claude's status", async () => {
   const t = setup();
   const epic = await t.mutation(api.epics.create, { epic: { title: "Acme", repo: " steebus/acme " } });

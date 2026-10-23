@@ -107,7 +107,8 @@ export default defineSchema({
     synced_at: v.optional(v.number()), tried_at: v.optional(v.number()), error: v.optional(v.string()),
     count: v.optional(v.number()), account: v.optional(v.string()),
     open_keys: v.optional(v.array(v.string())), // external ids Jira listed as open at the last sync (unset when the sync hit its cap)
-    bitbucket_synced_at: v.optional(v.number()), bitbucket_error: v.optional(v.string()), // the same token also polls Bitbucket
+    bitbucket_token: v.optional(v.string()), // Bitbucket needs its own API token (never sent back); the Jira email is reused
+    bitbucket_synced_at: v.optional(v.number()), bitbucket_error: v.optional(v.string()),
   }).index("by_user", ["user_id"]),
   // Which epic a Bitbucket project (else repository) belongs to, set when a suggestion from it is accepted and kept after.
   bitbucket_epics: defineTable({ user_id: v.string(), project: v.string(), epic_id: v.id("epics") })

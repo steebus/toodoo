@@ -17,7 +17,7 @@ it("squeezes long titles harder", () => {
 it("grows a ticket to hold its description and note, never past twice the standard", () => {
   expect(growOf("Buy timber", null, null)).toBe(0);
   expect(growOf("Buy timber", null, "ring first")).toBe(0);
-  expect(growOf("Buy timber", "Two lengths of pine", null)).toBe(1);
+  expect(growOf("Buy timber", "Two lengths of pine, cut to size and sanded", null)).toBe(1);
   expect(growOf("Buy timber", "x".repeat(300), "y".repeat(300))).toBe(2);
 });
 

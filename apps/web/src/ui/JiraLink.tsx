@@ -22,13 +22,13 @@ export function JiraLink({ offline }: { offline: boolean }) {
   const remove = useMutation(api.jira.remove);
   const syncNow = useMutation(api.jira.syncNow);
   const [editing, setEditing] = useState(false);
-  const [f, setF] = useState({ site: "", email: "", token: "", jql: "" });
+  const [f, setF] = useState({ site: "", email: "", token: "", bitbucket_token: "", jql: "" });
   const [bad, setBad] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (link === undefined) return <div className="sug-jira" aria-busy />;
 
   const open = () => {
-    setF({ site: link?.site.replace(/^https:\/\//, "") ?? "", email: link?.email ?? "", token: "", jql: link && link.jql !== link.default_jql ? link.jql : "" });
+    setF({ site: link?.site.replace(/^https:\/\//, "") ?? "", email: link?.email ?? "", token: "", bitbucket_token: "", jql: link && link.jql !== link.default_jql ? link.jql : "" });
     setBad(null);
     setEditing(true);
   };
@@ -36,7 +36,7 @@ export function JiraLink({ offline }: { offline: boolean }) {
     e.preventDefault();
     setBusy(true);
     try {
-      await save({ site: f.site, email: f.email, ...(f.token.trim() ? { token: f.token } : {}), jql: f.jql });
+      await save({ site: f.site, email: f.email, ...(f.token.trim() ? { token: f.token } : {}), ...(f.bitbucket_token.trim() ? { bitbucket_token: f.bitbucket_token } : {}), jql: f.jql });
       setEditing(false);
     } catch (err) {
       setBad(failure(err, "Couldn't link that").replace(/^Couldn't link that: /, ""));
@@ -63,6 +63,11 @@ export function JiraLink({ offline }: { offline: boolean }) {
           <span>API token <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noreferrer">make one</a></span>
           <input type="password" value={f.token} onChange={(e) => setF({ ...f, token: e.target.value })}
             placeholder={link ? "Leave blank to keep the saved one" : "Paste it here"} autoComplete="off" required={!link} />
+        </label>
+        <label className="sheet-field">
+          <span>Bitbucket API token <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noreferrer">make one</a></span>
+          <input type="password" value={f.bitbucket_token} onChange={(e) => setF({ ...f, bitbucket_token: e.target.value })}
+            placeholder={link?.bitbucket_linked ? "Leave blank to keep the saved one" : "Optional: turns on PR reviews"} autoComplete="off" />
         </label>
         <label className="sheet-field">Which issues (JQL)
           <input value={f.jql} onChange={(e) => setF({ ...f, jql: e.target.value })} placeholder={link?.default_jql ?? "assignee = currentUser() AND statusCategory != Done"} autoComplete="off" spellCheck={false} />

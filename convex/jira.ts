@@ -23,14 +23,14 @@ export const link = query({
     return r && {
       site: r.site, email: r.email, jql: r.jql, default_jql: DEFAULT_JQL, synced_at: r.synced_at ?? null,
       tried_at: r.tried_at ?? null, error: r.error ?? null, count: r.count ?? null, account: r.account ?? null,
-      bitbucket_synced_at: r.bitbucket_synced_at ?? null, bitbucket_error: r.bitbucket_error ?? null,
+      bitbucket_linked: !!r.bitbucket_token, bitbucket_synced_at: r.bitbucket_synced_at ?? null, bitbucket_error: r.bitbucket_error ?? null,
     };
   },
 });
 
 // Link (or relink) a Jira Cloud site. The token may be left out to keep the one saved.
 export const save = mutation({
-  args: { site: v.string(), email: v.string(), token: v.optional(v.string()), jql: v.optional(v.string()) },
+  args: { site: v.string(), email: v.string(), token: v.optional(v.string()), jql: v.optional(v.string()), bitbucket_token: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const user_id = await requireUser(ctx);
     const site = jiraSite(a.site);
@@ -42,9 +42,12 @@ export const save = mutation({
     const hit = await linkOf(ctx.db, user_id);
     const token = a.token?.trim() || hit?.token;
     if (!token || token.length > 500) throw new ConvexError({ code: "input", message: "needs an API token" });
-    if (hit) await ctx.db.patch(hit._id, { site, email, token, jql, error: undefined, account: undefined });
-    else await ctx.db.insert("jira_links", { user_id, site, email, token, jql });
+    const bitbucket_token = a.bitbucket_token?.trim() || hit?.bitbucket_token;
+    if (bitbucket_token && bitbucket_token.length > 500) throw new ConvexError({ code: "input", message: "Bitbucket token too long" });
+    if (hit) await ctx.db.patch(hit._id, { site, email, token, jql, error: undefined, account: undefined, bitbucket_token, ...(a.bitbucket_token?.trim() ? { bitbucket_error: undefined } : {}) });
+    else await ctx.db.insert("jira_links", { user_id, site, email, token, jql, bitbucket_token });
     await ctx.scheduler.runAfter(0, internal.jira.syncUser, { user_id });
+    if (bitbucket_token) await ctx.scheduler.runAfter(0, internal.jira.syncBitbucket, { user_id });
   },
 });
 
@@ -75,7 +78,7 @@ export const syncAll = internalMutation({
   handler: async (ctx) => {
     for (const r of await ctx.db.query("jira_links").collect()) {
       await ctx.scheduler.runAfter(0, internal.jira.syncUser, { user_id: r.user_id });
-      await ctx.scheduler.runAfter(0, internal.jira.syncBitbucket, { user_id: r.user_id });
+      if (r.bitbucket_token) await ctx.scheduler.runAfter(0, internal.jira.syncBitbucket, { user_id: r.user_id });
     }
   },
 });
@@ -167,7 +170,7 @@ export const syncUser = internalAction({
   },
 });
 
-// ---------- Bitbucket: open PRs waiting on me, from the same email and API token ----------
+// ---------- Bitbucket: open PRs waiting on me, with its own API token (and the Jira account email) ----------
 
 const BB = "https://api.bitbucket.org/2.0";
 const BB_REPOS = 300, BB_RECENT_DAYS = 90; // ponytail: repos not touched in 90 days are skipped; a capped sync deletes nothing
@@ -206,11 +209,11 @@ export const syncBitbucket = internalAction({
   args: { user_id: v.string() },
   handler: async (ctx, { user_id }) => {
     const l = await ctx.runQuery(internal.jira.linkFor, { user_id });
-    if (!l) return;
-    const headers = { authorization: `Basic ${btoa(`${l.email}:${l.token}`)}`, accept: "application/json" };
+    if (!l?.bitbucket_token) return;
+    const headers = { authorization: `Basic ${btoa(`${l.email}:${l.bitbucket_token}`)}`, accept: "application/json" };
     const get = async <T,>(url: string): Promise<T> => {
       const res = await fetch(url, { headers });
-      if (res.status === 401 || res.status === 403) throw new Error("Bitbucket didn't accept the token: it needs read scopes for account, workspaces, repositories and pull requests");
+      if (res.status === 401 || res.status === 403) throw new Error("Bitbucket didn't accept that email and token: it needs read scopes for account, workspaces, repositories and pull requests");
       if (!res.ok) throw new Error(`Bitbucket said ${res.status}`);
       return (await res.json()) as T;
     };

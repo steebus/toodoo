@@ -61,7 +61,7 @@ it("links Jira", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Link Jira" }));
   await userEvent.type(screen.getByRole("textbox", { name: "Site" }), "acme");
   await userEvent.type(screen.getByRole("textbox", { name: "Email" }), "steve@example.com");
-  await userEvent.type(screen.getByLabelText(/API token/), "tok");
+  await userEvent.type(screen.getByLabelText(/^API token/), "tok");
   await userEvent.click(screen.getByRole("button", { name: "Link Jira" }));
   expect(fn("jira:save")).toHaveBeenCalledWith({ site: "acme", email: "steve@example.com", token: "tok", jql: "" });
 });
