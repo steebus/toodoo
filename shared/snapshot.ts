@@ -13,7 +13,7 @@ export interface FullTask extends Task {
   checklist?: ChecklistItem[];
   prep_for?: PrepLink | null; // the meeting it's prep for
   assignee?: Assignee; // absent: Steve (or Claude when it only carries #claude)
-  claude_status?: ClaudeStatus; // its column on Claude's board
+  claude_status?: ClaudeStatus | null; // its column on Claude's board (null in a patch clears it)
   attachments?: number; // how many files are on it (absent: none)
 }
 export interface ChecklistItem { text: string; done: boolean }
@@ -30,7 +30,8 @@ const compact = (epics: Map<string, Epic>) => (t: FullTask) =>
   Object.fromEntries(
     Object.entries({
       id: t.id, title: t.title, due: t.due, time: t.time, priority: t.priority, estimate_mins: t.estimate_mins,
-      epic: t.epic_id ? epics.get(t.epic_id)?.title : null, status: t.status && t.status !== "todo" ? t.status : null,
+      epic: t.epic_id ? epics.get(t.epic_id)?.title : null,
+      epic_repo: assignedToClaude(t) && t.epic_id ? epics.get(t.epic_id)?.repo : null, status: t.status && t.status !== "todo" ? t.status : null,
       checklist: t.checklist?.length ? t.checklist : null,
       assignee: assignedToClaude(t) ? "claude" : t.assignee === "steve" && t.claude_status ? "steve" : null, claude_status: t.claude_status,
       tags: t.tags.length ? t.tags : null, source: t.source === "you" ? null : t.source, external_id: t.external_id,
@@ -84,7 +85,7 @@ export function buildSnapshot(o: { date: string; today: string; nowM: number; qu
     plan,
     planned_mins: plan.reduce((n, b) => n + b.mins, 0),
     // Done epics are left out; list_epics has them all.
-    epics: (o.epics ?? []).filter((e) => e.status !== "done").map((e) => ({ id: e.id, title: e.title, priority: e.priority, status: e.status })),
+    epics: (o.epics ?? []).filter((e) => e.status !== "done").map((e) => ({ id: e.id, title: e.title, priority: e.priority, status: e.status, ...(e.repo ? { repo: e.repo } : {}) })),
     suggestions: suggestions({ date: o.date, today: o.today, nowM: o.nowM, tasks: o.tasks, blocks: o.blocks, epics: o.epics })
       .map((s) => ({ id: s.task.id, title: s.task.title, reasons: s.reasons })),
   };

@@ -1163,8 +1163,8 @@
 
 /* ---------- a task assigned to Claude: the robot stamped faintly in the paper's corner ---------- */
 .docket.is-claude .dk-print::after {
-  content: ""; position: absolute; right: calc(12 * var(--u)); bottom: calc(26 * var(--u)); width: calc(46 * var(--u)); height: calc(46 * var(--u));
-  background: var(--paper-ink); opacity: 0.09; transform: rotate(-9deg); pointer-events: none;
+  content: ""; position: absolute; right: calc(12 * var(--u)); bottom: calc(26 * var(--u)); width: calc(78 * var(--u)); height: calc(78 * var(--u));
+  background: var(--paper-ink); opacity: 0.17; transform: rotate(-9deg); pointer-events: none;
   -webkit-mask: var(--claude-stamp) center / contain no-repeat; mask: var(--claude-stamp) center / contain no-repeat;
 }
-.docket.is-claude.is-done .dk-print::after { opacity: 0.05; }
+.docket.is-claude.is-done .dk-print::after { opacity: 0.08; }

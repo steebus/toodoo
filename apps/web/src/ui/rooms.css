@@ -1312,11 +1312,11 @@ a.tk-file-name:hover { text-decoration: underline; }
 
 /* ---------- a task assigned to Claude: the robot stamped faintly in the slip's corner ---------- */
 .slip.is-claude::after {
-  content: ""; position: absolute; right: 10px; bottom: 6px; width: 34px; height: 34px;
-  background: var(--paper-ink); opacity: 0.09; transform: rotate(-9deg); pointer-events: none;
+  content: ""; position: absolute; right: 10px; bottom: 6px; width: 58px; height: 58px;
+  background: var(--paper-ink); opacity: 0.17; transform: rotate(-9deg); pointer-events: none;
   -webkit-mask: var(--claude-stamp) center / contain no-repeat; mask: var(--claude-stamp) center / contain no-repeat;
 }
-.slip.is-claude.is-done::after { opacity: 0.05; }
+.slip.is-claude.is-done::after { opacity: 0.08; }
 .chip .chip-icon.claude-stamp, .chip-icon.claude-stamp { width: 14px; height: 14px; }
 /* the Board's Steve · Claude switch */
 .who-switch { display: inline-flex; gap: 2px; padding: 2px; background: var(--well); border: 1px solid var(--rule-soft); border-radius: 8px; }
@@ -1327,3 +1327,8 @@ a.tk-file-name:hover { text-decoration: underline; }
 .who-switch button:hover { color: var(--ink); }
 .who-switch button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--rule-soft); }
 .who-switch button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.who-switch button { position: relative; padding: 4px 10px; }
+.who-count {
+  position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--ink); color: var(--surface); font-size: 11px; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums;
+}

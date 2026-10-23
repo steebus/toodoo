@@ -44,7 +44,7 @@ const toTask = (d: Doc<"tasks">): FullTask => ({
 
 const toEpic = (d: Doc<"epics">): Epic => ({
   id: d._id, title: d.title, description: d.description, priority: d.priority, status: d.status, sort_order: d.sort_order,
-  colour: (d.colour ?? null) as EpicColour | null,
+  colour: (d.colour ?? null) as EpicColour | null, repo: d.repo ?? null,
 });
 
 async function ownedEpic(db: R, userId: string, id: string) {
@@ -214,6 +214,7 @@ export async function updateTask(
     else if (cs !== "done") { p.assignee = "claude"; p.tags = withClaudeTag((p.tags as string[] | undefined) ?? doc.tags); }
   }
   if (p.tags && doc.tags.includes(CLAUDE_TAG)) p.tags = withClaudeTag(p.tags as string[]);
+  if (p.claude_status === null) p.claude_status = undefined; // undefined unsets the field
   await db.patch(doc._id, { ...(p as Partial<Doc<"tasks">>), updated_at: Date.now() });
   const d = (await db.get(doc._id))!;
   return {

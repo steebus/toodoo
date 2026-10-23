@@ -24,7 +24,7 @@ export function useWorkspace(userId?: string): w.WorkData | undefined {
   return live ?? kept;
 }
 
-export type EpicFields = Pick<Epic, "title" | "description" | "priority" | "status" | "colour">;
+export type EpicFields = Pick<Epic, "title" | "description" | "priority" | "status" | "colour" | "repo">;
 export type WorkTask = Omit<NewTask, "source"> & { epic_id?: string | null; status?: FullTask["status"]; sort_order?: number };
 
 export type WorkActions = {

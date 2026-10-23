@@ -315,3 +315,10 @@ export const ClaudeStamp = ({ size = 14, className }: P) => (
     <path d="M6.5 16h2v4h-2zM10 16h1.5v4H10zM12.5 16H14v4h-1.5zM15.5 16h2v4h-2z" />
   </svg>
 );
+
+// A plain person, for Steve's side of the Board switch.
+export const PersonIcon = ({ size = 16, className }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden focusable={false}>
+    <circle cx="12" cy="8" r="3.6" /><path d="M4.5 20c.8-3.8 3.7-5.6 7.5-5.6s6.7 1.8 7.5 5.6" />
+  </svg>
+);

@@ -50,6 +50,7 @@ export default defineSchema({
     priority,
     status: v.union(v.literal("planned"), v.literal("active"), v.literal("on_hold"), v.literal("done")),
     colour: v.optional(v.union(v.string(), v.null())), // one of EPIC_COLOURS; checked on the way in
+    repo: v.optional(v.union(v.string(), v.null())), // the code repository its work lands in (owner/name), for Claude's tasks
     sort_order: v.number(),
     created_at: v.string(),
     updated_at: v.number(),

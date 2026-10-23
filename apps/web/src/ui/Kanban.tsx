@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { m } from "motion/react";
 import { NO_EPIC, sortTasks } from "@shared/board.ts";
-import { CLAUDE_STATUS_LABEL, CLAUDE_STATUSES, claudeColumn, onClaudeBoard, type ClaudeStatus } from "@shared/assign.ts";
+import { assignedToClaude, CLAUDE_STATUS_LABEL, CLAUDE_STATUSES, claudeColumn, onClaudeBoard, type ClaudeStatus } from "@shared/assign.ts";
 import { epicMap, TASK_STATUS_LABEL, TASK_STATUSES, type TaskStatus } from "@shared/epics.ts";
 import { addDays, byOrder, formatDuration } from "@shared/planning.ts";
 import type { FullTask } from "@shared/snapshot.ts";
@@ -11,7 +11,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { useNarrow } from "../lib/useNarrow";
 import { LaneDnd, LaneList, TAB } from "./LaneDnd";
 import { LaneAdd, SlipGhost, SortableSlip } from "./Slip";
-import { ChevronIcon, ClaudeStamp } from "./icons";
+import { ChevronIcon, ClaudeStamp, PersonIcon } from "./icons";
 import { HeaderControls } from "./RoomShell";
 import { TaskView } from "./TaskView";
 import { SettingsMenu, SettingsPick } from "./ViewMenu";
@@ -19,13 +19,15 @@ import { Toast } from "./Toast";
 
 type Column = TaskStatus | ClaudeStatus | "done";
 type Who = "steve" | "claude";
-const STEVE_COLUMNS: Column[] = [...TASK_STATUSES, "done"];
+// Review is what Claude has finished for Steve to check: the same column as on Claude's board.
+const STEVE_COLUMNS: Column[] = [...TASK_STATUSES, "review", "done"];
 // Claude has its own lane: To do, Doing, Escalated, Review, Done.
 const CLAUDE_COLUMNS: Column[] = [...CLAUDE_STATUSES];
 const COLUMNS: Column[] = [...new Set([...STEVE_COLUMNS, ...CLAUDE_COLUMNS])];
 const columnsOf = (who: Who) => (who === "claude" ? CLAUDE_COLUMNS : STEVE_COLUMNS);
 const label = (c: Column) => (c === "done" ? "Done" : c in TASK_STATUS_LABEL ? TASK_STATUS_LABEL[c as TaskStatus] : CLAUDE_STATUS_LABEL[c as ClaudeStatus]);
-export const columnOf = (t: FullTask, who: Who = "steve"): Column => (who === "claude" ? claudeColumn(t) : t.done ? "done" : t.status ?? "todo");
+export const columnOf = (t: FullTask, who: Who = "steve"): Column =>
+  who === "claude" ? claudeColumn(t) : t.done ? "done" : t.claude_status === "review" && !assignedToClaude(t) ? "review" : t.status ?? "todo";
 
 const SORTS = [["manual", "Manual"], ["priority", "Priority"], ["effort", "Effort"], ["due", "Due date"]] as const;
 type Prefs = { epic: string; sort: (typeof SORTS)[number][0]; folded?: Column[]; who?: Who };
@@ -70,10 +72,17 @@ export function movePatch(t: FullTask, to: Column, order?: number, who: Who = "s
     }
     return p;
   }
+  const inReview = columnOf(t) === "review";
   if (to === "done") {
     if (!t.done) p.done = true;
+    if (inReview) p.claude_status = "done";
+  } else if (to === "review") {
+    if (t.done) p.done = false;
+    if (!inReview) Object.assign(p, { claude_status: "review", assignee: "steve" });
+    if (order !== undefined && order !== t.sort_order) p.sort_order = order;
   } else {
     if (t.done) p.done = false;
+    if (inReview) p.claude_status = null; // checked: it leaves Claude's lanes
     if ((t.status ?? "todo") !== to) p.status = to as TaskStatus;
     if (order !== undefined && order !== t.sort_order) p.sort_order = order;
   }
@@ -84,6 +93,8 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
   const [prefs, setPrefsState] = useState(loadPrefs);
   const who: Who = prefs.who ?? "steve";
   const COLS = columnsOf(who);
+  // Claude's tasks that need Steve: stuck, or finished and waiting for a check.
+  const waiting = work.tasks.filter((t) => !t.done && (t.claude_status === "escalated" || t.claude_status === "review")).length;
   const setPrefs = (p: Prefs) => {
     setPrefsState(p);
     try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* the choice holds for this visit */ }
@@ -149,9 +160,11 @@ export function Kanban({ work, actions }: { work: WorkData; actions: WorkActions
       <h1 className="sr-only">Board</h1>
       <HeaderControls>
         <div className="who-switch" role="group" aria-label="Board of">
-          <button type="button" aria-pressed={who === "steve"} onClick={() => who !== "steve" && setPrefs({ ...view, who: "steve" })}>Steve</button>
-          <button type="button" aria-pressed={who === "claude"} onClick={() => who !== "claude" && setPrefs({ ...view, who: "claude" })}>
-            <ClaudeStamp size={14} />Claude
+          <button type="button" aria-label="Steve" title="Steve" aria-pressed={who === "steve"} onClick={() => who !== "steve" && setPrefs({ ...view, who: "steve" })}>
+            <PersonIcon size={16} />
+          </button>
+          <button type="button" aria-label={waiting ? `Claude, ${waiting} waiting on you` : "Claude"} title="Claude" aria-pressed={who === "claude"} onClick={() => who !== "claude" && setPrefs({ ...view, who: "claude" })}>
+            <ClaudeStamp size={16} />{waiting > 0 && <span className="who-count">{waiting}</span>}
           </button>
         </div>
         <SettingsMenu>

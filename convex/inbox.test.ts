@@ -251,3 +251,15 @@ it("syncs Bitbucket: accepting into an epic ties the project to it for the next 
   await t.mutation(internal.jira.writeBitbucket, { user_id: "user_steve", items: [], complete: true });
   expect(await t.query(api.inbox.count, {})).toBe(0);
 });
+
+it("keeps a repo on an epic, hands it to Claude's tasks, and lets a patch clear Claude's status", async () => {
+  const t = setup();
+  const epic = await t.mutation(api.epics.create, { epic: { title: "Acme", repo: " steebus/acme " } });
+  expect(epic.repo).toBe("steebus/acme");
+  const { created: [{ id: made }] } = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Fix it", epic: "acme", assignee: "claude" }] });
+  const snap = await t.query(api.agent.getSnapshot, { query: "@claude" });
+  expect(JSON.stringify(snap)).toContain('"epic_repo":"steebus/acme"');
+  await t.mutation(api.agent.updateTask, { id: made, patch: { claude_status: "review", assignee: "steve" } });
+  const cleared = await t.mutation(api.agent.updateTask, { id: made, patch: { claude_status: null } });
+  expect(cleared.claude_status).toBeNull();
+});

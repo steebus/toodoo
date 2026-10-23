@@ -34,7 +34,7 @@ describe("columns", () => {
   it("files open tasks by status in manual order, and done newest first", () => {
     const c = columns(w, { epic: "", sort: "manual" });
     expect(Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v.map((t) => t.id)])))
-      .toEqual({ backlog: [], todo: ["b", "a"], doing: ["c"], blocked: ["d"], done: ["f", "e"] });
+      .toEqual({ backlog: [], todo: ["b", "a"], doing: ["c"], blocked: ["d"], review: [], done: ["f", "e"] });
   });
   it("filters by epic, or by no epic", () => {
     expect(columns(w, { epic: "hot", sort: "manual" }).doing.map((t) => t.id)).toEqual(["c"]);
@@ -100,7 +100,7 @@ it("makes a new epic from its sheet", async () => {
   await userEvent.click(screen.getByRole("button", { name: /New epic/ }));
   await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Launch");
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(a.createEpic).toHaveBeenCalledWith({ title: "Launch", description: null, priority: null, status: "active", colour: "blue" });
+  expect(a.createEpic).toHaveBeenCalledWith({ title: "Launch", description: null, priority: null, status: "active", colour: "blue", repo: null });
 });
 
 it("a column folds to a strip in its place, summing what's in it, and unfolds again", async () => {
@@ -129,5 +129,19 @@ describe("Claude's lane", () => {
     expect(movePatch(task("t", { assignee: "claude" }), "review", undefined, "claude")).toEqual({ claude_status: "review", assignee: "steve" });
     expect(movePatch(task("t", { assignee: "steve", claude_status: "review" }), "escalated", 2, "claude")).toEqual({ claude_status: "escalated", assignee: "claude", sort_order: 2 });
     expect(movePatch(task("t", { assignee: "claude" }), "done", undefined, "claude")).toEqual({ done: true, claude_status: "done" });
+  });
+});
+
+describe("Review on Steve's board", () => {
+  const r = task("r", { assignee: "steve", claude_status: "review", status: "todo" });
+  it("shows what Claude finished for him, apart from To do", () => {
+    const c = columns(work([r, task("a")]), { epic: "", sort: "manual" });
+    expect(c.review.map((t) => t.id)).toEqual(["r"]);
+    expect(c.todo.map((t) => t.id)).toEqual(["a"]);
+  });
+  it("leaving Review clears Claude's status; Done closes it", () => {
+    expect(movePatch(r, "doing")).toMatchObject({ status: "doing", claude_status: null });
+    expect(movePatch(r, "done")).toMatchObject({ done: true, claude_status: "done" });
+    expect(movePatch(task("a"), "review")).toMatchObject({ claude_status: "review", assignee: "steve" });
   });
 });

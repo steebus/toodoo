@@ -1,6 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { assignedToClaude } from "@shared/assign.ts";
 import { nullsLast } from "@shared/board.ts";
 import { useMemo, useState, type HTMLAttributes, type ReactNode, type Ref } from "react";
 import { byEpicRank, effectivePriority, EPIC_STATUSES, EPIC_STATUS_LABEL, epicMap, nextColour, TASK_STATUS_LABEL, type Epic } from "@shared/epics.ts";
@@ -339,7 +340,7 @@ export function MiniTicket({ task: t, epic, today, disabled, onOpen, onUnfile, l
   const Tag = ghost ? "div" : "li";
   return (
     <Tag {...(li as HTMLAttributes<HTMLElement>)} data-slip={ghost ? undefined : t.id}
-      className={`docket docket-today mini-ticket fit-${fitOf(t.title)}${high ? " is-high" : ""}${blocked ? " is-blocked" : ""}${lifted ? " is-lifted" : ""}${ghost ? " is-ghost" : ""}`}>
+      className={`docket docket-today mini-ticket fit-${fitOf(t.title)}${high ? " is-high" : ""}${blocked ? " is-blocked" : ""}${assignedToClaude(t) ? " is-claude" : ""}${lifted ? " is-lifted" : ""}${ghost ? " is-ghost" : ""}`}>
       <div className="dk-paper">
         <article className="dk-print" aria-label={t.title}>
           <p className="dk-head">

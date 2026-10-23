@@ -87,6 +87,7 @@ const Fields = z.object({
     return a ?? undefined;
   }).optional(),
   claude_status: z.unknown().transform((v, ctx) => {
+    if (v === null) return null; // clears it: the task leaves Claude's lanes
     const c = normClaudeStatus(v);
     if (c === null && v != null && String(v).trim() !== "") {
       ctx.addIssue({ code: "custom", message: `claude_status must be ${CLAUDE_STATUSES.join(", ")}` });
@@ -212,6 +213,7 @@ export const EpicInput = z.object({
   priority: strictPriority.optional(),
   status: z.enum(EPIC_STATUSES).optional(),
   colour: z.enum(EPIC_COLOURS).nullish(),
+  repo: z.string().trim().max(200).nullish(),
 });
 export const EpicPatch = EpicInput.partial().extend({ sort_order: z.number().optional() });
 
@@ -221,7 +223,7 @@ export function parseEpic(input: unknown) {
   const v = r.data;
   return {
     title: v.title, description: v.description ?? null, priority: v.priority ?? null, status: v.status ?? "planned" as const,
-    colour: v.colour,
+    colour: v.colour, repo: v.repo || null,
   };
 }
 

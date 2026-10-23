@@ -17,7 +17,7 @@ export function EpicSheet({ epic, colour, offline = false, onSave, onDelete, onC
   const opener = useRef<Element | null>(document.activeElement);
   const [f, setF] = useState({
     title: epic?.title ?? "", description: epic?.description ?? "", priority: epic?.priority ?? "", status: epic?.status ?? "active",
-    colour: epic?.colour ?? colour ?? "",
+    colour: epic?.colour ?? colour ?? "", repo: epic?.repo ?? "",
   });
   const [invalid, setInvalid] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => {
@@ -43,7 +43,7 @@ export function EpicSheet({ epic, colour, offline = false, onSave, onDelete, onC
     onSave({
       title, description: f.description.trim() || null,
       priority: (f.priority || null) as Epic["priority"], status: f.status as Epic["status"],
-      colour: (f.colour || null) as Epic["colour"],
+      colour: (f.colour || null) as Epic["colour"], repo: f.repo.trim() || null,
     });
     onClose();
   };
@@ -70,6 +70,10 @@ export function EpicSheet({ epic, colour, offline = false, onSave, onDelete, onC
         <label className="sheet-field">
           <span>Description</span>
           <textarea rows={4} value={f.description} onChange={set("description")} maxLength={2000} />
+        </label>
+        <label className="sheet-field">
+          <span>Repo</span>
+          <input value={f.repo} onChange={set("repo")} autoComplete="off" maxLength={200} placeholder="owner/name" />
         </label>
         <div className="sheet-pair">
           <label className="sheet-field">

@@ -25,6 +25,7 @@ export interface Epic {
   status: EpicStatus;
   sort_order: number;
   colour?: EpicColour | null; // missing on epics made before colours
+  repo?: string | null; // the repository its work lands in (owner/name or a URL)
 }
 
 // A new epic takes the first colour no open epic is using, then goes round again.
