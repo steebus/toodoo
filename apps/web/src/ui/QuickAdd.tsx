@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPoin
 import type { Epic } from "@shared/epics.ts";
 import { addDays } from "@shared/planning.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
+import { ATTACH_MAX_FILES } from "@shared/attachments.ts";
 import type { NewTask } from "../lib/useActions";
 import { CalendarIcon, ClaudeStamp, ClockIcon } from "./icons";
 
@@ -10,6 +11,8 @@ export const launch: { from: DOMRect | null; at: number } = { from: null, at: 0 
 
 type Props = {
   today: string; nowM: number; initial?: string; onAdd?: (t: NewTask, line: string) => Promise<boolean>; disabled?: boolean;
+  // Given, Ctrl+Enter files the line and opens the new ticket (onOpen), and pictures pasted into the line ride along.
+  onCreate?: (t: NewTask, files: File[]) => Promise<string | null>; onOpen?: (id: string) => void;
   epics?: Pick<Epic, "id" | "title" | "status" | "colour">[]; // for +epic
   tools?: boolean; // the phone's add sheet: a row of dials that write the grammar for you
   onExpand?: (line: string) => void; // a swipe up on the add area: carry what is typed to a full, blank ticket
@@ -104,12 +107,14 @@ function DialButton({ dial, at, typed, disabled, onTurn }: { dial: Dial; at: num
 }
 
 // Parses as you type and shows what it understood. Enter files it; a line with no title is not filed.
-export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [], tools = false, tags = [], onExpand }: Props) {
+export function QuickAdd({ today, nowM, initial = "", onAdd, onCreate, onOpen, disabled, epics = [], tools = false, tags = [], onExpand }: Props) {
   const [line, setLine] = useState(initial);
   const [invalid, setInvalid] = useState(false);
   const parsed = parseQuickAdd(line, today, nowM, epics);
   const input = useRef<HTMLInputElement>(null);
   const [fed, setFed] = useState(0);
+  const [files, setFiles] = useState<File[]>([]); // pasted pictures, held here and filed once the task exists
+  const openAfter = useRef(false);
   const typing = /(?:^|\s)#(\S+)$/.exec(line)?.[1].toLowerCase();
   const typingAt = /(?:^|\s)@([a-z]*)$/i.exec(line)?.[1].toLowerCase();
   const offer = typing ? tags.find((t) => t.startsWith(typing) && t !== typing)
@@ -123,20 +128,27 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
   const swipe = useRef<{ x: number; y: number } | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    const open = openAfter.current;
+    openAfter.current = false;
     if (!line.trim()) return setInvalid(true);
     if (!parsed.title.trim()) return setInvalid(true);
     const typed = line;
     if (input.current) Object.assign(launch, { from: input.current.getBoundingClientRect(), at: Date.now() });
     setFed((n) => n + 1); // the printer feeds a slip out of the slot
+    const held = files;
     setLine("");
+    setFiles([]);
     setInvalid(false);
-    void onAdd?.({
+    const task: NewTask = {
       title: parsed.title, due: parsed.due, time: parsed.time, priority: parsed.priority,
       tags: parsed.tags, estimate_mins: parsed.estimate_mins, source: "you", ...(parsed.epic_id ? { epic_id: parsed.epic_id } : null),
       ...(parsed.assignee ? { assignee: parsed.assignee } : null),
       ...(parsed.description ? { description: parsed.description } : null),
       ...(parsed.checklist.length ? { checklist: parsed.checklist } : null),
-    }, typed).then((ok) => ok || setLine((cur) => cur || typed));
+    };
+    const undo = () => { setLine((cur) => cur || typed); setFiles((cur) => (cur.length ? cur : held)); };
+    if (onCreate) void onCreate(task, held).then((id) => (id ? open && onOpen?.(id) : undo()));
+    else void onAdd?.(task, typed).then((ok) => ok || undo());
   };
 
   return (
@@ -163,7 +175,19 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
           setLine(e.target.value);
           setInvalid(false);
         }}
+        onPaste={onCreate && ((e) => {
+          const pics = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+          if (!pics.length) return;
+          e.preventDefault();
+          setFiles((cur) => [...cur, ...pics].slice(0, ATTACH_MAX_FILES));
+        })}
         onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && onCreate && onOpen) {
+            e.preventDefault();
+            openAfter.current = true;
+            e.currentTarget.form?.requestSubmit();
+            return;
+          }
           const atEnd = e.currentTarget.selectionStart === line.length;
           if (offer && atEnd && (e.key === "Tab" || e.key === "ArrowRight") && !e.shiftKey) {
             e.preventDefault();
@@ -189,6 +213,16 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
             <ClaudeStamp className="chip-icon" />
           </button>
         </div>
+      )}
+      {files.length > 0 && (
+        <ul className="r-chips chips" aria-label="Pasted pictures">
+          {files.map((f, i) => (
+            <li key={i} className="chip">
+              {f.name || "image"}
+              <button type="button" aria-label={`Remove ${f.name || "image"}`} onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))}>×</button>
+            </li>
+          ))}
+        </ul>
       )}
       {(!tools || offer) && ( // the phone's dials already show what was understood
       <ParsedChips parsed={tools ? { ...parsed, chips: [] } : parsed} epics={epics} className="r-chips chips">

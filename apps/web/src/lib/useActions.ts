@@ -8,6 +8,7 @@ import type { BoardData } from "../ui/types";
 import { useNoNetwork, useOffline } from "./offline";
 import * as opt from "./optimistic";
 import { isOptimistic, type Store } from "./optimistic";
+import { useAttach } from "./upload";
 
 export { isOptimistic };
 
@@ -34,6 +35,8 @@ export type Actions = {
   toast: ToastData | null;
   dismiss: () => void;
   add: (t: NewTask) => Promise<boolean>;
+  // The same, handing back the new task's id (null: not added), with files (pasted into the add line) filed on it.
+  create: (t: NewTask, files?: File[]) => Promise<string | null>;
   tick: (id: string, done: boolean) => void;
   remove: (id: string) => void;
   save: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
@@ -111,22 +114,30 @@ export function useActions(board: BoardData): Actions {
     return res?.created?.length ? null : "nothing was created";
   };
 
-  const add = useCallback(
-    async (t: NewTask) => {
+  const attach = useAttach();
+  const create = useCallback(
+    async (t: NewTask, files: File[] = []) => {
       try {
-        const bad = rejection(await addTasks({ tasks: [t] }));
+        const r = await addTasks({ tasks: [t] });
+        const bad = rejection(r);
         if (bad) {
           show({ kind: "error", message: `Couldn't add that: ${bad}` });
-          return false;
+          return null;
         }
-        return true;
+        const id = (r as { created: { id: string }[] }).created[0].id;
+        for (const f of files) {
+          const err = await attach(id, f);
+          if (err) show({ kind: "error", message: err });
+        }
+        return id;
       } catch (e) {
         fail("Couldn't add that", e);
-        return false;
+        return null;
       }
     },
-    [addTasks, fail, show],
+    [addTasks, attach, fail, show],
   );
+  const add = useCallback(async (t: NewTask) => (await create(t)) !== null, [create]);
 
   const tick = useCallback(
     (id: string, done: boolean) => {
@@ -402,7 +413,7 @@ export function useActions(board: BoardData): Actions {
 
   return {
     offline, unsaved, away, toast, dismiss, prep: gate(prep, Promise.resolve()),
-    add: gate(add, Promise.resolve(false)), tick: gate(tick, undefined), remove: gate(remove, undefined),
+    add: gate(add, Promise.resolve(false)), create: gate(create, Promise.resolve(null)), tick: gate(tick, undefined), remove: gate(remove, undefined),
     save: gate(save, Promise.resolve(false)), place: gate(place, undefined), unplace: gate(unplace, undefined),
     addAndPlace: gate(addAndPlace, Promise.resolve(false)), reorder: gate(reorder, undefined), shift: gate(shift, undefined),
     planTasks: gate(planTasks, Promise.resolve()), autoPlan: gate(autoPlan, Promise.resolve()),

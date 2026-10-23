@@ -22,6 +22,7 @@ type Props = {
   quickAdd?: string;
   onSignOut?: () => void;
   onAdd?: (t: NewTask) => Promise<boolean>;
+  onCreate?: (t: NewTask, files: File[]) => Promise<string | null>;
   onOpen?: (id: string) => void;
   onTick?: (id: string, done: boolean) => void;
   onPlan?: (id: string) => void;
@@ -83,7 +84,7 @@ function useAddFlight(groups: GroupData[], scroll: React.RefObject<HTMLElement |
   return { view, hidden };
 }
 
-export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onOpen, onTick, onPlan, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false }: Props) {
+export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOut, onAdd, onCreate, onOpen, onTick, onPlan, dnd, compact = false, offline = false, arrivals = NO_ARRIVALS, onTomorrow, swipe = false }: Props) {
   const [comingOpen, setComingOpen] = useState(false);
   const [laterOpen, setLaterOpen] = useState(false);
   const [doneOpen, toggleDone] = useDoneOpen();
@@ -100,7 +101,7 @@ export function TodoPanel({ model, today, nowM, view, onView, quickAdd, onSignOu
   return (
     <section id="todo" className={`todo${compact ? " is-compact" : ""}`} aria-labelledby="todo-title">
       <h2 id="todo-title" className="sr-only">To do</h2>
-      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} disabled={offline} epics={model.epics} tags={model.tags} />
+      <QuickAdd today={today} nowM={nowM} initial={quickAdd} onAdd={onAdd} onCreate={onCreate} onOpen={onOpen} disabled={offline} epics={model.epics} tags={model.tags} />
       {/* Changing between the rails and the Focus column crossfades the two forms. */}
       <AnimatePresence initial={false}>
         <m.div

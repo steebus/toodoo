@@ -153,6 +153,7 @@ export function Hero({ board, quickAdd, actions, nav }: Props) {
             onView={setView}
             quickAdd={quickAdd}
             onAdd={actions?.add}
+            onCreate={actions?.create}
             onOpen={showTask}
             onTick={actions?.tick}
             onPlan={actions && !offline ? ((id) => void actions.planTasks([id], board.date)) : undefined}
