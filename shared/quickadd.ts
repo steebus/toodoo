@@ -25,7 +25,7 @@ const dayMonth = (day: number, mon: number, year: string, today: string): string
   return pick(+year + 1);
 };
 
-type Chip = { kind: "date" | "time" | "priority" | "tag" | "estimate" | "epic" | "assignee"; text: string };
+type Chip = { kind: "date" | "time" | "priority" | "tag" | "estimate" | "epic" | "assignee" | "description" | "checklist"; text: string };
 type EpicRef = { id: string; title: string; status?: string };
 
 // "+launch" or "+web-re" picks the open epic whose title, or one of its words, starts that way.
@@ -48,11 +48,27 @@ export function parseQuickAdd(input: string, today: string, _nowM: number, epics
   const tags: string[] = [];
   const chips: Chip[] = [];
   const keep: string[] = [];
+  // "text in quotes" is the description (the first pair; an unclosed quote is left in the title).
+  let description: string | null = null;
+  const quoted = /["\u201c]([^"\u201c\u201d]+)["\u201d]/.exec(input);
+  if (quoted && quoted[1].trim()) {
+    description = quoted[1].trim();
+    chips.push({ kind: "description", text: description.length > 24 ? description.slice(0, 23) + "…" : description });
+    input = input.slice(0, quoted.index) + " " + input.slice(quoted.index + quoted[0].length);
+  }
+  const checklist: { text: string; done: boolean }[] = [];
   const words = input.trim().split(/\s+/).filter(Boolean);
   const year = today.slice(0, 4);
   for (let i = 0; i < words.length; i++) {
     const w = words[i], l = w.toLowerCase();
     let m: RegExpExecArray | null;
+    // "-first item -second item": from the first dash word to the end, each dash starts a checklist item.
+    if (/^-[^\s\d-]/.test(w) || (checklist.length && /^-\S/.test(w))) {
+      checklist.push({ text: w.slice(1), done: false });
+      while (i + 1 < words.length && !/^-\S/.test(words[i + 1])) checklist[checklist.length - 1].text += " " + words[++i];
+      chips.push({ kind: "checklist", text: checklist[checklist.length - 1].text });
+      continue;
+    }
     // "at" before a time / "on" before a date: absorbed into the chip when it directly precedes the token.
     const lead = (word: string) => {
       const last = keep[keep.length - 1];
@@ -108,5 +124,5 @@ export function parseQuickAdd(input: string, today: string, _nowM: number, epics
     }
     keep.push(w);
   }
-  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, epic_id, assignee, chips };
+  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, epic_id, assignee, description, checklist, chips };
 }

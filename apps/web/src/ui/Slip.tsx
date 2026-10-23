@@ -149,6 +149,7 @@ export function LaneAdd({ today, label, extra, onAdd, disabled, epics }: {
     void onAdd({
       title: p.title, due: p.due, time: p.time, priority: p.priority, tags: p.tags, estimate_mins: p.estimate_mins, ...extra,
       ...(p.epic_id ? { epic_id: p.epic_id } : null), ...(p.assignee ? { assignee: p.assignee } : null),
+      ...(p.description ? { description: p.description } : null), ...(p.checklist.length ? { checklist: p.checklist } : null),
     }).then((ok) => ok || setLine((cur) => cur || typed));
   };
   return (

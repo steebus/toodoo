@@ -711,7 +711,8 @@
   border: 1px dashed transparent; border-radius: 2px; cursor: pointer;
 }
 .tk-epic select:hover, .tk-epic select:focus-visible { border-color: color-mix(in srgb, var(--paper-ink) 45%, var(--paper)); outline: none; }
-.tk-epic select option { color: initial; background: initial; }
+.tk-epic select { color-scheme: inherit; }
+.tk-epic select option { color: var(--paper-ink); background: var(--paper); } /* the open list in the slip's own colours, light or dark */
 .tk-link { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; font-size: 14px; }
 .tk-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .tk-tag { display: inline-flex; align-items: center; gap: 2px; }

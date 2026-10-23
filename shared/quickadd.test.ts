@@ -136,3 +136,26 @@ describe("+epic", () => {
     expect(parseQuickAdd("1 +1 = 2", "2026-10-12", 0, epics)).toMatchObject({ title: "1 +1 = 2", epic_id: null });
   });
 });
+
+describe("parseQuickAdd description and checklist", () => {
+  it("takes text in quotes as the description", () => {
+    expect(p('Call Sam "about the quote and invoice" tomorrow')).toMatchObject({
+      title: "Call Sam", description: "about the quote and invoice", due: "2026-10-13",
+    });
+    expect(p("Call Sam").description).toBeNull();
+    expect(p('Say "hi').title).toBe('Say "hi');
+  });
+  it("turns each dash word into a checklist item running to the next dash", () => {
+    const r = p("Pack bag -passport and visa -charger -socks");
+    expect(r.title).toBe("Pack bag");
+    expect(r.checklist).toEqual([
+      { text: "passport and visa", done: false }, { text: "charger", done: false }, { text: "socks", done: false },
+    ]);
+  });
+  it("leaves a spaced dash and negative numbers in the title", () => {
+    expect(p("Plan - draft 3 -5 degrees").checklist).toEqual([]);
+  });
+  it("lets a quoted dash stay in the description", () => {
+    expect(p('Fix "use -f flag" -test it')).toMatchObject({ description: "use -f flag", checklist: [{ text: "test it", done: false }] });
+  });
+});

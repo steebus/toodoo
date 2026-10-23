@@ -111,9 +111,12 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
   const input = useRef<HTMLInputElement>(null);
   const [fed, setFed] = useState(0);
   const typing = /(?:^|\s)#(\S+)$/.exec(line)?.[1].toLowerCase();
-  const offer = typing ? tags.find((t) => t.startsWith(typing) && t !== typing) : undefined;
+  const typingAt = /(?:^|\s)@([a-z]*)$/i.exec(line)?.[1].toLowerCase();
+  const offer = typing ? tags.find((t) => t.startsWith(typing) && t !== typing)
+    : typingAt !== undefined && "claude".startsWith(typingAt) && typingAt !== "claude" ? "claude" : undefined;
+  const offerMark = typing ? "#" : "@";
   const takeOffer = () => {
-    setLine((l) => l.replace(/#\S*$/, `#${offer} `));
+    setLine((l) => l.replace(/[#@]\S*$/, `${offerMark}${offer} `));
     input.current?.focus();
   };
 
@@ -131,6 +134,8 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
       title: parsed.title, due: parsed.due, time: parsed.time, priority: parsed.priority,
       tags: parsed.tags, estimate_mins: parsed.estimate_mins, source: "you", ...(parsed.epic_id ? { epic_id: parsed.epic_id } : null),
       ...(parsed.assignee ? { assignee: parsed.assignee } : null),
+      ...(parsed.description ? { description: parsed.description } : null),
+      ...(parsed.checklist.length ? { checklist: parsed.checklist } : null),
     }, typed).then((ok) => ok || setLine((cur) => cur || typed));
   };
 
@@ -178,14 +183,19 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, disabled, epics = [
                 onTurn={(i) => { setLine((l) => setWord(l, d.re, i < 0 ? null : d.stops[i].word)); setInvalid(false); }} />
             );
           })}
+          <button type="button" className="qa-tool qa-claude" disabled={disabled} aria-pressed={parsed.assignee === "claude"} aria-label="Assign to Claude"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => { setLine((l) => toggleWord(l, "@claude", /^@claude$/i)); setInvalid(false); }}>
+            <ClaudeStamp className="chip-icon" />
+          </button>
         </div>
       )}
       {(!tools || offer) && ( // the phone's dials already show what was understood
       <ParsedChips parsed={tools ? { ...parsed, chips: [] } : parsed} epics={epics} className="r-chips chips">
         {offer && (
           <li className="chip chip-offer">
-            <button type="button" aria-label={`Use tag ${offer}`} onPointerDown={(e) => e.preventDefault()} onClick={takeOffer}>
-              #{offer}<kbd aria-hidden>⇥</kbd>
+            <button type="button" aria-label={`Use ${offerMark === "#" ? "tag" : ""} ${offerMark}${offer}`.replace("  ", " ")} onPointerDown={(e) => e.preventDefault()} onClick={takeOffer}>
+              {offerMark}{offer}<kbd aria-hidden>⇥</kbd>
             </button>
           </li>
         )}
