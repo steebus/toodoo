@@ -33,7 +33,7 @@ export function asConvexError(e: unknown): never {
   throw e;
 }
 
-const toTask = (d: Doc<"tasks">): FullTask => ({
+export const toTask = (d: Doc<"tasks">): FullTask => ({
   id: d._id, title: d.title, due: d.due, time: d.time, priority: d.priority, estimate_mins: d.estimate_mins,
   done: d.done, done_on: d.done_on, sort_order: d.sort_order, source: d.source, external_id: d.external_id,
   tags: d.tags, link: d.link, note: d.note, description: d.description,

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUser } from "./lib/user";
 import * as m from "./model";
@@ -13,6 +13,25 @@ const at = (n?: number) => (n === undefined ? undefined : new Date(n));
 export const getSnapshot = query({
   args: { date, query: v.optional(v.string()), now },
   handler: async (ctx, { now, ...a }) => m.snapshot(ctx.db, await requireUser(ctx), a, at(now)),
+});
+// One task in full (description, note, checklist, link) with its files and an address to fetch each by. The snapshot
+// leaves description and files out on purpose: they cost tokens for every task, so they are asked for per task.
+export const getTask = query({
+  args: { id: v.string() },
+  handler: async (ctx, { id }) => {
+    const userId = await requireUser(ctx);
+    const doc = await m.ownedTask(ctx.db, userId, id);
+    if (!doc) throw new ConvexError({ code: "not_found", message: "task not found" });
+    const task = m.toTask(doc!);
+    const epic = doc!.epic_id ? await ctx.db.get(doc!.epic_id) : null;
+    const files = await ctx.db.query("attachments").withIndex("by_task", (q) => q.eq("task_id", doc!._id)).collect();
+    return {
+      ...task, epic: epic?.title ?? null, epic_repo: epic?.repo ?? null,
+      attachments: await Promise.all(files.map(async (f) => ({
+        name: f.name, type: f.type, size: f.size, url: await ctx.storage.getUrl(f.storage_id),
+      }))),
+    };
+  },
 });
 export const suggest = query({
   args: { date, limit: v.optional(v.number()), now },

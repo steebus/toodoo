@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import { listBySource } from "./model";
+import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
 const setup = () => convexTest(schema, modules).withIdentity({ subject: "user_steve" });
@@ -252,4 +253,18 @@ it("a task that only carries #claude still finishes as before (done stays done) 
   expect(r).not.toHaveProperty("moved_to_review");
   const tagged: any = await t.query(api.agent.getSnapshot, { query: "#claude", now: Date.now() });
   expect(tagged.tasks.undated.map((x: any) => x.title)).toEqual(["Parked"]);
+});
+
+it("get_task gives one task in full with its files, and only to its owner", async () => {
+  const t = setup();
+  const r = await t.mutation(api.agent.addTasks, { tasks: [{ title: "Clip", description: "Grow to fit", note: "n" }] });
+  const id = r.created[0].id as string;
+  const storage_id = await t.run((ctx) => ctx.storage.store(new Blob(["png"], { type: "image/png" }))) as Id<"_storage">;
+  await t.mutation(api.attachments.add, { task_id: id, storage_id, name: "image.png", type: "image/png" });
+  const got = await t.query(api.agent.getTask, { id });
+  expect(got).toMatchObject({ title: "Clip", description: "Grow to fit", note: "n" });
+  expect(got.attachments).toMatchObject([{ name: "image.png", type: "image/png" }]);
+  expect(got.attachments[0].url).toMatch(/^https?:/);
+  await expect(t.query(api.agent.getTask, { id: "nope" })).rejects.toThrow(/not found/);
+  await expect(convexTest(schema, modules).withIdentity({ subject: "other" }).query(api.agent.getTask, { id })).rejects.toThrow();
 });

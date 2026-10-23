@@ -52,6 +52,7 @@ async function updateTask(ctx: ActionCtx, a: any) {
 function callTool(ctx: ActionCtx, name: string, a: any): Promise<unknown> {
   switch (name) {
     case "get_snapshot": return ctx.runQuery(api.agent.getSnapshot, { ...pick(a, ["date", "query"]), now: Date.now() });
+    case "get_task": return ctx.runQuery(api.agent.getTask, { id: String(a?.id ?? "") });
     case "add_tasks": return ctx.runMutation(api.agent.addTasks, { tasks: Array.isArray(a?.tasks) ? a.tasks : [] });
     case "propose_tasks": return ctx.runMutation(api.inbox.proposeTasks, { tasks: Array.isArray(a?.tasks) ? a.tasks.slice(0, 100) : [] });
     case "update_task": return updateTask(ctx, a);
