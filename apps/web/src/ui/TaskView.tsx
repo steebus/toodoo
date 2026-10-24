@@ -10,6 +10,7 @@ import { normLink, parseTags } from "@shared/validation.ts";
 import { assignedToClaude, CLAUDE_STATUS_LABEL, CLAUDE_STATUSES, claudeColumn } from "@shared/assign.ts";
 import { Attachments } from "./Attachments";
 import { Checklist } from "./Checklist";
+import { Notes } from "./Notes";
 import { shortDate } from "./format";
 import { CloseIcon, PenProgress, PenTick } from "./icons";
 import { KitchenTimer } from "./KitchenTimer";
@@ -152,8 +153,10 @@ export function TaskView({
           display={t.description} onSave={(v) => save({ description: v.trim() || null })} />
         <Checklist items={t.checklist ?? []} onChange={(checklist) => void save({ checklist })} disabled={offline} />
         {!creating && !isOptimistic(t.id) && <Attachments taskId={t.id} disabled={offline} />}
-        <Field label="Note" kind="text" value={t.note ?? ""} placeholder="+ Note" className="tk-note"
-          display={t.note} onSave={(v) => save({ note: v.trim() || null })} />
+        {creating || isOptimistic(t.id)
+          ? <Field label="Note" kind="text" value={t.note ?? ""} placeholder="+ Note" className="tk-note"
+              display={t.note} onSave={(v) => save({ note: v.trim() || null })} />
+          : <Notes taskId={t.id} legacy={t.note} disabled={offline} />}
         <div className="tk-link">
           {t.link && <a href={t.link} target="_blank" rel="noreferrer">{t.link.replace(/^https?:\/\//, "")}</a>}
           <Field label="Link" value={t.link ?? ""} placeholder={t.link ? "EDIT" : "+ Link"} display={null}

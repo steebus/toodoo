@@ -118,6 +118,12 @@ export default defineSchema({
     user_id: v.string(), task_id: v.id("tasks"), storage_id: v.id("_storage"),
     name: v.string(), type: v.string(), size: v.number(), created_at: v.number(),
   }).index("by_task", ["task_id"]),
+  // Notes on a task, as comments: one level of replies (parent_id is always a top-level note). The task's own `note`
+  // mirrors the latest one, which is what its docket previews.
+  notes: defineTable({
+    user_id: v.string(), task_id: v.id("tasks"), parent_id: v.optional(v.id("notes")),
+    author: v.union(v.literal("steve"), v.literal("claude")), text: v.string(), created_at: v.number(),
+  }).index("by_task", ["task_id"]),
   plan_blocks: defineTable({
     user_id: v.string(), date: v.string(), task_id: v.id("tasks"), start: v.string(), mins: v.number(),
   })

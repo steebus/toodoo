@@ -22,6 +22,7 @@ import type * as lib_user from "../lib/user.js";
 import type * as mcp from "../mcp.js";
 import type * as me from "../me.js";
 import type * as model from "../model.js";
+import type * as notes from "../notes.js";
 import type * as push from "../push.js";
 import type * as pushSend from "../pushSend.js";
 import type * as rest from "../rest.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   mcp: typeof mcp;
   me: typeof me;
   model: typeof model;
+  notes: typeof notes;
   push: typeof push;
   pushSend: typeof pushSend;
   rest: typeof rest;

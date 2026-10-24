@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { FullTask } from "@shared/snapshot.ts";
 
 const files = vi.hoisted(() => ({
+  notes: [] as { id: string; parent_id: string | null; author: "steve" | "claude"; text: string; created_at: number }[],
   list: [] as { id: string; name: string; type: string; size: number; created_at: number; url: string }[],
   calls: [] as [string, unknown][],
 }));
@@ -11,7 +12,7 @@ vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
   return {
     useMutation: (ref: never) => (args: unknown) => { files.calls.push([getFunctionName(ref), args]); return Promise.resolve({}); },
-    useQuery: (_q: unknown, a: { id?: string; task_id?: string }) => a?.task_id ? files.list : a?.id
+    useQuery: (q: never, a: { id?: string; task_id?: string }) => a?.task_id ? (getFunctionName(q) === "notes:list" ? files.notes : files.list) : a?.id
     ? [{ id: "b1", date: "2026-10-14", start: "10:00", mins: 30 }, { id: "b2", date: "2026-10-16", start: "14:00", mins: 60 }]
     : [
       { date: "2026-10-15", start: "09:15", end: "09:45", title: "Croozn standup", where: null },
@@ -22,7 +23,7 @@ vi.mock("convex/react", async () => {
 
 import { TaskView } from "./TaskView";
 
-afterEach(() => { cleanup(); files.list = []; files.calls = []; });
+afterEach(() => { cleanup(); files.list = []; files.notes = []; files.calls = []; });
 const T = "2026-10-15";
 const card = (o: Partial<FullTask> = {}): FullTask => ({
   id: "t1", title: "Demo script", due: null, time: null, priority: null, estimate_mins: null, done: false, done_on: null, sort_order: 1,
@@ -124,4 +125,25 @@ it("shows Claude's columns for a task assigned to it, and Steve's otherwise", as
   rerender(<TaskView task={card({ assignee: "steve", status: "doing" })} today={T} onSave={onSave} onClose={() => {}} />);
   expect(col().queryByRole("button", { name: "ESCALATED" })).toBeNull();
   expect(col().getByRole("button", { name: "DOING" })).toHaveAttribute("aria-pressed", "true");
+});
+
+it("shows notes as comments with replies one level deep, and files a reply under its note", async () => {
+  files.notes = [
+    { id: "n1", parent_id: null, author: "steve", text: "Check the demo data", created_at: 1 },
+    { id: "n2", parent_id: "n1", author: "claude", text: "Done, seeded", created_at: 2 },
+  ];
+  render(<TaskView task={card()} today={T} onClose={() => {}} onSave={async () => true} />);
+  const notes = screen.getByRole("region", { name: "Notes" });
+  expect(within(notes).getByText("Check the demo data")).toBeTruthy();
+  expect(within(notes).getByText("Done, seeded")).toBeTruthy();
+  expect(within(notes).getAllByRole("button", { name: "Reply" })).toHaveLength(1);
+  await userEvent.click(within(notes).getByRole("button", { name: "Reply" }));
+  await userEvent.type(within(notes).getByRole("textbox", { name: "Reply" }), "Thanks");
+  await userEvent.click(within(notes).getAllByRole("button", { name: "Reply" }).at(-1)!);
+  expect(files.calls).toContainEqual(["notes:add", { task_id: "t1", text: "Thanks", parent_id: "n1" }]);
+});
+
+it("shows a note from before threads as the first comment", () => {
+  render(<TaskView task={card({ note: "Old note" })} today={T} onClose={() => {}} onSave={async () => true} />);
+  expect(within(screen.getByRole("region", { name: "Notes" })).getByText("Old note")).toBeTruthy();
 });

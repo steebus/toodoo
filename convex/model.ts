@@ -215,7 +215,11 @@ export async function updateTask(
   }
   if (p.tags && doc.tags.includes(CLAUDE_TAG)) p.tags = withClaudeTag(p.tags as string[]);
   if (p.claude_status === null) p.claude_status = undefined; // undefined unsets the field
+  // A note from the agent is a comment on the thread, not a replacement of what Steve wrote.
+  const comment = byAgent && typeof p.note === "string" && p.note ? p.note : null;
+  if (byAgent && p.note !== undefined) delete p.note;
   await db.patch(doc._id, { ...(p as Partial<Doc<"tasks">>), updated_at: Date.now() });
+  if (comment) await addNote(db, doc, comment, "claude");
   const d = (await db.get(doc._id))!;
   return {
     id: d._id, title: d.title, due: d.due, time: d.time, priority: d.priority, done: d.done, done_on: d.done_on, tags: d.tags,
@@ -223,6 +227,27 @@ export async function updateTask(
     assignee: assignedToClaude(d) ? "claude" : "steve", claude_status: d.claude_status ?? null,
     ...(byAgent && doc.assignee === "claude" && d.assignee === "steve" && d.claude_status === "review" && !d.done ? { moved_to_review: true } : {}),
   };
+}
+
+// A comment on a task. A reply to a reply lands beside it (one level of depth). A note written before threads
+// (the task's bare `note`) becomes the thread's first comment the first time one is added.
+export async function addNote(db: W, task: Doc<"tasks">, text: string, author: "steve" | "claude", parent?: Id<"notes"> | null) {
+  const rows = await db.query("notes").withIndex("by_task", (q) => q.eq("task_id", task._id)).collect();
+  let at = Date.now();
+  if (!rows.length && task.note) {
+    await db.insert("notes", { user_id: task.user_id, task_id: task._id, author: "steve", text: task.note, created_at: at - 1 });
+  }
+  let pid: Id<"notes"> | undefined;
+  if (parent) {
+    const p = rows.find((r) => r._id === parent);
+    if (!p) throw new InputError("note not found");
+    pid = p.parent_id ?? p._id;
+  }
+  const clean = text.trim().slice(0, 2000);
+  if (!clean) throw new InputError("needs some text");
+  const id = await db.insert("notes", { user_id: task.user_id, task_id: task._id, author, text: clean, created_at: at, ...(pid ? { parent_id: pid } : {}) });
+  await db.patch(task._id, { note: clean.slice(0, 500), updated_at: at });
+  return id;
 }
 
 export async function setDay(db: W, userId: string, input: unknown) {
@@ -280,6 +305,7 @@ export async function deleteTask(db: W, userId: string, id: string, storage: Sto
     await storage.delete(a.storage_id);
     await db.delete(a._id);
   }
+  for (const n of await db.query("notes").withIndex("by_task", (q) => q.eq("task_id", doc._id)).collect()) await db.delete(n._id);
   await db.delete(doc._id);
   return { deleted: id };
 }
