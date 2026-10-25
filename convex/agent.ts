@@ -25,8 +25,14 @@ export const getTask = query({
     const task = m.toTask(doc!);
     const epic = doc!.epic_id ? await ctx.db.get(doc!.epic_id) : null;
     const files = await ctx.db.query("attachments").withIndex("by_task", (q) => q.eq("task_id", doc!._id)).collect();
+    // Every note and reply, oldest first. A task with only a pre-thread `note` has no rows: it is shown as one comment.
+    const rows = await ctx.db.query("notes").withIndex("by_task", (q) => q.eq("task_id", doc!._id)).collect();
+    const notes = rows.sort((x, y) => x.created_at - y.created_at).map((n) => ({
+      id: n._id as string, parent_id: (n.parent_id as string | undefined) ?? null, author: n.author, text: n.text, created_at: n.created_at,
+    }));
+    if (!notes.length && doc!.note) notes.push({ id: "legacy", parent_id: null, author: "steve", text: doc!.note, created_at: doc!.updated_at ?? 0 });
     return {
-      ...task, epic: epic?.title ?? null, epic_repo: epic?.repo ?? null,
+      ...task, epic: epic?.title ?? null, epic_repo: epic?.repo ?? null, notes,
       attachments: await Promise.all(files.map(async (f) => ({
         name: f.name, type: f.type, size: f.size, url: await ctx.storage.getUrl(f.storage_id),
       }))),

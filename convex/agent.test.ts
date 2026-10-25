@@ -263,6 +263,11 @@ it("get_task gives one task in full with its files, and only to its owner", asyn
   await t.mutation(api.attachments.add, { task_id: id, storage_id, name: "image.png", type: "image/png" });
   const got = await t.query(api.agent.getTask, { id });
   expect(got).toMatchObject({ title: "Clip", description: "Grow to fit", note: "n" });
+  expect(got.notes).toMatchObject([{ id: "legacy", parent_id: null, text: "n" }]);
+  const top = await t.mutation(api.notes.add, { task_id: id, text: "Top" });
+  await t.mutation(api.notes.add, { task_id: id, text: "Reply", parent_id: top.id });
+  const threaded = await t.query(api.agent.getTask, { id });
+  expect(threaded.notes.map((n: { text: string; parent_id: string | null }) => [n.text, n.parent_id])).toEqual([["n", null], ["Top", null], ["Reply", top.id]]);
   expect(got.attachments).toMatchObject([{ name: "image.png", type: "image/png" }]);
   expect(got.attachments[0].url).toMatch(/^https?:/);
   await expect(t.query(api.agent.getTask, { id: "nope" })).rejects.toThrow(/not found/);
