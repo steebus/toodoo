@@ -48,3 +48,12 @@ it("refuses empty text", async () => {
   const id = await task(t);
   await expect(t.mutation(api.notes.add, { task_id: id, text: "  " })).rejects.toThrow();
 });
+
+it("a first reply to a pre-thread note hangs under it", async () => {
+  const t = setup();
+  const id = await task(t, { note: "Old" });
+  const r = await t.mutation(api.notes.add, { task_id: id, text: "Re", parent_id: "legacy" });
+  const list = await t.query(api.notes.list, { task_id: id });
+  expect(list.map((n) => [n.text, n.parent_id])).toEqual([["Old", null], ["Re", list[0].id]]);
+  expect(r.parent_id).toBe(list[0].id);
+});

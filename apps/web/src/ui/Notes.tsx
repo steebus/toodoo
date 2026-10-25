@@ -26,7 +26,7 @@ export function Notes({ taskId, legacy = null, disabled = false }: Props) {
     if (!text.trim() || disabled) return false;
     setProblem(false);
     try {
-      await add({ task_id: taskId, text: text.trim(), ...(parent_id && parent_id !== "legacy" ? { parent_id } : {}) });
+      await add({ task_id: taskId, text: text.trim(), ...(parent_id ? { parent_id } : {}) });
       return true;
     } catch {
       setProblem(true);

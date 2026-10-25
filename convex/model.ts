@@ -231,14 +231,18 @@ export async function updateTask(
 
 // A comment on a task. A reply to a reply lands beside it (one level of depth). A note written before threads
 // (the task's bare `note`) becomes the thread's first comment the first time one is added.
-export async function addNote(db: W, task: Doc<"tasks">, text: string, author: "steve" | "claude", parent?: Id<"notes"> | null) {
+export async function addNote(db: W, task: Doc<"tasks">, text: string, author: "steve" | "claude", parent?: Id<"notes"> | "legacy" | null) {
   const rows = await db.query("notes").withIndex("by_task", (q) => q.eq("task_id", task._id)).collect();
   let at = Date.now();
+  let legacyId: Id<"notes"> | undefined;
   if (!rows.length && task.note) {
-    await db.insert("notes", { user_id: task.user_id, task_id: task._id, author: "steve", text: task.note, created_at: at - 1 });
+    legacyId = await db.insert("notes", { user_id: task.user_id, task_id: task._id, author: "steve", text: task.note, created_at: at - 1 });
   }
   let pid: Id<"notes"> | undefined;
-  if (parent) {
+  if (parent === "legacy") {
+    if (!legacyId) throw new InputError("note not found");
+    pid = legacyId; // replying to the pre-thread note: it becomes the first comment and this hangs under it
+  } else if (parent) {
     const p = rows.find((r) => r._id === parent);
     if (!p) throw new InputError("note not found");
     pid = p.parent_id ?? p._id;

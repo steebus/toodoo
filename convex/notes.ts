@@ -27,7 +27,7 @@ export const add = mutation({
   handler: async (ctx, a) => {
     const task = await m.ownedTask(ctx.db, await requireUser(ctx), a.task_id);
     if (!task) throw new ConvexError({ code: "not_found", message: "task not found" });
-    const parent = a.parent_id ? ctx.db.normalizeId("notes", a.parent_id) : null;
+    const parent = a.parent_id === "legacy" ? "legacy" : a.parent_id ? ctx.db.normalizeId("notes", a.parent_id) : null;
     if (a.parent_id && !parent) throw new ConvexError({ code: "not_found", message: "note not found" });
     const id = await m.addNote(ctx.db, task, a.text, "steve", parent).catch(m.asConvexError);
     return row((await ctx.db.get(id))!);
