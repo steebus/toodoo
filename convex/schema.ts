@@ -61,6 +61,8 @@ export default defineSchema({
   calendar_feeds: defineTable({
     user_id: v.string(), url: v.string(), synced_at: v.optional(v.number()), tried_at: v.optional(v.number()),
     error: v.optional(v.string()),
+    // The last good fetch (shared/calendars.ts) and the day its events were laid out, so the cron can skip an unchanged feed.
+    hash: v.optional(v.string()), etag: v.optional(v.string()), last_modified: v.optional(v.string()), synced_day: v.optional(v.string()),
     colour: v.optional(v.string()), // one of CAL_COLOURS (shared/calendars.ts); absent: graphite
   }).index("by_user", ["user_id"]),
   // Due-date reminders by Web Push. One phone or browser per row: each says yes for itself.

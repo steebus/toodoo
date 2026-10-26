@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalAction, type ActionCtx } from "./_generated/server";
 import { requireUser } from "./lib/user";
-import { dueNudges, type Nudge } from "../shared/notify.ts";
+import type { Nudge } from "../shared/notify.ts";
 
 // The VAPID pair the push services know this app by: made the first time anyone asks, then kept for good.
 async function vapid(ctx: ActionCtx): Promise<{ public_key: string; private_key: string }> {
@@ -50,23 +50,24 @@ export const test = action({
     if (!sub) throw new ConvexError({ code: "input", message: "this device isn't turned on" });
     const r = await send(ctx, { id: sub._id, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
       { title: "toodoo", body: "Reminders are on. This is how a due task will look.", url: "/", tag: "test" });
-    if (r === "gone") await ctx.runMutation(internal.push.roundDone, { users: [], now: Date.now(), gone: [sub._id] });
+    if (r === "gone") await ctx.runMutation(internal.push.dropSubs, { ids: [sub._id] });
     return r;
   },
 });
 
-// The cron: every task whose reminder falls since the last round, to every device its owner turned on.
-export const round = internalAction({
-  args: {},
-  handler: async (ctx): Promise<void> => {
-    const now = Date.now();
-    const work = await ctx.runQuery(internal.push.roundWork, { now });
+const nudge = v.object({ title: v.string(), body: v.string(), url: v.string(), tag: v.string() });
+const sub = v.object({ id: v.id("push_subs"), endpoint: v.string(), p256dh: v.string(), auth: v.string() });
+
+// A round's sending (push.round decides what and schedules this only when there is any): each nudge to each device.
+export const deliver = internalAction({
+  args: { work: v.array(v.object({ subs: v.array(sub), nudges: v.array(nudge) })) },
+  handler: async (ctx, { work }): Promise<void> => {
     const gone: Id<"push_subs">[] = [];
     for (const u of work) {
-      for (const n of dueNudges(u.tasks, u.prefs, u.from, now)) {
-        for (const s of u.subs) if ((await send(ctx, s, n)) === "gone" && !gone.includes(s.id)) gone.push(s.id);
+      for (const n of u.nudges) {
+        for (const s of u.subs) if (!gone.includes(s.id) && (await send(ctx, s, n)) === "gone") gone.push(s.id);
       }
     }
-    await ctx.runMutation(internal.push.roundDone, { users: work.map((u) => u.user_id), now, gone });
+    if (gone.length) await ctx.runMutation(internal.push.dropSubs, { ids: gone });
   },
 });

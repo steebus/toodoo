@@ -70,3 +70,32 @@ it("a calendar's colour goes out on its events (the feed id stays in), and the m
   expect((await t.query(api.agent.board, {})).day?.events).toEqual([{ start: "15:30", end: "16:00", title: "Dentist" }]);
   await expect(t.query(api.calendar.month, { from: "2026-01-01", until: "2026-10-31" })).rejects.toThrow(/two months/);
 });
+
+it("the cron's check leaves an unchanged feed to stand, and hands a changed one, or a new day, to the full sync", async () => {
+  const t = setup();
+  await t.mutation(api.calendar.addFeed, { url: URL_ });
+  const [row] = await t.run((ctx) => ctx.db.query("calendar_feeds").collect());
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(ICS, { headers: { etag: '"v1"' } })));
+  await t.action(internal.calendarSync.syncUser, { user_id: row.user_id });
+  const syncs = () => t.run(async (ctx) => (await ctx.db.system.query("_scheduled_functions").collect())
+    .filter((f) => f.name.includes("calendarSync")).length);
+  const before = await syncs(); // addFeed's own
+
+  const asked = vi.fn(async (_u: string, init?: RequestInit) =>
+    (init?.headers as Record<string, string>)["if-none-match"] === '"v1"' ? new Response(null, { status: 304 }) : new Response(ICS));
+  vi.stubGlobal("fetch", asked);
+  vi.setSystemTime(new Date("2026-10-12T02:30:00Z"));
+  await t.action(internal.calendar.checkUser, { user_id: row.user_id });
+  expect(asked).toHaveBeenCalledTimes(1);
+  expect(await syncs()).toBe(before);
+  expect((await t.run((ctx) => ctx.db.get(row._id)))?.synced_at).toBe(Date.now());
+
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(ICS.replace("Dentist", "Doctor"))));
+  await t.action(internal.calendar.checkUser, { user_id: row.user_id });
+  expect(await syncs()).toBe(before + 1);
+
+  vi.stubGlobal("fetch", asked);
+  vi.setSystemTime(new Date("2026-10-12T15:00:00Z")); // 01:00 the next day in Brisbane: the window has moved
+  await t.action(internal.calendar.checkUser, { user_id: row.user_id });
+  expect(await syncs()).toBe(before + 2);
+});

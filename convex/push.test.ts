@@ -20,6 +20,11 @@ vi.mock("web-push", () => {
 
 const modules = import.meta.glob("./**/*.ts");
 const setup = () => convexTest(schema, modules).withIdentity({ subject: "user_steve" });
+// A cron round, then whatever sending it scheduled.
+const round = async (t: ReturnType<typeof setup>) => {
+  await t.mutation(internal.push.round, {});
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+};
 const SUB = { endpoint: "https://push.example/phone", p256dh: "k", auth: "a" };
 
 beforeEach(() => {
@@ -42,14 +47,17 @@ it("a device turned on gets the morning's due tasks once, and a timed one its le
   expect(await t.query(api.push.status, { endpoint: SUB.endpoint })).toMatchObject({ subscribed: true, devices: 1 });
 
   vi.setSystemTime(new Date("2026-10-15T21:00:00Z")); // 07:00
-  await t.action(internal.pushSend.round, {});
+  await round(t);
   expect(sent.map((s) => JSON.parse(s.body).title)).toEqual(["Bins"]);
-  await t.action(internal.pushSend.round, {}); // nothing new in the window
+  const scheduled = () => t.run(async (ctx) => (await ctx.db.system.query("_scheduled_functions").collect()).length);
+  const before = await scheduled();
+  await round(t); // nothing new in the window
   expect(sent).toHaveLength(1);
+  expect(await scheduled()).toBe(before); // a quiet round leaves Node asleep
 
   await t.mutation(api.push.setPrefs, { lead_mins: 30 });
   vi.setSystemTime(new Date("2026-10-15T22:30:00Z")); // 08:30, Standup at 9 less 30 minutes
-  await t.action(internal.pushSend.round, {});
+  await round(t);
   expect(JSON.parse(sent[1].body)).toMatchObject({ title: "Standup · in 30m", body: "Due 9am", url: "/?date=2026-10-16" });
 });
 

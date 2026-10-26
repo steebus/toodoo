@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { requireUser } from "./lib/user";
-import { DEFAULT_REMIND_AT, LEAD_CHOICES, normTime, type Prefs } from "../shared/notify.ts";
+import { DEFAULT_REMIND_AT, dueNudges, LEAD_CHOICES, normTime, type Nudge, type Prefs } from "../shared/notify.ts";
 
 const MAX_SUBS = 10;
 const ROUND_MS = 5 * 60_000; // the cron's beat (crons.ts)
@@ -72,35 +73,34 @@ export const subFor = internalQuery({
   },
 });
 
-// A round's work: each user with a device, their devices, their open dated tasks and the window since the last round.
+// The cron, on the default runtime so a quiet round costs next to nothing: each user with a device, the reminders
+// falling since their last round. The window closes here; only a round with something to send wakes Node.
 // ponytail: reads every subscriber's open tasks each round; fine for one user, index by due if there are many
-export const roundWork = internalQuery({
-  args: { now: v.number() },
-  handler: async (ctx, { now }) => {
+export const round = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
     const subs = await ctx.db.query("push_subs").collect();
-    const users = [...new Set(subs.map((s) => s.user_id))];
-    return Promise.all(users.map(async (user_id) => {
+    const out: { subs: { id: Id<"push_subs">; endpoint: string; p256dh: string; auth: string }[]; nudges: Nudge[] }[] = [];
+    for (const user_id of new Set(subs.map((s) => s.user_id))) {
       const p = await ctx.db.query("push_prefs").withIndex("by_user", (q) => q.eq("user_id", user_id)).first();
       const open = await ctx.db.query("tasks").withIndex("by_user_done", (q) => q.eq("user_id", user_id).eq("done", false)).collect();
-      return {
-        user_id, prefs: prefsOf(p), from: p?.round_at ?? now - ROUND_MS,
-        subs: subs.filter((s) => s.user_id === user_id).map((s) => ({ id: s._id, endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth })),
-        tasks: open.filter((t) => t.due).map((t) => ({ id: t._id as string, title: t.title, due: t.due, time: t.time, done: t.done })),
-      };
-    }));
+      const tasks = open.filter((t) => t.due).map((t) => ({ id: t._id as string, title: t.title, due: t.due, time: t.time, done: t.done }));
+      const nudges = dueNudges(tasks, prefsOf(p), p?.round_at ?? now - ROUND_MS, now);
+      if (p) await ctx.db.patch(p._id, { round_at: now });
+      else await ctx.db.insert("push_prefs", { user_id, ...FRESH, round_at: now });
+      const mine = subs.filter((s) => s.user_id === user_id).map((s) => ({ id: s._id, endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }));
+      if (nudges.length) out.push({ subs: mine, nudges });
+    }
+    if (out.length) await ctx.scheduler.runAfter(0, internal.pushSend.deliver, { work: out });
   },
 });
 
-// A round sent: the window closes at `now`, and devices the push service has forgotten go.
-export const roundDone = internalMutation({
-  args: { users: v.array(v.string()), now: v.number(), gone: v.array(v.id("push_subs")) },
+// Devices the push service has forgotten go.
+export const dropSubs = internalMutation({
+  args: { ids: v.array(v.id("push_subs")) },
   handler: async (ctx, a) => {
-    for (const id of a.gone) if (await ctx.db.get(id)) await ctx.db.delete(id);
-    for (const user_id of a.users) {
-      const p = await ctx.db.query("push_prefs").withIndex("by_user", (q) => q.eq("user_id", user_id)).first();
-      if (p) await ctx.db.patch(p._id, { round_at: a.now });
-      else await ctx.db.insert("push_prefs", { user_id, ...FRESH, round_at: a.now });
-    }
+    for (const id of a.ids) if (await ctx.db.get(id)) await ctx.db.delete(id);
   },
 });
 

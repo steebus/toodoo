@@ -1,9 +1,10 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { requireUser } from "./lib/user";
-import { addDays, daysBetween } from "../shared/planning.ts";
-import { isCalColour, nextCalColour } from "../shared/calendars.ts";
+import { addDays, daysBetween, today } from "../shared/planning.ts";
+import { feedHash, isCalColour, MAX_FEED_BYTES, nextCalColour } from "../shared/calendars.ts";
 import { checkDate, colourEvents } from "./model";
 
 const MAX_FEEDS = 5;
@@ -85,13 +86,54 @@ export const month = query({
   },
 });
 
-// The cron: one sync per user with feeds, each in its own action so a slow feed holds up no one else.
+// The cron: one check per user with feeds, each in its own action so a slow feed holds up no one else.
 // ponytail: fans out every user each run; stagger or shard if there are thousands
 export const syncAll = internalMutation({
   args: {},
   handler: async (ctx) => {
     const users = new Set((await ctx.db.query("calendar_feeds").collect()).map((r) => r.user_id));
-    for (const user_id of users) await ctx.scheduler.runAfter(0, internal.calendarSync.syncUser, { user_id });
+    for (const user_id of users) await ctx.scheduler.runAfter(0, internal.calendar.checkUser, { user_id });
+  },
+});
+
+// Is this feed as it was at the last full sync? The server's 304, or failing that the same bytes.
+async function unchanged(r: Doc<"calendar_feeds">): Promise<boolean> {
+  const headers: Record<string, string> = { accept: "text/calendar" };
+  if (r.etag) headers["if-none-match"] = r.etag;
+  if (r.last_modified) headers["if-modified-since"] = r.last_modified;
+  try {
+    const res = await fetch(r.url, { headers });
+    if (res.status === 304) return true;
+    if (!res.ok) return false;
+    const text = await res.text();
+    return text.length <= MAX_FEED_BYTES && (await feedHash(text)) === r.hash;
+  } catch {
+    return false;
+  }
+}
+
+// The cron's look, on the default runtime: while every feed is unchanged and the day hasn't turned (the synced
+// window moves with it), the events stand and only synced_at moves. Otherwise the full sync, in Node, does the parse.
+export const checkUser = internalAction({
+  args: { user_id: v.string() },
+  handler: async (ctx, { user_id }) => {
+    const rows = await ctx.runQuery(internal.calendar.feedsOf, { user_id });
+    const t = today();
+    for (const r of rows) {
+      if (r.error || !r.hash || r.synced_day !== t || !(await unchanged(r))) {
+        await ctx.scheduler.runAfter(0, internal.calendarSync.syncUser, { user_id });
+        return;
+      }
+    }
+    await ctx.runMutation(internal.calendar.markSynced, { ids: rows.map((r) => r._id) });
+  },
+});
+
+export const markSynced = internalMutation({
+  args: { ids: v.array(v.id("calendar_feeds")) },
+  handler: async (ctx, a) => {
+    const now = Date.now();
+    for (const id of a.ids) if (await ctx.db.get(id)) await ctx.db.patch(id, { synced_at: now });
   },
 });
 
@@ -115,14 +157,21 @@ export const startSync = internalMutation({
 
 export const writeSync = internalMutation({
   args: {
-    user_id: v.string(), from: v.string(), until: v.string(), days: v.union(v.record(v.string(), v.array(ev)), v.null()),
-    results: v.array(v.object({ id: v.id("calendar_feeds"), error: v.optional(v.string()) })),
+    user_id: v.string(), day: v.string(), from: v.string(), until: v.string(), days: v.union(v.record(v.string(), v.array(ev)), v.null()),
+    results: v.array(v.object({
+      id: v.id("calendar_feeds"), error: v.optional(v.string()),
+      hash: v.optional(v.string()), etag: v.optional(v.string()), last_modified: v.optional(v.string()),
+    })),
   },
   handler: async (ctx, a) => {
     const now = Date.now();
     for (const r of a.results) {
       const row = await ctx.db.get(r.id);
-      if (row) await ctx.db.patch(r.id, r.error ? { error: r.error } : { synced_at: now, error: undefined });
+      if (!row) continue;
+      // synced_day only when the events were written: a day held back by another feed's failure isn't laid out.
+      await ctx.db.patch(r.id, r.error ? { error: r.error } : {
+        synced_at: now, error: undefined, hash: r.hash, etag: r.etag, last_modified: r.last_modified, synced_day: a.days ? a.day : undefined,
+      });
     }
     if (!a.days) return;
     const has = (await ctx.db.query("calendar_feeds").withIndex("by_user", (q) => q.eq("user_id", a.user_id)).first()) !== null;
