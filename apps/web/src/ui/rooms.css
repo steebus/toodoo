@@ -1352,7 +1352,6 @@ a.tk-file-name:hover { text-decoration: underline; }
 .tk-note-item.is-reply { margin-left: 18px; padding-left: 10px; border-left: 1px dashed color-mix(in srgb, var(--paper-ink) 40%, var(--paper)); }
 .tk-note-meta { margin: 0; font-size: 12px; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); }
 .tk-note-text { margin: 0; white-space: pre-line; overflow-wrap: anywhere; font-family: var(--font-hand); font-weight: 500; font-size: 22px; line-height: 1.15; color: var(--biro); }
-.tk-note-item[data-author="claude"] .tk-note-text { font-family: var(--font-print); font-size: 15px; line-height: 1.35; color: var(--paper-ink); }
 .tk-note-acts { display: flex; gap: 10px; }
 .tk-note-act { padding: 0; font: inherit; font-size: 12px; color: color-mix(in srgb, var(--paper-ink) 60%, var(--paper)); background: none; border: 0; cursor: pointer; text-decoration: underline; }
 .tk-note-act:hover, .tk-note-act:focus-visible { color: var(--biro); }
