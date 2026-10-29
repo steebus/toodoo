@@ -14,6 +14,7 @@ import { Notes } from "./Notes";
 import { shortDate } from "./format";
 import { CloseIcon, PenProgress, PenTick } from "./icons";
 import { KitchenTimer } from "./KitchenTimer";
+import { PlanIt } from "./PlanIt";
 import { isOptimistic } from "../lib/optimistic";
 import { openDay } from "../lib/useViewDate";
 
@@ -74,6 +75,7 @@ export function TaskView({
   const spent = progress?.spent ?? 0; // planned blocks gone by; the estimate is the task's own, so edits move the panel at once
   const creating = !!onCreate;
   const [filing, setFiling] = useState(false);
+  const [planning, setPlanning] = useState(false);
   // The column chips follow whoever it is assigned to: Claude's lane for Claude's tasks, Steve's otherwise.
   const column: string = assignedToClaude(t) ? claudeColumn(t) : t.claude_status === "review" ? "review" : t.status ?? "todo";
   const columns: [string, string, Record<string, unknown>][] = assignedToClaude(t)
@@ -188,7 +190,7 @@ export function TaskView({
               {t.done ? "Reopen" : "Done"}
             </button>
           )}
-          {onPlan && !t.done && <button type="button" className="tk-act" disabled={offline} onClick={act(onPlan)}>Plan it</button>}
+          {onPlan && !t.done && <button type="button" className="tk-act" disabled={offline} onClick={() => setPlanning(true)}>Plan it</button>}
           {onTomorrow && !t.done && t.due !== null && t.due <= today && <button type="button" className="tk-act" disabled={offline} onClick={act(onTomorrow)}>Tomorrow</button>}
           {onDelete && (
             <button type="button" className="tk-act tk-delete" disabled={offline} onClick={() => {
@@ -200,6 +202,7 @@ export function TaskView({
           )}
         </div>
       </article>
+      {planning && onPlan && <PlanIt task={t} today={today} onNextFree={act(onPlan)} onClose={() => setPlanning(false)} />}
     </dialog>
   );
 }

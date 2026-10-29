@@ -147,3 +147,14 @@ it("shows a note from before threads as the first comment", () => {
   render(<TaskView task={card({ note: "Old note" })} today={T} onClose={() => {}} onSave={async () => true} />);
   expect(within(screen.getByRole("region", { name: "Notes" })).getByText("Old note")).toBeTruthy();
 });
+
+it("Plan it opens a day and half-hour picker, and Plan places a block there", async () => {
+  const onPlan = vi.fn();
+  render(<TaskView task={card()} today={T} onSave={vi.fn()} onPlan={onPlan} onClose={() => {}} />);
+  await userEvent.click(screen.getByRole("button", { name: "Plan it" }));
+  const d = screen.getByRole("dialog", { name: "Plan it", hidden: true });
+  await userEvent.selectOptions(within(d).getByLabelText("Time"), "630");
+  await userEvent.click(within(d).getByRole("button", { name: "Plan" }));
+  expect(files.calls).toContainEqual(["agent:placeBlock", { task_id: "t1", date: T, start: "10:30", mins: 30 }]);
+  expect(onPlan).not.toHaveBeenCalled();
+});

@@ -1190,3 +1190,16 @@
   -webkit-mask: var(--claude-stamp) center / contain no-repeat; mask: var(--claude-stamp) center / contain no-repeat;
 }
 .docket.is-claude.is-done .dk-print::after { opacity: 0.08; }
+
+/* ---------- plan it: a small centred dialog over the ticket ---------- */
+.planit {
+  width: min(calc(400 * var(--u)), calc(100vw - 32px)); padding: 0; border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink); font-family: var(--font-print); box-shadow: 0 calc(10 * var(--u)) calc(30 * var(--u)) rgb(0 0 0 / 0.18);
+}
+.planit::backdrop { background: rgb(0 0 0 / 0.16); }
+.planit-body { display: grid; gap: calc(12 * var(--u)); padding: calc(20 * var(--u)); }
+.planit-clash { margin: 0; min-height: 1.4em; font-size: calc(15 * var(--u)); color: var(--ink-2); }
+.planit .sheet-actions button {
+  padding: calc(9 * var(--u)) calc(16 * var(--u)); font-size: calc(17 * var(--u)); line-height: 1; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
+}
+.planit .sheet-actions .sheet-save { background: var(--ink); color: var(--surface); border-color: var(--ink); }
