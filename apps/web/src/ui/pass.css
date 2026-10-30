@@ -1203,3 +1203,7 @@
   padding: calc(9 * var(--u)) calc(16 * var(--u)); font-size: calc(17 * var(--u)); line-height: 1; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
 }
 .planit .sheet-actions .sheet-save { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+/* The add drawer any room can raise with n: always from the bottom, as the phone's add sheet. */
+.addrawer { inset: auto 0 0 0; width: 100vw; height: auto; max-height: 92dvh; border-left: 0; border-top: 1px solid var(--rule); padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); overflow: visible; }
+.addrawer[open] { animation-name: sheet-up; }

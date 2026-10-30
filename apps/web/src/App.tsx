@@ -13,6 +13,7 @@ import { AllTasks } from "./ui/AllTasks";
 import { Stats } from "./ui/Stats";
 import { Tidy } from "./ui/Tidy";
 import { Epics } from "./ui/Epics";
+import { GlobalKeys } from "./ui/GlobalKeys";
 import { Hero, HeroShell } from "./ui/Hero";
 import { Kanban } from "./ui/Kanban";
 import { Matrix } from "./ui/Matrix";
@@ -108,9 +109,15 @@ function Rooms({ cached }: { cached?: string }) {
   useEffect(() => {
     if (room !== "share" && pendingShare()) go("share");
   }, [room]);
-  if (room === "share" || room === "settings" || room === "suggested") return <SideRoom key={room} room={room} />;
-  if (room === "stats" || room === "tasks" || room === "tidy" || room === "calendar") return <AccountRoom key={room} room={room} />;
-  return room === "day" ? <Home cached={cached} /> : <WorkRoom key={room} room={room} />;
+  if (room === "day") return <Home cached={cached} />;
+  return (
+    <>
+      <GlobalKeys room={room} />
+      {room === "share" || room === "settings" || room === "suggested" ? <SideRoom key={room} room={room} />
+        : room === "stats" || room === "tasks" || room === "tidy" || room === "calendar" ? <AccountRoom key={room} room={room} />
+        : <WorkRoom key={room} room={room} />}
+    </>
+  );
 }
 
 function Home({ cached }: { cached?: string }) {
