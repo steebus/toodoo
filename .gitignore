@@ -13,3 +13,6 @@ docs/private/
 # local tool output (may capture real task data)
 /.impeccable/
 /.playwright-mcp/
+
+# brag skill intermediates (frames, stems, scratch renders)
+brag-output/work/

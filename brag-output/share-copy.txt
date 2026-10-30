@@ -1,0 +1,1 @@
+Built myself a day planner that runs like a kitchen pass: Claude drops the morning's tasks onto the rail at 6:30, Auto plan fires them onto the timeline around my calendar, and done gets a biro tick. toodoo.
