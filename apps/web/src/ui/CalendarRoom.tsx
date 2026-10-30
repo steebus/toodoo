@@ -15,7 +15,7 @@ import { useNarrow } from "../lib/useNarrow";
 import { clock12, compactDate, longDate } from "./format";
 import { PlusIcon, PlanModeIcon } from "./icons";
 import { PlanSheet } from "./PlanSheet";
-import { HeaderControls } from "./RoomShell";
+import { DateControls, HeaderControls } from "./RoomShell";
 import { epicStyle } from "./Slip";
 import { TaskView } from "./TaskView";
 import { Toast } from "./Toast";
@@ -104,13 +104,15 @@ export function CalendarRoom({ all, actions }: { all: Everything; actions: WorkA
 
   return (
     <main className="room-main calendar" data-dragging={dragging ? "" : undefined}>
-      <HeaderControls>
+      <DateControls>
         <nav className="cal-nav" aria-label="Month">
           <button type="button" className="cal-step" aria-label="Previous month" onClick={() => setMonth(stepMonth(month, -1))}>‹</button>
           <span className="cal-month-name" aria-live="polite">{monthLabel(month, narrow)}</span>
           <button type="button" className="cal-step" aria-label="Next month" onClick={() => setMonth(stepMonth(month, 1))}>›</button>
           {month !== monthOf(all.today) && <button type="button" className="room-button is-quiet cal-today" onClick={() => setMonth(monthOf(all.today))}>Today</button>}
         </nav>
+      </DateControls>
+      <HeaderControls>
         <div className="cal-show" role="group" aria-label="Show">
           <button type="button" className="room-toggle" aria-pressed={show.due} title="Show tasks on their due day" onClick={() => toggle("due")}>Due</button>
           <button type="button" className="room-toggle" aria-pressed={show.plans} title="Show planned time" onClick={() => toggle("plans")}>Plans</button>

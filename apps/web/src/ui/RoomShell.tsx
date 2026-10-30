@@ -75,12 +75,20 @@ export function HeaderControls({ children }: { children: ReactNode }) {
   if (slot === undefined) return <div className="room-head">{children}</div>;
   return slot && createPortal(children, slot);
 }
+// The same for the date's place in the header row: the calendar's month picker stands where the date does.
+const DateSlot = createContext<HTMLElement | null | undefined>(undefined);
+export function DateControls({ children }: { children: ReactNode }) {
+  const slot = useContext(DateSlot);
+  if (slot === undefined) return <>{children}</>;
+  return slot && createPortal(children, slot);
+}
 const OWN_CORNER: Room[] = ["board", "epics", "matrix", "stats", "calendar"];
 
 // The Board, Epics, Matrix and Share rooms: the Day view's own header row (today's date and line, then Focus and
 // the presets, or the room's own controls), then a page that scrolls. A preset or Focus goes to the Day view.
 export function RoomShell({ room, board, offline, children }: Props) {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [dateSlot, setDateSlot] = useState<HTMLElement | null>(null);
   const model = board ? buildPass(board, DEFAULT_VIEW) : null;
   const split = loadSplit();
   const active = PRESETS.find((p) => Math.abs(PRESET_SPLIT[p] - split) < 0.5) ?? "";
@@ -116,12 +124,13 @@ export function RoomShell({ room, board, offline, children }: Props) {
             onPreset={toPreset}
             onFocus={focus}
             offline={offline}
+            dateSlot={room === "calendar" ? setDateSlot : undefined}
             end={OWN_CORNER.includes(room) ? <div className="topbar-slot" ref={setSlot} /> : undefined}
           />
         </div>
       </div>
       {/* motion for the pages too: the ticket's pen tick, the Matrix's dots */}
-      <MotionRoot><HeaderSlot value={slot}>{children}</HeaderSlot></MotionRoot>
+      <MotionRoot><HeaderSlot value={slot}><DateSlot value={dateSlot}>{children}</DateSlot></HeaderSlot></MotionRoot>
     </div>
   );
 }

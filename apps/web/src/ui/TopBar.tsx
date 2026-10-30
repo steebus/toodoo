@@ -15,12 +15,13 @@ type Props = {
   room?: Room; // the room nav, and which room is lit; none in the fixture
   nav?: { date: string; today: string; onDate: (d: string) => void }; // the Day: the date steps through days
   onFocus?: () => void; // Focus on the task in hand; missing when there is nothing on the line now or next
+  dateSlot?: (el: HTMLElement | null) => void; // a room's own controls in the date's place (the calendar's month picker)
   end?: ReactNode; // a room's own controls in the right-hand corner, in place of Focus and the presets
 };
 
 // The one header row, the same in every room: the wordmark (its chevron opens the menu: theme, share, sign out)
 // and rooms, the date (on the Day, ‹ date › through the days) over the day's line, Focus, and the Plan · Capture presets.
-export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, end, celebrate = false, offline = false, unsaved = false, reconnecting = false, room, nav }: Props) {
+export function TopBar({ date, dateShort, headline, total, presets, activePreset, onPreset, onFocus, end, dateSlot, celebrate = false, offline = false, unsaved = false, reconnecting = false, room, nav }: Props) {
   const line = useRef<HTMLParagraphElement>(null);
   useFitText(line, headline, 0.6);
   useClearOfRooms(line);
@@ -29,8 +30,8 @@ export function TopBar({ date, dateShort, headline, total, presets, activePreset
       <p className="r-wordmark wordmark">{room ? <AppMenu /> : "toodoo"}</p>
       {room && <RoomNav room={room} />}
       {offline && <span className="offline-stamp" role="status">{unsaved ? "unsaved" : reconnecting ? "reconnecting" : "offline"}</span>}
-      <h1 className="r-date date" aria-label={nav ? longDate(nav.date) : date}>
-        {nav ? <DayNav {...nav} /> : <DateText date={date} short={dateShort} />}
+      <h1 className="r-date date" aria-label={dateSlot ? undefined : nav ? longDate(nav.date) : date}>
+        {dateSlot ? <span className="date-slot" ref={dateSlot} /> : nav ? <DayNav {...nav} /> : <DateText date={date} short={dateShort} />}
       </h1>
       {/* The hero line: the one thing that moves on first paint (CSS, so it never waits on script). */}
       <p ref={line} className="r-headline headline" title={headline || undefined}>
