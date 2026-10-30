@@ -25,7 +25,26 @@ const dayMonth = (day: number, mon: number, year: string, today: string): string
   return pick(+year + 1);
 };
 
-type Chip = { kind: "date" | "time" | "priority" | "tag" | "estimate" | "epic" | "assignee" | "description" | "checklist"; text: string };
+// The time after a ^ (130pm, 1:30pm, 1330, 930, 9, now) as minutes into the day; null when it is not a time.
+// Bare hours 1–6 mean pm, as "at 3" does. "now" is the next 5 minutes.
+export function parsePlanTime(s: string, nowM: number): number | null {
+  const l = s.toLowerCase();
+  if (l === "now") { const n = Math.ceil(nowM / 5) * 5; return n < 1440 ? n : null; }
+  const m = /^(\d{1,2})(?:[:.]?([0-5]\d))?(am|pm)?$/.exec(l);
+  if (!m) return null;
+  let h = +m[1];
+  const min = +(m[2] ?? 0);
+  if (m[3]) {
+    if (h < 1 || h > 12) return null;
+    h = (h % 12) + (m[3] === "pm" ? 12 : 0);
+  } else {
+    if (h > 23) return null;
+    if (h >= 1 && h <= 6) h += 12;
+  }
+  return h * 60 + min;
+}
+
+type Chip = { kind: "date" | "time" | "plan" | "priority" | "tag" | "estimate" | "epic" | "assignee" | "description" | "checklist"; text: string };
 type EpicRef = { id: string; title: string; status?: string };
 
 // "+launch" or "+web-re" picks the open epic whose title, or one of its words, starts that way.
@@ -38,13 +57,14 @@ export function epicFor(word: string, epics: EpicRef[]): EpicRef | null {
     ?? null;
 }
 
-export const QUICKADD_HINT = "Add: tomorrow 3pm !high ~45m #tag +epic";
+export const QUICKADD_HINT = "Add: tomorrow 3pm !high ~45m #tag +epic ^now";
 
-export function parseQuickAdd(input: string, today: string, _nowM: number, epics: EpicRef[] = []) {
+export function parseQuickAdd(input: string, today: string, nowM: number, epics: EpicRef[] = []) {
   let epic_id: string | null = null;
   let due: string | null = null, time: string | null = null, priority: "high" | "med" | "low" | null = null;
   let estimate_mins: number | null = null;
   let assignee: "claude" | null = null;
+  let plan: number | null = null; // ^time: plan it at this time (minutes into the day) on its due day
   const tags: string[] = [];
   const chips: Chip[] = [];
   const keep: string[] = [];
@@ -76,6 +96,11 @@ export function parseQuickAdd(input: string, today: string, _nowM: number, epics
       return "";
     };
     const setDate = (value: string, text: string) => { due = value; chips.push({ kind: "date", text: lead("on") + text }); };
+    // "^1:30pm": the task is planned at that time. The word is taken whole, so it never reads as a due time.
+    if (plan === null && w[0] === "^") {
+      const at = parsePlanTime(w.slice(1), nowM);
+      if (at !== null) { plan = at; chips.push({ kind: "plan", text: w }); continue; }
+    }
     if (!due && l === "today") { setDate(today, w); continue; }
     if (!due && (l === "tomorrow" || l === "tmrw")) { setDate(addDays(today, 1), w); continue; }
     if (!due && (DAYS.includes(l) || FULL_DAYS.includes(l))) {
@@ -124,5 +149,5 @@ export function parseQuickAdd(input: string, today: string, _nowM: number, epics
     }
     keep.push(w);
   }
-  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, epic_id, assignee, description, checklist, chips };
+  return { title: keep.join(" "), due, time, priority, tags, estimate_mins, epic_id, assignee, plan, description, checklist, chips };
 }

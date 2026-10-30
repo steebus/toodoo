@@ -154,6 +154,7 @@ export function Hero({ board, quickAdd, actions, nav }: Props) {
             quickAdd={quickAdd}
             onAdd={actions?.add}
             onCreate={actions?.create}
+            onPlace={actions?.addAndPlace}
             onOpen={showTask}
             onTick={actions?.tick}
             onPlan={actions && !offline ? ((id) => void actions.planTasks([id], board.date)) : undefined}
@@ -171,7 +172,7 @@ export function Hero({ board, quickAdd, actions, nav }: Props) {
           <AddSheet today={board.today} nowM={board.nowM} initial={adding} epics={board.epics} tags={model.tags} onAdd={(t) => {
             setTab("today");
             return actions.add(t);
-          }} onClose={() => setAdding(null)} onFailed={setAdding} onExpand={(line) => setDraft(draftFrom(line))} />
+          }} onPlace={actions.addAndPlace} onClose={() => setAdding(null)} onFailed={setAdding} onExpand={(line) => setDraft(draftFrom(line))} />
         )}
         {actions && viewTask && (
           <TaskView key={viewTask.id} task={viewTask} today={board.today} offline={offline} epics={board.epics} tagPool={model.tags} editTitle={editTitle}

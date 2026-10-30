@@ -54,6 +54,7 @@ export function AddButton({ onClick, disabled }: { onClick: () => void; disabled
 type SheetProps = {
   today: string; nowM: number; initial: string;
   onAdd: (t: NewTask) => Promise<boolean>;
+  onPlace?: (t: NewTask, date: string, start: number, mins: number) => Promise<boolean>;
   onClose: () => void;
   onFailed: (line: string) => void; // the add did not take: open again with what was typed
   onExpand: (line: string) => void; // swiped up: the full ticket, blank but for what was typed
@@ -63,7 +64,7 @@ type SheetProps = {
 
 // The quick add in a bottom sheet. Enter files the line and the sheet drops away, so the new docket can fly
 // from where the input was to its rail.
-export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, onExpand, epics, tags }: SheetProps) {
+export function AddSheet({ today, nowM, initial, onAdd, onPlace, onClose, onFailed, onExpand, epics, tags }: SheetProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = dialog.current!;
@@ -86,6 +87,7 @@ export function AddSheet({ today, nowM, initial, onAdd, onClose, onFailed, onExp
       onClick={(e) => e.target === dialog.current && onClose()}
     >
       <QuickAdd today={today} nowM={nowM} initial={initial} epics={epics} tags={tags} tools
+        onPlace={onPlace && ((t, date, start, mins) => { onClose(); return onPlace(t, date, start, mins); })}
         onExpand={(line) => { onClose(); onExpand(line); }}
         onAdd={(t, line) => {
           onClose();

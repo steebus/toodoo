@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import type { Epic } from "@shared/epics.ts";
-import { addDays } from "@shared/planning.ts";
+import { addDays, defaultBlockMins } from "@shared/planning.ts";
 import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
 import { ATTACH_MAX_FILES } from "@shared/attachments.ts";
 import type { NewTask } from "../lib/useActions";
@@ -15,6 +15,7 @@ type Props = {
   onCreate?: (t: NewTask, files: File[]) => Promise<string | null>; onOpen?: (id: string) => void;
   epics?: Pick<Epic, "id" | "title" | "status" | "colour">[]; // for +epic
   tools?: boolean; // the phone's add sheet: a row of dials that write the grammar for you
+  onPlace?: (t: NewTask, date: string, start: number, mins: number) => Promise<boolean>; // ^time: files the task onto the line
   onExpand?: (line: string) => void; // a swipe up on the add area: carry what is typed to a full, blank ticket
   tags?: string[]; // tags in use: a #tag being typed offers the one it starts (Tab, → or a tap takes it)
 };
@@ -107,7 +108,7 @@ function DialButton({ dial, at, typed, disabled, onTurn }: { dial: Dial; at: num
 }
 
 // Parses as you type and shows what it understood. Enter files it; a line with no title is not filed.
-export function QuickAdd({ today, nowM, initial = "", onAdd, onCreate, onOpen, disabled, epics = [], tools = false, tags = [], onExpand }: Props) {
+export function QuickAdd({ today, nowM, initial = "", onAdd, onCreate, onOpen, onPlace, disabled, epics = [], tools = false, tags = [], onExpand }: Props) {
   const [line, setLine] = useState(initial);
   const [invalid, setInvalid] = useState(false);
   const parsed = parseQuickAdd(line, today, nowM, epics);
@@ -147,7 +148,10 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, onCreate, onOpen, d
       ...(parsed.checklist.length ? { checklist: parsed.checklist } : null),
     };
     const undo = () => { setLine((cur) => cur || typed); setFiles((cur) => (cur.length ? cur : held)); };
-    if (onCreate) void onCreate(task, held).then((id) => (id ? open && onOpen?.(id) : undo()));
+    if (parsed.plan !== null && onPlace) {
+      const mins = defaultBlockMins(task);
+      void onPlace(task, parsed.due ?? today, Math.min(parsed.plan, 1440 - mins), mins).then((ok) => ok || undo());
+    } else if (onCreate) void onCreate(task, held).then((id) => (id ? open && onOpen?.(id) : undo()));
     else void onAdd?.(task, typed).then((ok) => ok || undo());
   };
 
@@ -256,7 +260,7 @@ export function ParsedChips({ parsed, epics = [], className = "chips", children 
         return (
           <li key={`${c.kind}-${i}`} className={`chip${high ? " chip-high" : ""}${live.current ? " chip-pop" : ""}`}>
             {c.kind === "date" && <CalendarIcon className="chip-icon" />}
-            {(c.kind === "time" || c.kind === "estimate") && <ClockIcon className="chip-icon" />}
+            {(c.kind === "time" || c.kind === "plan" || c.kind === "estimate") && <ClockIcon className="chip-icon" />}
             {c.kind === "assignee" && <ClaudeStamp className="chip-icon" />}
             {c.kind === "priority" && <span className="chip-bang" aria-hidden>!</span>}
             {c.kind === "epic" && (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseQuickAdd } from "./quickadd.ts";
+import { parsePlanTime, parseQuickAdd } from "./quickadd.ts";
 
 const T = "2026-10-12"; // a Monday
 const p = (s: string, nowM = 9 * 60) => parseQuickAdd(s, T, nowM);
@@ -157,5 +157,31 @@ describe("parseQuickAdd description and checklist", () => {
   });
   it("lets a quoted dash stay in the description", () => {
     expect(p('Fix "use -f flag" -test it')).toMatchObject({ description: "use -f flag", checklist: [{ text: "test it", done: false }] });
+  });
+});
+
+describe("^ plan time", () => {
+  it("reads the likely formats", () => {
+    const at = (x: string) => parsePlanTime(x, 9 * 60 + 2);
+    expect(at("130pm")).toBe(13 * 60 + 30);
+    expect(at("1:30pm")).toBe(13 * 60 + 30);
+    expect(at("1330")).toBe(13 * 60 + 30);
+    expect(at("930")).toBe(9 * 60 + 30);
+    expect(at("9am")).toBe(9 * 60);
+    expect(at("9")).toBe(9 * 60);
+    expect(at("3")).toBe(15 * 60);
+    expect(at("12am")).toBe(0);
+    expect(at("now")).toBe(9 * 60 + 5);
+    expect(at("25")).toBeNull();
+    expect(at("13pm")).toBeNull();
+    expect(at("soon")).toBeNull();
+  });
+  it("is a plan, not a due time", () => {
+    expect(p("Call Sam ^130pm")).toMatchObject({ title: "Call Sam", plan: 13 * 60 + 30, time: null, due: null });
+    expect(p("Call Sam tomorrow ^now 3pm")).toMatchObject({ title: "Call Sam", plan: 9 * 60 + 0, due: "2026-10-13", time: "15:00" });
+    expect(p("x ^1330").chips).toEqual([{ kind: "plan", text: "^1330" }]);
+  });
+  it("leaves a non-time alone", () => {
+    expect(p("x ^power")).toMatchObject({ title: "x ^power", plan: null });
   });
 });
