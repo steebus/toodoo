@@ -50,8 +50,9 @@ const PRIORITIES: [Priority | null, string][] = [["high", "! HIGH"], ["med", "ME
 // is printed: click the title, the date, a tag, the description... and type; Enter (or leaving it) keeps it,
 // Escape puts it back. A native modal dialog: side sheet on desktop, bottom sheet on the phone. On desktop it also
 // opens out to the full view: the same slip across most of the screen, still over the room, in three columns
-// (what it is and when, the work, the pictures and talk). The four .tk-col groups are that layout's cells; in the
-// side sheet they are not boxes at all, so the slip prints top to bottom as before.
+// (what it is and when, the work, the pictures and talk), each one scrolling as a single block. The .tk-col groups
+// are that layout's cells (.tk-side is the second column when there is only room for two); in the side sheet they
+// are not boxes at all, so the slip prints top to bottom as before.
 export function TaskView({
   task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete, onCreate, createLabel = "Save",
 }: Props) {
@@ -95,6 +96,30 @@ export function TaskView({
        ...(column === "review" ? [["review", CLAUDE_STATUS_LABEL.review, {}] as [string, string, Record<string, unknown>]] : [])];
   const open = epics.filter((e) => e.status !== "done" || e.id === t.epic_id);
 
+  // The link, tags, time and log: last on the side sheet's slip, and in the full view the foot of the first column,
+  // so that column is one length of paper and scrolls as one.
+  const more = (
+    <div className="tk-col tk-col-more">
+    <div className="tk-link">
+      {t.link && <a href={t.link} target="_blank" rel="noreferrer">{t.link.replace(/^https?:\/\//, "")}</a>}
+      <Field label="Link" value={t.link ?? ""} placeholder={t.link ? "EDIT" : "+ Link"} display={null}
+        check={(v) => (!v.trim() || normLink(v) !== undefined ? null : "Not a web address")}
+        onSave={(v) => save({ link: v.trim() || null })} />
+    </div>
+    <Tags tags={t.tags} pool={tagPool} disabled={offline} onSave={(tags) => save({ tags })} />
+    {t.estimate_mins ? (
+      <div className="tk-progress" role="group" aria-label="Time">
+        <dl className="tk-time">
+          <div><dt>SPENT</dt><dd>{formatDuration(spent)}</dd></div>
+          <div><dt>{spent > t.estimate_mins ? "OVER" : "LEFT"}</dt>
+            <dd className={spent > t.estimate_mins ? "is-over" : undefined}>{formatDuration(Math.abs(t.estimate_mins - spent))}</dd></div>
+        </dl>
+        <PenProgress spent={spent} est={t.estimate_mins} />
+      </div>
+    ) : null}
+    {!creating && !isOptimistic(t.id) && <ActivityLog id={t.id} today={today} onClose={onClose} />}
+    </div>
+  );
   return (
     <dialog
       ref={dialog}
@@ -167,8 +192,10 @@ export function TaskView({
           </select>
         </label>
         {!creating && <PrepFor link={t.prep_for ?? null} today={today} disabled={offline} onSave={(prep_for) => save({ prep_for })} />}
+        {full && more}
         </div>
         <p className="tk-dashes tk-dashes-mid" aria-hidden>{DASH}</p>
+        <div className="tk-side">
         <div className="tk-col tk-col-work">
         <Field label="Description" kind="text" value={t.description ?? ""} placeholder="+ Description" className="tk-body"
           display={t.description} onSave={(v) => save({ description: v.trim() || null })} />
@@ -181,26 +208,8 @@ export function TaskView({
               display={t.note} onSave={(v) => save({ note: v.trim() || null })} />
           : <Notes taskId={t.id} legacy={t.note} disabled={offline} />}
         </div>
-        <div className="tk-col tk-col-more">
-        <div className="tk-link">
-          {t.link && <a href={t.link} target="_blank" rel="noreferrer">{t.link.replace(/^https?:\/\//, "")}</a>}
-          <Field label="Link" value={t.link ?? ""} placeholder={t.link ? "EDIT" : "+ Link"} display={null}
-            check={(v) => (!v.trim() || normLink(v) !== undefined ? null : "Not a web address")}
-            onSave={(v) => save({ link: v.trim() || null })} />
         </div>
-        <Tags tags={t.tags} pool={tagPool} disabled={offline} onSave={(tags) => save({ tags })} />
-        {t.estimate_mins ? (
-          <div className="tk-progress" role="group" aria-label="Time">
-            <dl className="tk-time">
-              <div><dt>SPENT</dt><dd>{formatDuration(spent)}</dd></div>
-              <div><dt>{spent > t.estimate_mins ? "OVER" : "LEFT"}</dt>
-                <dd className={spent > t.estimate_mins ? "is-over" : undefined}>{formatDuration(Math.abs(t.estimate_mins - spent))}</dd></div>
-            </dl>
-            <PenProgress spent={spent} est={t.estimate_mins} />
-          </div>
-        ) : null}
-        {!creating && !isOptimistic(t.id) && <ActivityLog id={t.id} today={today} onClose={onClose} />}
-        </div>
+        {!full && more}
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-actions">
           {onCreate && (

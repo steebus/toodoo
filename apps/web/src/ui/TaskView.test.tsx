@@ -173,6 +173,17 @@ it("opens out to the full view and back, and the next ticket opens the way the l
   expect(dialog()).not.toHaveClass("is-wide");
 });
 
+it("puts the link, tags and log at the foot of the first column in the full view, so each column scrolls as one", async () => {
+  const { container } = render(<TaskView task={card({ link: "https://example.com/a" })} today={T} onSave={vi.fn()} onClose={() => {}} />);
+  const more = () => container.querySelector(".tk-col-more")!;
+  expect(more().parentElement).toHaveClass("ticket"); // the side sheet: last on the slip, after the notes
+  expect(more().previousElementSibling).toHaveClass("tk-side");
+  await userEvent.click(screen.getByRole("button", { name: "Full view", hidden: true }));
+  expect(more().parentElement).toHaveClass("tk-col-what");
+  expect(container.querySelectorAll(".tk-col-more")).toHaveLength(1);
+  expect(within(more() as HTMLElement).getByRole("link", { name: "example.com/a", hidden: true })).toBeInTheDocument();
+});
+
 it("keeps the side sheet in Focus, where the timer has the room", () => {
   localStorage.setItem("toodoo.ticket.wide", "1");
   render(<TaskView task={card()} today={T} focus={{ startM: 540, endM: 600 }} onSave={vi.fn()} onClose={() => {}} />);
