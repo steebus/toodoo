@@ -81,6 +81,13 @@ export const CloseIcon = ({ size = 16, className }: P) => (
   </svg>
 );
 
+// The ticket's full view: corners pulled out, and (on) pushed back in.
+export const FullViewIcon = ({ size = 16, className, on = false }: P & { on?: boolean }) => (
+  <svg {...base(size)} strokeWidth={1.8} className={className}>
+    <path d={on ? "M8 3.5V8H3.5M12 16.5V12h4.5M8 8L3.5 3.5M12 12l4.5 4.5" : "M11.5 4H16v4.5M8.5 16H4v-4.5M16 4l-5 5M4 16l5-5"} />
+  </svg>
+);
+
 // ---------- the rooms and modes, each a sketch of its own screen ----------
 // Day: a desk calendar, today's date on its page.
 export const DayIcon = ({ size = 22, className }: P) => (

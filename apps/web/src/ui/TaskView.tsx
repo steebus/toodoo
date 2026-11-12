@@ -12,7 +12,7 @@ import { Attachments } from "./Attachments";
 import { Checklist } from "./Checklist";
 import { Notes } from "./Notes";
 import { shortDate } from "./format";
-import { CloseIcon, PenProgress, PenTick } from "./icons";
+import { CloseIcon, FullViewIcon, PenProgress, PenTick } from "./icons";
 import { KitchenTimer } from "./KitchenTimer";
 import { PlanIt } from "./PlanIt";
 import { isOptimistic } from "../lib/optimistic";
@@ -42,11 +42,16 @@ type Props = TaskViewActions & {
 };
 
 const DASH = "-".repeat(80);
+const WIDE_KEY = "toodoo.ticket.wide"; // the last view the ticket was left in, on this browser
+const wasWide = () => { try { return localStorage.getItem(WIDE_KEY) === "1"; } catch { return false; } };
 const PRIORITIES: [Priority | null, string][] = [["high", "! HIGH"], ["med", "MED"], ["low", "LOW"], [null, "NONE"]];
 
 // A task, its ticket: the docket blown up into a side sheet of thermal paper. Everything on it edits where it
 // is printed: click the title, the date, a tag, the description... and type; Enter (or leaving it) keeps it,
-// Escape puts it back. A native modal dialog: side sheet on desktop, bottom sheet on the phone.
+// Escape puts it back. A native modal dialog: side sheet on desktop, bottom sheet on the phone. On desktop it also
+// opens out to the full view: the same slip across most of the screen, still over the room, in three columns
+// (what it is and when, the work, the pictures and talk). The four .tk-col groups are that layout's cells; in the
+// side sheet they are not boxes at all, so the slip prints top to bottom as before.
 export function TaskView({
   task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete, onCreate, createLabel = "Save",
 }: Props) {
@@ -76,6 +81,12 @@ export function TaskView({
   const creating = !!onCreate;
   const [filing, setFiling] = useState(false);
   const [planning, setPlanning] = useState(false);
+  const [wide, setWide] = useState(wasWide);
+  const full = wide && !focus; // Focus keeps the side sheet: the timer has the room beside it
+  const toggleWide = () => {
+    try { localStorage.setItem(WIDE_KEY, wide ? "0" : "1"); } catch { /* holds for this visit */ }
+    setWide(!wide);
+  };
   // The column chips follow whoever it is assigned to: Claude's lane for Claude's tasks, Steve's otherwise.
   const column: string = assignedToClaude(t) ? claudeColumn(t) : t.claude_status === "review" ? "review" : t.status ?? "todo";
   const columns: [string, string, Record<string, unknown>][] = assignedToClaude(t)
@@ -87,7 +98,7 @@ export function TaskView({
   return (
     <dialog
       ref={dialog}
-      className={`sheet sheet-ticket${focus ? " is-focus" : ""}${epic?.colour ? " has-epic" : ""}`}
+      className={`sheet sheet-ticket${focus ? " is-focus" : ""}${full ? " is-wide" : ""}${epic?.colour ? " has-epic" : ""}`}
       style={epic?.colour ? { ["--epic" as string]: `var(--epic-${epic.colour})` } : undefined}
       aria-labelledby="ticket-title"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
@@ -97,6 +108,12 @@ export function TaskView({
       {focus && <KitchenTimer startM={focus.startM} endM={focus.endM} />}
       <article className={`ticket${t.done ? " is-done" : ""}${high ? " is-high" : ""}`}>
         <button type="button" className="tk-close" aria-label="Close" onClick={onClose}><CloseIcon size={18} /></button>
+        {!focus && (
+          <button type="button" className="tk-wide" aria-label="Full view" title={full ? "Side view" : "Full view"} aria-pressed={full} onClick={toggleWide}>
+            <FullViewIcon size={18} on={full} />
+          </button>
+        )}
+        <div className="tk-col tk-col-what">
         <div className="tk-head">
           <Field label="Date" kind="date" value={t.due ?? ""} display={when && <span className={late ? "tk-late" : undefined}>{when}</span>} placeholder="+ DATE"
             onSave={(v) => save({ due: v || null })} />
@@ -150,15 +167,21 @@ export function TaskView({
           </select>
         </label>
         {!creating && <PrepFor link={t.prep_for ?? null} today={today} disabled={offline} onSave={(prep_for) => save({ prep_for })} />}
-        <p className="tk-dashes" aria-hidden>{DASH}</p>
+        </div>
+        <p className="tk-dashes tk-dashes-mid" aria-hidden>{DASH}</p>
+        <div className="tk-col tk-col-work">
         <Field label="Description" kind="text" value={t.description ?? ""} placeholder="+ Description" className="tk-body"
           display={t.description} onSave={(v) => save({ description: v.trim() || null })} />
         <Checklist items={t.checklist ?? []} onChange={(checklist) => void save({ checklist })} disabled={offline} />
+        </div>
+        <div className="tk-col tk-col-talk">
         {!creating && !isOptimistic(t.id) && <Attachments taskId={t.id} disabled={offline} />}
         {creating || isOptimistic(t.id)
           ? <Field label="Note" kind="text" value={t.note ?? ""} placeholder="+ Note" className="tk-note"
               display={t.note} onSave={(v) => save({ note: v.trim() || null })} />
           : <Notes taskId={t.id} legacy={t.note} disabled={offline} />}
+        </div>
+        <div className="tk-col tk-col-more">
         <div className="tk-link">
           {t.link && <a href={t.link} target="_blank" rel="noreferrer">{t.link.replace(/^https?:\/\//, "")}</a>}
           <Field label="Link" value={t.link ?? ""} placeholder={t.link ? "EDIT" : "+ Link"} display={null}
@@ -177,6 +200,7 @@ export function TaskView({
           </div>
         ) : null}
         {!creating && !isOptimistic(t.id) && <ActivityLog id={t.id} today={today} onClose={onClose} />}
+        </div>
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-actions">
           {onCreate && (

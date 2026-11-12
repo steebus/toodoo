@@ -23,7 +23,7 @@ vi.mock("convex/react", async () => {
 
 import { TaskView } from "./TaskView";
 
-afterEach(() => { cleanup(); files.list = []; files.notes = []; files.calls = []; });
+afterEach(() => { cleanup(); files.list = []; files.notes = []; files.calls = []; localStorage.clear(); });
 const T = "2026-10-15";
 const card = (o: Partial<FullTask> = {}): FullTask => ({
   id: "t1", title: "Demo script", due: null, time: null, priority: null, estimate_mins: null, done: false, done_on: null, sort_order: 1,
@@ -157,4 +157,25 @@ it("Plan it opens a day and half-hour picker, and Plan places a block there", as
   await userEvent.click(within(d).getByRole("button", { name: "Plan" }));
   expect(files.calls).toContainEqual(["agent:placeBlock", { task_id: "t1", date: T, start: "10:30", mins: 30 }]);
   expect(onPlan).not.toHaveBeenCalled();
+});
+
+it("opens out to the full view and back, and the next ticket opens the way the last was left", async () => {
+  const { unmount } = render(<TaskView task={card()} today={T} onSave={vi.fn()} onClose={() => {}} />);
+  const dialog = () => screen.getByRole("dialog", { hidden: true });
+  expect(dialog()).not.toHaveClass("is-wide");
+  await userEvent.click(screen.getByRole("button", { name: "Full view", hidden: true }));
+  expect(dialog()).toHaveClass("is-wide");
+  expect(screen.getByRole("button", { name: "Full view", hidden: true })).toHaveAttribute("aria-pressed", "true");
+  unmount();
+  render(<TaskView task={card({ id: "t2" })} today={T} onSave={vi.fn()} onClose={() => {}} />);
+  expect(dialog()).toHaveClass("is-wide");
+  await userEvent.click(screen.getByRole("button", { name: "Full view", hidden: true }));
+  expect(dialog()).not.toHaveClass("is-wide");
+});
+
+it("keeps the side sheet in Focus, where the timer has the room", () => {
+  localStorage.setItem("toodoo.ticket.wide", "1");
+  render(<TaskView task={card()} today={T} focus={{ startM: 540, endM: 600 }} onSave={vi.fn()} onClose={() => {}} />);
+  expect(screen.getByRole("dialog", { hidden: true })).not.toHaveClass("is-wide");
+  expect(screen.queryByRole("button", { name: "Full view", hidden: true })).toBeNull();
 });
