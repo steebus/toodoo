@@ -30,21 +30,39 @@ const subscribe = (cb: () => void) => {
 // The order rooms sit in, left to right: a page slides in from the side it sits on.
 const ORDER: Room[] = [...ROOMS.map((r) => r.room), "tasks", "suggested", "tidy", "stats", "share", "settings"];
 
-// Going to a room slides the page across under a header that stays put (a view transition, where the browser has
-// them). ponytail: the browser's own back and forward cut straight across; route popstate through here to slide those too
+// Slides the page across under a header that stays put (a view transition, where the browser has them and motion
+// is welcome), toward the side the new room sits on; update moves the app there.
+function slide(from: Room, to: Room, update: () => void) {
+  const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!document.startViewTransition || still || from === to) return update();
+  const root = document.documentElement;
+  root.dataset.nav = ORDER.indexOf(to) < ORDER.indexOf(from) ? "back" : "forward";
+  document.startViewTransition(() => flushSync(update)).finished.finally(() => delete root.dataset.nav);
+}
+
+// Going to a room: a new history entry, and the app told by a popstate of its own.
 export function go(room: Room) {
   const path = pathOf(room);
   if (window.location.pathname === path) return;
-  const from = roomOf(window.location.pathname);
-  const swap = () => {
+  slide(roomOf(window.location.pathname), room, () => {
     window.history.pushState(null, "", path);
     window.dispatchEvent(new PopStateEvent("popstate"));
-  };
-  const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  if (!document.startViewTransition || still) return swap();
-  const root = document.documentElement;
-  root.dataset.nav = ORDER.indexOf(room) < ORDER.indexOf(from) ? "back" : "forward";
-  document.startViewTransition(() => flushSync(swap)).finished.finally(() => delete root.dataset.nav);
+  });
+}
+
+// The browser's own back and forward slide too. Their popstate (trusted, unlike the app's) is held here, before
+// anything else hears it (this listener is added as the module loads, ahead of every component's), and replayed
+// inside the slide, so the room and the day both change in its new frame. Not where the browser already drew its
+// own (a swipe back on a phone).
+let at: Room = typeof window === "undefined" ? "day" : roomOf(window.location.pathname);
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", (e) => {
+    const from = at;
+    at = roomOf(window.location.pathname);
+    if (!e.isTrusted || from === at || (e as PopStateEvent & { hasUAVisualTransition?: boolean }).hasUAVisualTransition) return;
+    e.stopImmediatePropagation();
+    slide(from, at, () => window.dispatchEvent(new PopStateEvent("popstate", { state: e.state })));
+  });
 }
 
 export function useRoute(): [Room, (r: Room) => void] {

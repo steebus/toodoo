@@ -382,6 +382,20 @@ it("Ctrl + wheel zooms the line, within its limits, and the zoom is kept", async
 });
 
 it("counts the blocks wholly out of sight below or above the line, and a pill goes to the nearest", async () => {
+  // A stand-in observer: told to look, it reports each watched block as the browser would, from the rects below.
+  let look = () => {};
+  vi.stubGlobal("IntersectionObserver", class {
+    targets = new Set<Element>();
+    constructor(cb: IntersectionObserverCallback) {
+      look = () => act(() => cb([...this.targets].map((target) => {
+        const b = target.getBoundingClientRect(), r = target.closest(".plan-scroll")!.getBoundingClientRect();
+        return { target, boundingClientRect: b, isIntersecting: b.bottom > r.top && b.top < r.bottom } as IntersectionObserverEntry;
+      }), this as unknown as IntersectionObserver));
+    }
+    observe(el: Element) { this.targets.add(el); }
+    unobserve(el: Element) { this.targets.delete(el); }
+    disconnect() { this.targets.clear(); }
+  });
   show();
   const sc = document.querySelector<HTMLElement>(".plan-scroll")!;
   const block = sc.querySelector<HTMLElement>(".plan-block")!;
@@ -389,15 +403,16 @@ it("counts the blocks wholly out of sight below or above the line, and a pill go
   sc.getBoundingClientRect = () => rect(100, 300);
   block.scrollIntoView = vi.fn();
   block.getBoundingClientRect = () => rect(500, 40); // past the foot
-  act(() => { sc.dispatchEvent(new Event("scroll")); });
+  look();
   await userEvent.click(await screen.findByRole("button", { name: "1 below" }));
   expect(block.scrollIntoView).toHaveBeenCalled();
   block.getBoundingClientRect = () => rect(20, 40); // over the head
-  act(() => { sc.dispatchEvent(new Event("scroll")); });
+  look();
   expect(await screen.findByRole("button", { name: "1 above" })).toBeInTheDocument();
   block.getBoundingClientRect = () => rect(380, 40); // partly in sight: not out of it
-  act(() => { sc.dispatchEvent(new Event("scroll")); });
+  look();
   await waitFor(() => expect(screen.queryByRole("button", { name: /above|below/ })).toBeNull());
+  vi.unstubAllGlobals();
 });
 
 it("an event opens its menu and makes a prep task, with undo", async () => {

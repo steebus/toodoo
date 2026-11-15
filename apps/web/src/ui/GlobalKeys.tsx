@@ -6,6 +6,7 @@ import { useBoard } from "../lib/useBoard";
 import type { Room } from "../lib/useRoute";
 import { HelpSheet } from "./HelpSheet";
 import { QuickAdd } from "./QuickAdd";
+import { lightDismiss } from "../lib/lightDismiss";
 
 // The keys every room shares, for the rooms that don't have the Day's own (it keeps its handler): n focuses the page's
 // add line, or opens one in a drawer from the bottom when the page has none; ? lists what this page answers to.
@@ -62,7 +63,7 @@ function Drawer({ board, onClose }: { board: NonNullable<ReturnType<typeof useBo
   return (
     <dialog ref={dialog} className="sheet addsheet addrawer quickadd-roomy" aria-label="Add a to do"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
-      onClick={(e) => e.target === dialog.current && onClose()}>
+      {...lightDismiss(onClose)}>
       <QuickAdd today={board.today} nowM={board.nowM} epics={board.epics} tags={tags} disabled={actions.offline}
         onAdd={(t) => { onClose(); return actions.add(t); }}
         onPlace={(t, date, start, mins) => { onClose(); return actions.addAndPlace(t, date, start, mins); }} />

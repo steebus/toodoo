@@ -5,6 +5,7 @@ import { ATTACH_MAX_FILES, fileKind, fileSize, isPicture, type Attachment } from
 import { useAttach } from "../lib/upload";
 import { ChevronIcon, CloseIcon, DownloadIcon, PencilIcon, SwapIcon, TrashIcon } from "./icons";
 import { Paperclip } from "./Paperclip";
+import { composing } from "../lib/ime";
 
 type Props = { taskId: string; disabled?: boolean };
 type Pending = { key: number; name: string; pct: number };
@@ -309,7 +310,7 @@ function FileBar({ file: f, line = false, disabled, onRename, onReplace, onDelet
           onChange={(e) => setDraft(e.target.value)} onBlur={() => void keep()}
           onFocus={(e) => e.target.setSelectionRange(0, f.name.replace(/\.[^.]+$/, "").length || f.name.length)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); void keep(); }
+            if (e.key === "Enter" && !composing(e)) { e.preventDefault(); void keep(); }
             else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setNaming(false); }
           }} />
       ) : line ? (

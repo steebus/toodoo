@@ -5,6 +5,8 @@ import type { FullTask } from "@shared/snapshot.ts";
 import { isOptimistic, type NewTask } from "../lib/useActions";
 import { clock12 } from "./format";
 import type { BoardData } from "./types";
+import { lightDismiss } from "../lib/lightDismiss";
+import { NARROW } from "../lib/useNarrow";
 
 type Option = { key: string; label: string; why?: string; create?: true; task?: FullTask };
 
@@ -17,7 +19,7 @@ type Props = {
   onClose: () => void;
 };
 
-const narrow = () => typeof window.matchMedia === "function" && window.matchMedia("(max-width: 819px)").matches;
+const narrow = () => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches;
 
 // What goes in an empty slot: suggestions first, then other open tasks, or a new one typed in quick-add grammar.
 // A popover beside the slot on desktop, a modal bottom sheet under 820px. Esc closes; focus goes back to the opener.
@@ -108,7 +110,7 @@ export function SlotPicker({ at, board, style, onPick, onCreate, onClose }: Prop
         e.preventDefault();
         onClose();
       }}
-      onClick={(e) => e.target === dialog.current && sheet && onClose()}
+      {...lightDismiss(onClose, sheet)}
       onBlur={(e) => {
         // The popover is not modal, so focus leaving it closes it (the sheet traps focus itself).
         if (!sheet && !closing.current && !(e.relatedTarget instanceof Node && dialog.current?.contains(e.relatedTarget))) onClose();

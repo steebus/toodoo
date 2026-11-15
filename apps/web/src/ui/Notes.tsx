@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { composing } from "../lib/ime";
 
 type Note = { id: string; parent_id: string | null; author: "steve" | "claude"; text: string; created_at: number };
 type Props = { taskId: string; legacy?: string | null; disabled?: boolean };
@@ -39,7 +40,7 @@ export function Notes({ taskId, legacy = null, disabled = false }: Props) {
       <textarea value={value} rows={1} aria-label={label} placeholder={label === "Reply" ? "Reply" : "+ Note"} autoFocus={autoFocus} disabled={disabled}
         maxLength={2000} onChange={(e) => set(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit();
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !composing(e)) e.currentTarget.form?.requestSubmit();
           if (e.key === "Escape" && label === "Reply") { e.stopPropagation(); set(""); done(); }
         }} />
       {value.trim() && <button type="submit" className="tk-act" disabled={disabled}>{label === "Reply" ? "Reply" : "Add"}</button>}

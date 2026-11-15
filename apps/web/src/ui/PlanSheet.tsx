@@ -9,6 +9,7 @@ import { DndProvider } from "./DndProvider";
 import { longDate } from "./format";
 import { CloseIcon } from "./icons";
 import { Toast } from "./Toast";
+import { lightDismiss } from "../lib/lightDismiss";
 
 // The Day's planner for one day, in a modal over the Calendar: the line with Next up and Auto plan, as on the Day.
 // A frame of its own (a .pass, split all the way across) so the planner lays out as it does there.
@@ -27,7 +28,7 @@ export function PlanSheet({ date, onOpen, onClose }: { date: string; onOpen?: (i
   return (
     <dialog ref={dialog} className="sheet plansheet" aria-label={`Plan ${longDate(date)}`}
       onCancel={(e) => { e.preventDefault(); onClose(); }}
-      onClick={(e) => e.target === dialog.current && onClose()}>
+      {...lightDismiss(onClose)}>
       <div className="plansheet-head">
         <h2 className="plansheet-title">Plan · {longDate(date)}</h2>
         <button type="button" className="plansheet-x" aria-label="Close" onClick={onClose}><CloseIcon size={16} /></button>

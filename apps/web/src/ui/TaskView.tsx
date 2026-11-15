@@ -17,6 +17,8 @@ import { KitchenTimer } from "./KitchenTimer";
 import { PlanIt } from "./PlanIt";
 import { isOptimistic } from "../lib/optimistic";
 import { openDay } from "../lib/useViewDate";
+import { composing } from "../lib/ime";
+import { lightDismiss } from "../lib/lightDismiss";
 
 export type TaskViewActions = {
   onSave: (patch: Record<string, unknown>) => Promise<boolean>; // false: refused, so the field stays open with what was typed
@@ -128,7 +130,7 @@ export function TaskView({
       aria-labelledby="ticket-title"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onKeyDown={(e) => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); } }}
-      onClick={(e) => e.target === dialog.current && !creating && onClose()} // a ticket being written is not lost to a stray tap
+      {...lightDismiss(onClose, !creating)} // a ticket being written is not lost to a stray tap
     >
       {focus && <KitchenTimer startM={focus.startM} endM={focus.endM} />}
       <article className={`ticket${t.done ? " is-done" : ""}${high ? " is-high" : ""}`}>
@@ -342,7 +344,7 @@ function Field({ label, value, display, placeholder = "", kind = "word", classNa
   };
   const keys = (e: KeyboardEvent) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); back.current = true; setEditing(false); setProblem(null); return; }
-    if (e.key === "Enter" && (kind !== "text" || e.metaKey || e.ctrlKey)) { e.preventDefault(); back.current = true; void commit(); }
+    if (e.key === "Enter" && !composing(e) && (kind !== "text" || e.metaKey || e.ctrlKey)) { e.preventDefault(); back.current = true; void commit(); }
   };
   if (!editing) {
     const shownValue = display !== null && display !== undefined && display !== "" ? display : null;
@@ -391,7 +393,7 @@ function Tags({ tags, pool, disabled, onSave }: { tags: string[]; pool: string[]
       <input className="tk-tag-add" value={line} placeholder="+ tag" aria-label="Add a tag" disabled={disabled} maxLength={60} list="tk-tag-pool"
         onChange={(e) => setLine(e.target.value)} onBlur={add}
         onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); add(); }
+          if (e.key === "Enter" && !composing(e)) { e.preventDefault(); add(); }
           if (e.key === "Escape" && line) { e.preventDefault(); e.stopPropagation(); setLine(""); }
         }} />
     </div>

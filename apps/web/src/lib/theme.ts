@@ -17,6 +17,8 @@ export function loadTheme(): Theme {
 export function applyTheme(t: Theme, root = document.documentElement) {
   if (t === "auto") delete root.dataset.theme;
   else root.dataset.theme = t;
+  const meta = root.ownerDocument.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
+  if (meta) meta.content = t === "auto" ? "light dark" : t;
 }
 
 export function setTheme(t: Theme) {

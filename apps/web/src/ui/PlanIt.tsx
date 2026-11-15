@@ -5,6 +5,7 @@ import { defaultBlockMins, timedEvents, toHM, toMin } from "@shared/planning.ts"
 import type { FullTask } from "@shared/snapshot.ts";
 import { clock12 } from "./format";
 import type { BoardData } from "./types";
+import { lightDismiss } from "../lib/lightDismiss";
 
 const FIRST = 6 * 60; // the line's first and last half hour
 const LAST = 21 * 60 + 30;
@@ -58,7 +59,7 @@ export function PlanIt({ task, today, onNextFree, onClose }: { task: FullTask; t
   return (
     <dialog ref={dialog} className="planit" aria-label="Plan it"
       onCancel={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
-      onClick={(e) => e.target === dialog.current && onClose()}>
+      {...lightDismiss(onClose)}>
       <div className="planit-body">
         <div className="sheet-pair">
           <label className="sheet-field"><span>Date</span>

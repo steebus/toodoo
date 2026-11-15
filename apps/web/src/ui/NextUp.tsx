@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { addDays, dayWord } from "@shared/planning.ts";
 import type { AutoPlanOptions } from "../lib/useActions";
 import { ChevronIcon } from "./icons";
 import type { NextUpItem } from "./types";
+import { usePopover } from "../lib/usePopover";
 
 type Props = {
   items: NextUpItem[]; onOpen?: (id: string) => void; open?: boolean; onToggle?: () => void;
@@ -68,34 +69,25 @@ function loadPrefs(): Prefs {
 // opens them: the window, the day, keep what's planned, lunch, the buffer after meetings, slack, and Replan from now.
 function AutoPlan({ date, today, run, replan }: Partial<NonNullable<Props["autoPlan"]>>) {
   const [prefs, setPrefs] = useState(loadPrefs);
-  const [menu, setMenu] = useState(false);
+  const pop = usePopover();
   const [day, setDay] = useState(date ?? today ?? "");
-  const root = useRef<HTMLDivElement>(null);
   useEffect(() => setDay(date ?? ""), [date]);
-  useEffect(() => {
-    if (!menu) return;
-    const away = (e: MouseEvent) => { if (!root.current?.contains(e.target as Node)) setMenu(false); };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
-  }, [menu]);
   const set = (p: Partial<Prefs>) => {
     const next = { ...prefs, ...p };
     setPrefs(next);
     try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* holds for this visit */ }
   };
-  const go = (d: string) => { setMenu(false); run?.({ date: d, ...prefs }); };
+  const go = (d: string) => { pop.close(); run?.({ date: d, ...prefs }); };
   const days = today ? Array.from({ length: 7 }, (_, i) => addDays(today, i)) : [];
   const bad = prefs.until <= prefs.from;
   return (
-    <div className="autoplan" ref={root}>
+    <div className="autoplan" ref={pop.rootRef}>
       <button type="button" className="plan-all" disabled={!run || !date || bad} onClick={() => go(date!)}>Auto plan</button>
-      <button type="button" className="autoplan-more" aria-label="Auto plan options" aria-expanded={menu} disabled={!run} onClick={() => setMenu((x) => !x)}>
-        <ChevronIcon size={14} className={`nextup-chevron${menu ? " is-open" : ""}`} />
+      <button type="button" className="autoplan-more" aria-label="Auto plan options" disabled={!run} {...pop.buttonProps}>
+        <ChevronIcon size={14} className={`nextup-chevron${pop.open ? " is-open" : ""}`} />
       </button>
-      {menu && (
-        <div className="autoplan-menu" role="dialog" aria-label="Auto plan options">
+      {pop.shown && (
+        <div className="autoplan-menu" role="dialog" aria-label="Auto plan options" {...pop.panelProps}>
           <div className="autoplan-row">
             <label>From <input type="time" step={300} value={prefs.from} onChange={(e) => e.target.value && set({ from: e.target.value })} /></label>
             <label>To <input type="time" step={300} value={prefs.until} onChange={(e) => e.target.value && set({ until: e.target.value })} /></label>
@@ -127,7 +119,7 @@ function AutoPlan({ date, today, run, replan }: Partial<NonNullable<Props["autoP
             <button type="button" className="autoplan-go" disabled={bad || !day} onClick={() => go(day)}>Plan {dayWord(day || today!, today!)}</button>
           </div>
           {day === today && (
-            <button type="button" className="autoplan-replan" disabled={bad} onClick={() => { setMenu(false); replan?.({ date: today!, ...prefs }); }}>
+            <button type="button" className="autoplan-replan" disabled={bad} onClick={() => { pop.close(); replan?.({ date: today!, ...prefs }); }}>
               Replan from now
               <span>Missed blocks off, the rest of today refilled, what won't fit onto tomorrow</span>
             </button>

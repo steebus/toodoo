@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { Epic } from "@shared/epics.ts";
 import type { NewTask } from "../lib/useActions";
 import { QuickAdd } from "./QuickAdd";
+import { lightDismiss } from "../lib/lightDismiss";
 
 export type Tab = "today" | "plan";
 // A sideways swipe across the page goes between Plan and Today, as if they sat side by side. Not one that starts on
@@ -84,7 +85,7 @@ export function AddSheet({ today, nowM, initial, onAdd, onPlace, onClose, onFail
         e.preventDefault();
         onClose();
       }}
-      onClick={(e) => e.target === dialog.current && onClose()}
+      {...lightDismiss(onClose)}
     >
       <QuickAdd today={today} nowM={nowM} initial={initial} epics={epics} tags={tags} tools
         onPlace={onPlace && ((t, date, start, mins) => { onClose(); return onPlace(t, date, start, mins); })}

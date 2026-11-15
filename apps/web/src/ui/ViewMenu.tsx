@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { NO_EPIC, NO_TAG, type GroupBy, type SortBy, type View } from "@shared/board.ts";
 import { SlidersIcon } from "./icons";
+import { usePopover } from "../lib/usePopover";
 
 const GROUPS: [GroupBy, string][] = [["status", "Due"], ["column", "Status"], ["priority", "Priority"], ["epic", "Epic"], ["tag", "Tag"], ["source", "Source"]];
 const SORTS: [SortBy, string][] = [["manual", "Manual"], ["due", "Due"], ["priority", "Priority"], ["time", "Time"], ["tag", "Tag"], ["effort", "Effort"]];
@@ -9,30 +10,15 @@ type Props = {
   view: View; tags: string[]; epics?: { id: string; title: string }[]; onChange: (v: View) => void;
 };
 
-// A sliders icon that opens a small panel of settings; Escape or a click away closes it.
+// A sliders icon that opens a small panel of settings; Escape or a click away closes it (usePopover).
 export function SettingsMenu({ label = "View", children }: { label?: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [open]);
+  const pop = usePopover();
   return (
-    <div className="viewmenu" ref={root}>
-      <button type="button" className="viewmenu-button" aria-label={label} title={label} aria-haspopup="dialog" aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}>
+    <div className="viewmenu" ref={pop.rootRef}>
+      <button type="button" className="viewmenu-button" aria-label={label} title={label} aria-haspopup="dialog" {...pop.buttonProps}>
         <SlidersIcon />
       </button>
-      {open && <div className="viewmenu-pop" role="dialog" aria-label={label}>{children}</div>}
+      {pop.shown && <div className="viewmenu-pop" role="dialog" aria-label={label} {...pop.panelProps}>{children}</div>}
     </div>
   );
 }

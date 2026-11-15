@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 // The phone layout: bottom tabs, swipeable dockets, sheets. Matches the CSS breakpoint in pass.css.
-export const NARROW = "(max-width: 819px)";
+export const NARROW = "(max-width: 51.1875em)";
 
 const query = () => (typeof window.matchMedia === "function" ? window.matchMedia(NARROW) : null);
 const subscribe = (cb: () => void) => {

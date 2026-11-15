@@ -254,35 +254,38 @@ export function Timeline({ plan, board, actions, onOpen, zoom = 1, onZoom, previ
   }, [!!onZoom]); // eslint-disable-line react-hooks/exhaustive-deps -- refs only
 
   // Blocks wholly out of sight, above and below what shows of the line (its own scroll on a desktop, the page's on
-  // a phone): counted for the pills at either end. Measured from the drawn blocks, so zoom and drags just work.
+  // a phone): counted for the pills at either end. Watched on the drawn blocks, so zoom and drags just work.
   const [out, setOut] = useState({ above: 0, below: 0 });
-  const measure = useRef(() => {});
-  measure.current = () => {
-    const sc = scroller.current;
-    if (!sc) return;
-    const r = sc.getBoundingClientRect();
-    const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, window.innerHeight);
-    let above = 0, below = 0;
-    sc.querySelectorAll(".plan-block").forEach((el) => {
-      const b = el.getBoundingClientRect();
-      if (b.bottom <= top + 1) above++;
-      else if (b.top >= bottom - 1) below++;
+  // One observer, told when a block goes wholly out of sight or comes back (the browser clips by the line's own
+  // scroll and the window both), so scrolling never measures anything. Where a block went: past the head or the foot.
+  const io = useRef<IntersectionObserver | null>(null);
+  useLayoutEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const where = new Map<Element, "above" | "below" | null>();
+    const obs = new IntersectionObserver((entries) => {
+      const sc = scroller.current;
+      if (!sc) return;
+      const r = sc.getBoundingClientRect();
+      const mid = (Math.max(r.top, 0) + Math.min(r.bottom, window.innerHeight)) / 2;
+      for (const e of entries) {
+        const b = e.boundingClientRect;
+        where.set(e.target, e.isIntersecting ? null : b.top + b.height / 2 < mid ? "above" : "below");
+      }
+      let above = 0, below = 0;
+      for (const [el, w] of where) {
+        if (!el.isConnected) { where.delete(el); obs.unobserve(el); }
+        else if (w === "above") above++;
+        else if (w === "below") below++;
+      }
+      setOut((o) => (o.above === above && o.below === below ? o : { above, below }));
     });
-    setOut((o) => (o.above === above && o.below === below ? o : { above, below }));
-  };
-  useLayoutEffect(() => measure.current());
-  useEffect(() => {
-    const sc = scroller.current;
-    const on = () => measure.current();
-    sc?.addEventListener("scroll", on, { passive: true });
-    window.addEventListener("scroll", on, { passive: true });
-    window.addEventListener("resize", on);
-    return () => {
-      sc?.removeEventListener("scroll", on);
-      window.removeEventListener("scroll", on);
-      window.removeEventListener("resize", on);
-    };
+    io.current = obs;
+    return () => { obs.disconnect(); io.current = null; };
   }, []);
+  // Blocks come and go with the plan: watch each drawn one (observing one already watched does nothing).
+  useLayoutEffect(() => {
+    scroller.current?.querySelectorAll(".plan-block").forEach((el) => io.current?.observe(el));
+  });
   // A pill takes you to the nearest block out of sight that way.
   const reveal = (dir: "above" | "below") => {
     const sc = scroller.current;

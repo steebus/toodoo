@@ -5,6 +5,7 @@ import { parseQuickAdd, QUICKADD_HINT } from "@shared/quickadd.ts";
 import { ATTACH_MAX_FILES } from "@shared/attachments.ts";
 import type { NewTask } from "../lib/useActions";
 import { CalendarIcon, ClaudeStamp, ClockIcon } from "./icons";
+import { composing } from "../lib/ime";
 
 // Where the last line was filed from, so its docket can fly out of the input (see TodoPanel).
 export const launch: { from: DOMRect | null; at: number } = { from: null, at: 0 };
@@ -186,7 +187,7 @@ export function QuickAdd({ today, nowM, initial = "", onAdd, onCreate, onOpen, o
           setFiles((cur) => [...cur, ...pics].slice(0, ATTACH_MAX_FILES));
         })}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && onCreate && onOpen) {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !composing(e) && onCreate && onOpen) {
             e.preventDefault();
             openAfter.current = true;
             e.currentTarget.form?.requestSubmit();

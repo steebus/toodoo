@@ -6,8 +6,8 @@
   --spring: linear(0, 0.1017, 0.3081, 0.5244, 0.7063, 0.8401, 0.9286, 0.9809, 1.0077, 1.0183, 1.0197, 1.0168, 1.0125, 1.0084, 1.005, 1.0026, 1.0011, 1.0002, 1, 1);
   /* One comp pixel. The frame fills the window and positions scale with it (cqw/cqh); print sizes are comp px
      that shrink with windows narrower than the comp (1536) or shorter than 900, so a small window is the comp
-     in miniature, never clipped. */
-  --u: min(1px, calc(100vw / 1536), calc(100vh / 900));
+     in miniature, never clipped. Capped at 1/16 rem rather than 1px, so the system's text size carries through. */
+  --u: min(0.0625rem, calc(100vw / 1536), calc(100vh / 900)); /* 1px at the default text size, more with a larger one */
   /* 1% of the frame's height, but never so little that a docket's print would not fit on its paper. */
   --ch: max(1cqh, calc(9.6 * var(--u)));
 }
@@ -271,7 +271,7 @@
   100% { clip-path: inset(0 0 0 0); transform: translateY(calc(26 * var(--u))) rotate(6deg); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .qa-feed { display: none; } .add-button { transition: none; } }
-@media (max-width: 819px) { .qa-feed { display: none; } }
+@media (max-width: 51.1875em) { .qa-feed { display: none; } }
 /* What the line parsed into: chips inside the input's right end (no row of their own), the text giving them room. */
 .pass .chips {
   left: auto; right: calc(100% - var(--r-quickadd-x) - var(--r-quickadd-w) + 10 * var(--u)); width: auto; max-width: calc(var(--r-quickadd-w) * 0.55);
@@ -552,6 +552,17 @@
 @keyframes pop-in { from { opacity: 0; transform: translateY(calc(-6 * var(--u))) scale(0.94); } }
 @media (prefers-reduced-motion: reduce) { .viewmenu-pop { animation: none; } .viewmenu-chevron { transition: none; } }
 
+/* As popovers (lib/usePopover) the panels sit in the top layer: tied to their button and right-aligned under it,
+   flipping above or across where the window's edge would cut them. Without anchor positioning the hook sets top
+   and right as it opens. */
+:is(.viewmenu-pop, .autoplan-menu)[popover] { position: fixed; inset: auto; margin: 0; overflow: visible; }
+@supports (position-area: block-end) {
+  :is(.viewmenu-pop, .autoplan-menu)[popover] {
+    position-area: block-end span-inline-start; margin-top: calc(6 * var(--u));
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
 .plan-all { font-family: var(--font-print); font-size: calc(14 * var(--u)); line-height: 1; color: var(--ink-3); }
 .plan-all:disabled { cursor: default; }
 .plan-all:not(:disabled):hover { color: var(--ink); text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
@@ -621,6 +632,10 @@
 }
 /* Sheets spring in from the edge they live on; the room behind softens and blurs as they come. */
 .sheet[open] { animation: sheet-in 0.6s var(--spring) both; }
+/* Scrolling stops at a modal's edge: the room behind never scrolls under it, from inside it or over its backdrop
+   (which has to be a scroll container for overscroll-behavior to hold there). */
+dialog:modal { overscroll-behavior: contain; }
+dialog:modal::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .sheet::backdrop { background: rgb(0 0 0 / 0.16); backdrop-filter: blur(calc(3 * var(--u))); animation: fade-in 0.24s ease-out both; }
 .sheet-form { display: grid; gap: calc(14 * var(--u)); padding: calc(26 * var(--u)) calc(26 * var(--u)) calc(22 * var(--u)); }
 .sheet-title { margin: 0; font-family: var(--font-ui); font-weight: 700; font-size: calc(27 * var(--u)); line-height: 1; }
@@ -640,7 +655,7 @@
 :is(.pass, .room) .sheet-actions button:hover { border-color: var(--ink-3); }
 :is(.pass, .room) .sheet-actions .sheet-save { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 :is(.pass, .room) .sheet-actions .sheet-delete { color: var(--red-ink); border-color: var(--red-soft); }
-@media (max-width: 819px) {
+@media (max-width: 51.1875em) {
   .sheet {
     inset: auto 0 0 0; width: 100vw; height: auto; max-height: 92dvh; border-left: 0; border-top: 1px solid var(--rule);
     box-shadow: 0 calc(-10 * var(--u)) calc(30 * var(--u)) rgb(0 0 0 / 0.14);
@@ -1001,7 +1016,7 @@
   border: 1.5px solid var(--red-ink); border-radius: var(--radius);
 }
 .fault button {
-  font-family: var(--font-print); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink);
+  font-family: var(--font-print); font-size: 0.8125rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink);
   background: none; border: 1px solid var(--rule); border-radius: 2px; padding: var(--space-1) var(--space-3); cursor: pointer;
 }
 .fault button:first-child { color: var(--red-ink); border-color: var(--red-ink); }
@@ -1012,7 +1027,7 @@
 /* ---------- the phone (<820px): the same pass, one room at a time ---------- */
 .fab { display: none; }
 
-@media (max-width: 819px) {
+@media (max-width: 51.1875em) {
   :root { --u: 1px; }
   .pass {
     display: flex; flex-direction: column; container-type: normal;
@@ -1025,10 +1040,10 @@
     padding: 12px 16px 14px; border-bottom: 1px solid var(--rule);
   }
   .topbar :is(.r-wordmark, .r-date, .r-headline, .r-progress) { position: static; width: auto; height: auto; }
-  .wordmark { font-size: 28px; padding: 0; }
+  .wordmark { font-size: 1.75rem; padding: 0; }
   .progress-track { left: 0; bottom: 0; }
-  .date { grid-column: 1 / -1; justify-content: flex-start; margin: 12px 0 0; padding: 0; font-size: 18px; }
-  .headline { grid-column: 1 / -1; justify-content: flex-start; margin-top: 7px; font-size: 15px; line-height: 1.35; white-space: normal; color: var(--ink-2); }
+  .date { grid-column: 1 / -1; justify-content: flex-start; margin: 12px 0 0; padding: 0; font-size: 1.125rem; }
+  .headline { grid-column: 1 / -1; justify-content: flex-start; margin-top: 7px; font-size: 0.9375rem; line-height: 1.35; white-space: normal; color: var(--ink-2); }
   .topbar-rule, .divider-grip, .panel-divider, .dayplan::before, .todo .quickadd { display: none; }
   .offline-stamp { left: calc(118px + env(safe-area-inset-left)); top: calc(19px + env(safe-area-inset-top)); }
   .bumped-slot { left: auto; right: calc(14px + env(safe-area-inset-right)); top: calc(46px + env(safe-area-inset-top)); width: 104px; }
@@ -1045,7 +1060,7 @@
   }
   .pass[data-tab="today"] .dayplan { transform: translateX(-100%); }
   .pass[data-tab="plan"] .todo { transform: translateX(100%); }
-  .pass :is(.r-dayplan-title, .r-todo-title) { position: static; width: auto; height: 28px; padding: 0 16px; font-size: 24px; }
+  .pass :is(.r-dayplan-title, .r-todo-title) { position: static; width: auto; height: 28px; padding: 0 16px; font-size: 1.5rem; }
 
   /* Plan: the title row carries the day nav, the line fills the rest */
   .dayplan { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
@@ -1058,16 +1073,16 @@
   }
   .plan-grid { --lane-left: 21%; --lane-w: 75%; }
   .hour-labels { left: 1%; width: 16%; }
-  .hour-label { font-size: 16px; }
+  .hour-label { font-size: 1rem; }
   .hour-lines { left: 19%; width: 81%; }
-  .plan-block { padding-left: 12px; font-size: 15px; }
+  .plan-block { padding-left: 12px; font-size: 0.9375rem; }
   .plan-block.is-current { padding-left: 10px; }
   .pass .plan-body { padding-left: 12px; }
   .is-current .plan-body { padding-left: 10px; }
   .plan-time { width: 58px; }
   .plan-grip { --grip-w: 70px; } /* the body's 12px and the time's 58px */
-  .pass .plan-out-pill { font-size: 13px; padding: 6px 12px 6px 9px; }
-  .now-time { left: 20px; font-size: 16px; }
+  .pass .plan-out-pill { font-size: 0.8125rem; padding: 6px 12px 6px 9px; }
+  .now-time { left: 20px; font-size: 1rem; }
   .now-rule { left: 72px; }
 
   /* Today: Next up as a strip to thumb along, then the rails */
@@ -1075,10 +1090,10 @@
   .viewmenu-pop { width: min(300px, calc(100vw - 32px)); }
   /* Plan: Next up across the head of the line */
   .dayplan .nextup { position: static; grid-column: 1 / -1; width: auto; margin: 12px 16px 0; padding: 10px 12px 8px; }
-  .nextup .section-label { font-size: 14px; }
-  .plan-all { font-size: 14px; }
-  .nextup-title { font-size: 15px; }
-  .nextup-why { font-size: 13px; }
+  .nextup .section-label { font-size: 0.875rem; }
+  .plan-all { font-size: 0.875rem; }
+  .nextup-title { font-size: 0.9375rem; }
+  .nextup-why { font-size: 0.8125rem; }
   .todo-scroll, .todo-scroll.is-compact {
     position: relative; left: auto; top: auto; width: auto; height: auto; flex: 1; min-height: 0;
     margin-top: 6px; padding: 8px 16px 130px; /* the last stub scrolls clear of the add button */
@@ -1087,16 +1102,16 @@
   /* rails: a bar under each label, the stubs hanging from it */
   .grp-compact { padding-bottom: 20px; padding-right: 0; }
   .grp-compact .grp-head { height: 32px; padding-left: 2px; }
-  .grp-compact .grp-label { font-size: 15px; }
+  .grp-compact .grp-label { font-size: 0.9375rem; }
   .grp-compact .rail-bar { position: relative; z-index: 1; height: 13px; margin: 0; }
   .grp-compact .grp-dockets { gap: 14px; margin-top: -7px; padding: 0 8px 8px; }
   .grp-dockets .docket-compact { height: 66px; -webkit-touch-callout: none; user-select: none; }
   /* The top pick keeps its biro ring on the phone: loosely round the time and the start of the title. */
   .docket-compact .biro-ring { display: block; left: 1%; top: 3%; width: 48%; height: 94%; }
   .docket-compact .dk-print { padding: 7px 54px 0 16px; gap: 14px; }
-  .docket-compact .dk-title { font-size: 17px; line-height: 1.15; white-space: normal; letter-spacing: 0.01em; }
-  .docket-compact.fit-1 .dk-title { font-size: 15.5px; }
-  .docket-compact.fit-2 .dk-title { font-size: 13.5px; }
+  .docket-compact .dk-title { font-size: 1.0625rem; line-height: 1.15; white-space: normal; letter-spacing: 0.01em; }
+  .docket-compact.fit-1 .dk-title { font-size: 0.96875rem; }
+  .docket-compact.fit-2 .dk-title { font-size: 0.84375rem; }
   .docket-compact .dk-open { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; }
   .docket-compact:is(.fit-1, .fit-2) .dk-open { -webkit-line-clamp: 3; }
   .pass .docket-compact .dk-bump { top: 16px; right: 12px; width: 36px; height: 36px; }
@@ -1108,7 +1123,7 @@
   .dk-under-bump { display: grid; place-items: center; width: 44px; height: 44px; margin-left: 10px; color: var(--surface); background: var(--green); border-radius: 50%; }
   .dk-under-acts { display: flex; height: 100%; overflow: hidden; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); pointer-events: auto; }
   .pass .dk-act {
-    width: 82px; height: 100%; font-family: var(--font-print); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink);
+    width: 82px; height: 100%; font-family: var(--font-print); font-size: 0.8125rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink);
   }
   .pass .dk-act + .dk-act { border-left: 1px solid var(--rule); }
 
@@ -1124,7 +1139,7 @@
     content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 5px;
     background: conic-gradient(from -45deg at 50% 100%, var(--paper) 90deg, transparent 0) 0 0 / 8px 5px repeat-x;
   }
-  .fab-print { font-family: var(--font-print); font-size: 10px; letter-spacing: 0.14em; color: var(--paper-ink); }
+  .fab-print { font-family: var(--font-print); font-size: 0.625rem; letter-spacing: 0.14em; color: var(--paper-ink); }
   .pass .fab:disabled { opacity: 0.5; }
   .pass > .topbar { order: 0; }
   .pass-main { order: 2; }
@@ -1138,23 +1153,23 @@
 /* The quick add at thumb size, with its dials: the phone's add sheet, and the share room's new task. */
 .quickadd-roomy .quickadd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .quickadd-roomy :is(.r-quickadd, .r-add-button, .r-chips) { position: static; width: auto; height: 50px; }
-.quickadd-roomy .quickadd-input { padding: 0 14px; font-size: 17px; }
-.quickadd-roomy .add-button { padding: 0 18px; font-size: 17px; }
+.quickadd-roomy .quickadd-input { padding: 0 14px; font-size: 1.0625rem; }
+.quickadd-roomy .add-button { padding: 0 18px; font-size: 1.0625rem; }
 .quickadd-roomy .r-chips { grid-column: 1 / -1; height: 36px; gap: 8px; overflow-x: auto; scrollbar-width: none; }
-.quickadd-roomy .chip { flex: none; font-size: 15px; }
+.quickadd-roomy .chip { flex: none; font-size: 0.9375rem; }
 .quickadd-roomy .chips:empty { display: none; }
 .quickadd-roomy .qa-tools { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto; gap: 5px; }
 :is(.pass, .room) .qa-tool {
   flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; white-space: nowrap;
-  font-family: var(--font-print); font-size: 14px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 18px;
+  font-family: var(--font-print); font-size: 0.875rem; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 18px;
   transition: background-color 0.15s, color 0.15s, transform 0.15s var(--spring);
 }
 :is(.pass, .room) .qa-tool:active { transform: scale(0.94); }
-:is(.pass, .room) .qa-dial { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; min-width: 0; justify-content: center; padding: 0 4px; font-size: 13px; }
+:is(.pass, .room) .qa-dial { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; min-width: 0; justify-content: center; padding: 0 4px; font-size: 0.8125rem; }
 :is(.pass, .room) .qa-dial-val { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 :is(.pass, .room) .qa-dial-grip { display: none; }
 :is(.pass, .room) .qa-tool[aria-pressed="true"] { color: var(--ground); background: var(--ink); border-color: var(--ink); }
-@media (max-width: 819px) and (prefers-reduced-motion: reduce) {
+@media (max-width: 51.1875em) and (prefers-reduced-motion: reduce) {
   .dayplan, .todo, .pass[data-tab="today"] .dayplan, .pass[data-tab="plan"] .todo { transition: none; }
 }
 
@@ -1170,7 +1185,7 @@
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(5 * var(--u)); background: var(--epic); pointer-events: none;
   border-radius: var(--radius) 0 0 var(--radius);
 }
-@media (max-width: 819px) {
+@media (max-width: 51.1875em) {
   .docket-compact.has-epic .dk-print::before { width: 5px; }
 }
 .chip-epic { width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: var(--epic); }

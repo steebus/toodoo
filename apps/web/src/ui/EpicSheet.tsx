@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { EPIC_COLOURS, EPIC_STATUSES, EPIC_STATUS_LABEL, type Epic, type EpicColour } from "@shared/epics.ts";
 import type { EpicFields } from "../lib/useWork";
+import { lightDismiss } from "../lib/lightDismiss";
 
 type Props = {
   epic?: Epic; // none: a new epic
@@ -54,8 +55,7 @@ export function EpicSheet({ epic, colour, offline = false, onSave, onDelete, onC
       className="sheet"
       aria-labelledby="epic-sheet-title"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
-      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
-      onClick={(e) => e.target === dialog.current && onClose()}
+      {...lightDismiss(onClose)}
     >
       <form className="sheet-form" onSubmit={submit}>
         <h2 id="epic-sheet-title" className="sheet-title">{epic ? "Edit epic" : "New epic"}</h2>

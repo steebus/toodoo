@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Room } from "../lib/useRoute";
+import { lightDismiss } from "../lib/lightDismiss";
 
 // Where each applies: the rooms, add and this list work on every page, the presets and Focus on every room but the
 // Day (where they are the Day's own, listed all the same); the ticket keys only on the Day.
@@ -38,7 +39,7 @@ export function HelpSheet({ onClose, room = "day" }: { onClose: () => void; room
         e.preventDefault();
         onClose();
       }}
-      onClick={(e) => e.target === dialog.current && onClose()}
+      {...lightDismiss(onClose)}
     >
       <div className="sheet-form">
         <h2 id="help-title" className="sheet-title">Shortcuts</h2>

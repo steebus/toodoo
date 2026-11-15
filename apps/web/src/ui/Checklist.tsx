@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import type { ChecklistItem } from "@shared/snapshot.ts";
 import { CheckIcon, CloseIcon, CopyIcon, PenTick } from "./icons";
+import { composing } from "../lib/ime";
 
 type Props = {
   items: ChecklistItem[];
@@ -49,7 +50,7 @@ export function Checklist({ items, onChange, disabled, label = "Checklist" }: Pr
     setLine("");
   };
   const enter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter" && e.keyCode !== 13) return;
+    if ((e.key !== "Enter" && e.keyCode !== 13) || composing(e)) return;
     e.preventDefault(); // inside a form: add a step, don't submit it
     add();
   };
@@ -176,7 +177,7 @@ function Blank({ index, onDone }: { index: number; onDone: (text: string, more: 
       <textarea ref={grow} className="cl-text" rows={1} value={draft} maxLength={200} aria-label={`Step ${index + 1}`} placeholder="New step" autoFocus enterKeyHint="next"
         onChange={(e) => setDraft(e.target.value)} onBlur={() => settle(false)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); settle(true); }
+          if ((e.key === "Enter" || e.keyCode === 13) && !composing(e)) { e.preventDefault(); settle(true); }
           else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDraft(""); settled.current = true; onDone("", false); }
         }} />
     </li>
@@ -205,7 +206,7 @@ function Step({ text, index, disabled, onSave, onNext, onPaste }: {
       // phone keyboards may send Enter as a line break rather than a key: same thing, and never the browser's own "next field"
       onBeforeInput={(e) => { if ((e.nativeEvent as InputEvent).inputType === "insertLineBreak") { e.preventDefault(); keep(); onNext(); } }}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); keep(); onNext(); }
+        if ((e.key === "Enter" || e.keyCode === 13) && !composing(e)) { e.preventDefault(); keep(); onNext(); }
         else if (e.key === "Escape" && draft !== text) { e.preventDefault(); e.stopPropagation(); setDraft(text); }
       }} />
   );
