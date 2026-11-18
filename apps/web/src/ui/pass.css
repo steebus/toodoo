@@ -556,6 +556,8 @@
    flipping above or across where the window's edge would cut them. Without anchor positioning the hook sets top
    and right as it opens. */
 :is(.viewmenu-pop, .autoplan-menu)[popover] { position: fixed; inset: auto; margin: 0; overflow: visible; }
+/* Their display: grid outranks the browser's own hiding of a closed popover, so hide it here. */
+:is(.viewmenu-pop, .autoplan-menu)[popover]:not(:popover-open) { display: none; }
 @supports (position-area: block-end) {
   :is(.viewmenu-pop, .autoplan-menu)[popover] {
     position-area: block-end span-inline-start; margin-top: calc(6 * var(--u));
