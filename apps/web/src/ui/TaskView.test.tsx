@@ -173,15 +173,17 @@ it("opens out to the full view and back, and the next ticket opens the way the l
   expect(dialog()).not.toHaveClass("is-wide");
 });
 
-it("puts the link, tags and log at the foot of the first column in the full view, so each column scrolls as one", async () => {
-  const { container } = render(<TaskView task={card({ link: "https://example.com/a" })} today={T} onSave={vi.fn()} onClose={() => {}} />);
-  const more = () => container.querySelector(".tk-col-more")!;
-  expect(more().parentElement).toHaveClass("ticket"); // the side sheet: last on the slip, after the notes
-  expect(more().previousElementSibling).toHaveClass("tk-side");
+it("lays the full view out like an issue: link and tags in the metadata strip, files with the work, notes in the side panel", async () => {
+  const { container } = render(<TaskView task={card({ link: "https://example.com/a", estimate_mins: 30 })} today={T} onSave={vi.fn()} onClose={() => {}} />);
+  const link = () => container.querySelector(".tk-link")!;
+  const time = () => container.querySelector(".tk-progress")!;
+  expect(link().parentElement).toHaveClass("ticket"); // the side sheet: last on the slip, after the notes
+  expect(time().parentElement).toHaveClass("ticket");
   await userEvent.click(screen.getByRole("button", { name: "Full view", hidden: true }));
-  expect(more().parentElement).toHaveClass("tk-col-what");
-  expect(container.querySelectorAll(".tk-col-more")).toHaveLength(1);
-  expect(within(more() as HTMLElement).getByRole("link", { name: "example.com/a", hidden: true })).toBeInTheDocument();
+  expect(link().parentElement).toHaveClass("tk-col-meta");
+  expect(time().parentElement).toHaveClass("tk-col-talk");
+  expect(container.querySelectorAll(".tk-link")).toHaveLength(1);
+  expect(within(link() as HTMLElement).getByRole("link", { name: "example.com/a", hidden: true })).toBeInTheDocument();
 });
 
 it("keeps the side sheet in Focus, where the timer has the room", () => {

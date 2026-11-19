@@ -51,10 +51,10 @@ const PRIORITIES: [Priority | null, string][] = [["high", "! HIGH"], ["med", "ME
 // A task, its ticket: the docket blown up into a side sheet of thermal paper. Everything on it edits where it
 // is printed: click the title, the date, a tag, the description... and type; Enter (or leaving it) keeps it,
 // Escape puts it back. A native modal dialog: side sheet on desktop, bottom sheet on the phone. On desktop it also
-// opens out to the full view: the same slip across most of the screen, still over the room, in three columns
-// (what it is and when, the work, the pictures and talk), each one scrolling as a single block. The .tk-col groups
-// are that layout's cells (.tk-side is the second column when there is only room for two); in the side sheet they
-// are not boxes at all, so the slip prints top to bottom as before.
+// opens out to the full view: the same slip across most of the screen, still over the room, laid out like an issue:
+// the title big across the top, its metadata in a labelled strip under it, the work (description, files, steps) in
+// the main area and the notes in a side panel, each of those two scrolling on its own. The .tk-col groups are that
+// layout's cells; in the side sheet they are not boxes at all, so the slip prints top to bottom.
 export function TaskView({
   task: t, epic, epics = [], tagPool = [], today, progress, offline = false, focus, editTitle, onClose, onSave, onTick, onPlan, onTomorrow, onDelete, onCreate, createLabel = "Save",
 }: Props) {
@@ -98,17 +98,21 @@ export function TaskView({
        ...(column === "review" ? [["review", CLAUDE_STATUS_LABEL.review, {}] as [string, string, Record<string, unknown>]] : [])];
   const open = epics.filter((e) => e.status !== "done" || e.id === t.epic_id);
 
-  // The link, tags, time and log: last on the side sheet's slip, and in the full view the foot of the first column,
-  // so that column is one length of paper and scrolls as one.
-  const more = (
-    <div className="tk-col tk-col-more">
-    <div className="tk-link">
+  // The link and tags: last on the side sheet's slip, and in the full view part of the metadata strip under the title.
+  const details = (
+    <>
+    <div className="tk-link" data-label="Link">
       {t.link && <a href={t.link} target="_blank" rel="noreferrer">{t.link.replace(/^https?:\/\//, "")}</a>}
       <Field label="Link" value={t.link ?? ""} placeholder={t.link ? "EDIT" : "+ Link"} display={null}
         check={(v) => (!v.trim() || normLink(v) !== undefined ? null : "Not a web address")}
         onSave={(v) => save({ link: v.trim() || null })} />
     </div>
     <Tags tags={t.tags} pool={tagPool} disabled={offline} onSave={(tags) => save({ tags })} />
+    </>
+  );
+  // The time and where it has been planned: last on the side sheet's slip, and in the full view under the notes.
+  const foot = (
+    <>
     {t.estimate_mins ? (
       <div className="tk-progress" role="group" aria-label="Time">
         <dl className="tk-time">
@@ -120,7 +124,7 @@ export function TaskView({
       </div>
     ) : null}
     {!creating && !isOptimistic(t.id) && <ActivityLog id={t.id} today={today} onClose={onClose} />}
-    </div>
+    </>
   );
   return (
     <dialog
@@ -140,7 +144,7 @@ export function TaskView({
             <FullViewIcon size={18} on={full} />
           </button>
         )}
-        <div className="tk-col tk-col-what">
+        <header className="tk-col tk-col-head">
         <div className="tk-head">
           <Field label="Date" kind="date" value={t.due ?? ""} display={when && <span className={late ? "tk-late" : undefined}>{when}</span>} placeholder="+ DATE"
             onSave={(v) => save({ due: v || null })} />
@@ -161,7 +165,9 @@ export function TaskView({
           </h2>
           {t.done && <PenTick on draw className="tk-tick" />}
         </div>
-        <div className="tk-chips" role="group" aria-label="Priority">
+        </header>
+        <div className="tk-col tk-col-meta">
+        <div className="tk-chips" role="group" aria-label="Priority" data-label="Priority">
           {PRIORITIES.map(([p, label]) => (
             <button key={label} type="button" className={`tk-chip${p === "high" ? " is-high" : ""}`} aria-pressed={(t.priority ?? null) === p}
               disabled={offline} onClick={() => (t.priority ?? null) !== p && void save({ priority: p })}>{label}</button>
@@ -169,7 +175,7 @@ export function TaskView({
           {t.source !== "you" && <span className="tk-source">{t.source.toUpperCase()} {(t.external_id ?? "").replace(/^\w+:/, "")}</span>}
         </div>
         {!t.done && (
-          <div className="tk-chips" role="group" aria-label="Column">
+          <div className="tk-chips" role="group" aria-label="Column" data-label="Status">
             {columns.map(([s, text, patch]) => (
               <button key={s} type="button" className="tk-chip" aria-pressed={column === s} disabled={offline}
                 onClick={() => column !== s && void save(patch)}>{text.toUpperCase()}</button>
@@ -177,14 +183,14 @@ export function TaskView({
           </div>
         )}
         {!t.done && (
-          <div className="tk-chips" role="group" aria-label="Assigned to">
+          <div className="tk-chips" role="group" aria-label="Assigned to" data-label="Assignee">
             {([["steve", "STEVE"], ["claude", "CLAUDE"]] as const).map(([who, text]) => (
               <button key={who} type="button" className="tk-chip" aria-pressed={(who === "claude") === assignedToClaude(t)} disabled={offline}
                 onClick={() => (who === "claude") !== assignedToClaude(t) && void save({ assignee: who })}>{text}</button>
             ))}
           </div>
         )}
-        <label className="tk-epic">
+        <label className="tk-epic" data-label="Epic">
           <span className="tk-epic-dot" aria-hidden />
           <select value={t.epic_id ?? ""} aria-label="Epic" disabled={offline} onChange={(e) => void save({ epic_id: e.target.value || null })}>
             <option value="">NO EPIC</option>
@@ -194,24 +200,28 @@ export function TaskView({
           </select>
         </label>
         {!creating && <PrepFor link={t.prep_for ?? null} today={today} disabled={offline} onSave={(prep_for) => save({ prep_for })} />}
-        {full && more}
+        {full && details}
         </div>
         <p className="tk-dashes tk-dashes-mid" aria-hidden>{DASH}</p>
-        <div className="tk-side">
         <div className="tk-col tk-col-work">
+        <section className="tk-sec" data-label="Description">
         <Field label="Description" kind="text" value={t.description ?? ""} placeholder="+ Description" className="tk-body"
           display={t.description} onSave={(v) => save({ description: v.trim() || null })} />
+        </section>
+        <section className="tk-sec tk-sec-steps" data-label="Checklist">
         <Checklist items={t.checklist ?? []} onChange={(checklist) => void save({ checklist })} disabled={offline} />
-        </div>
-        <div className="tk-col tk-col-talk">
+        </section>
         {!creating && !isOptimistic(t.id) && <Attachments taskId={t.id} disabled={offline} />}
+        </div>
+        <aside className="tk-col tk-col-talk" data-label="Notes">
         {creating || isOptimistic(t.id)
           ? <Field label="Note" kind="text" value={t.note ?? ""} placeholder="+ Note" className="tk-note"
               display={t.note} onSave={(v) => save({ note: v.trim() || null })} />
           : <Notes taskId={t.id} legacy={t.note} disabled={offline} />}
-        </div>
-        </div>
-        {!full && more}
+        {full && foot}
+        </aside>
+        {!full && details}
+        {!full && foot}
         <p className="tk-dashes" aria-hidden>{DASH}</p>
         <div className="tk-actions">
           {onCreate && (
@@ -270,7 +280,7 @@ function PrepFor({ link, today, disabled, onSave }: { link: PrepLink | null; tod
   const [picking, setPicking] = useState(false);
   if (link && !picking) {
     return (
-      <p className="tk-prep">
+      <p className="tk-prep" data-label="Prep for">
         <span className="tk-prep-label">PREP FOR</span>
         <span className="tk-prep-meeting">{meetingText(link, today)}</span>
         <button type="button" className="tk-prep-x" aria-label="Not prep for this meeting" disabled={disabled} onClick={() => void onSave(null)}>×</button>
@@ -279,7 +289,7 @@ function PrepFor({ link, today, disabled, onSave }: { link: PrepLink | null; tod
   }
   if (!picking) {
     return (
-      <p className="tk-prep">
+      <p className="tk-prep" data-label="Prep for">
         <button type="button" className="tk-prep-add" disabled={disabled} onClick={() => setPicking(true)}>+ PREP FOR A MEETING</button>
       </p>
     );
@@ -290,7 +300,7 @@ function MeetingPick({ today, disabled, onPick }: { today: string; disabled: boo
   const list = useQuery(api.agent.meetings, {});
   const key = (m: { date: string; start: string; title: string }) => `${m.date} ${m.start} ${m.title}`;
   return (
-    <label className="tk-prep">
+    <label className="tk-prep" data-label="Prep for">
       <span className="tk-prep-label">PREP FOR</span>
       <select autoFocus aria-label="Meeting" disabled={disabled || !list} defaultValue=""
         onChange={(e) => { const m = list?.find((x) => key(x) === e.target.value); onPick(m ? { date: m.date, start: m.start, title: m.title } : null); }}
@@ -379,7 +389,7 @@ function Tags({ tags, pool, disabled, onSave }: { tags: string[]; pool: string[]
     if (more.length) void onSave([...tags, ...more]);
   };
   return (
-    <div className="tk-tags" role="group" aria-label="Tags">
+    <div className="tk-tags" role="group" aria-label="Tags" data-label="Tags">
       {tags.map((x) => (
         <span key={x} className="tk-tag">
           #{x}
